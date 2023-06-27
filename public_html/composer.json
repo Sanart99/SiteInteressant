@@ -1,0 +1,8 @@
+{
+    "require": {
+        "php-ds/php-ds": "1.4.*",
+        "vlucas/phpdotenv": "5.5.*",
+        "webonyx/graphql-php": "15.2.*",
+        "react/promise": "2.9.*"
+    }
+}

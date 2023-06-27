@@ -1,0 +1,9 @@
+{
+    "intelephense.format.braces": "k&r",
+    "intelephense.environment.includePaths": [
+        "public_html/lib",
+        "public_html/subdomains",
+        "public_html/vendor",
+        "public_html"
+    ]
+}
