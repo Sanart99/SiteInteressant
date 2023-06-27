@@ -4,6 +4,7 @@ namespace Schema;
 $libDir = __DIR__.'/../../lib';
 require_once $libDir.'/utils/utils.php';
 require_once $libDir.'/db.php';
+require_once $libDir.'/parser.php';
 require_once __DIR__.'/buffers.php';
 dotenv();
 
@@ -18,6 +19,7 @@ use LDLib\General\{
 };
 use React\Promise\Deferred;
 
+use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 
 enum Data:string {
@@ -42,6 +44,13 @@ class QueryType extends ObjectType {
                         'id' => Type::nonNull(Type::id())
                     ],
                     'resolve' => fn($_, $args) => $args['id']
+                ],
+                'parseText' => [
+                    'type' => fn() => Type::string(),
+                    'args' => [
+                        'text' => Type::string()
+                    ],
+                    'resolve' => fn($o, $args) => textToHTML($args['text'])
                 ]
             ]
         ]);
