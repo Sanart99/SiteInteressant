@@ -42,4 +42,18 @@ function connect_to_database(bool $exitOnError = true):\PDO|LDPDO|null {
 function get_tracked_pdo():LDPDO {
     return new LDPDO();
 }
+
+function get_lock($conn, $name, $timeout = 0):int {
+    $sql = <<<SQL
+        IF IS_USED_LOCK('$name') IS NULL THEN
+            SELECT GET_LOCK('$name',$timeout);
+        ELSE SELECT 0;
+        END IF;
+    SQL;
+    return (int)($conn->query($sql, \PDO::FETCH_NUM)->fetch()[0]);
+}
+
+function release_lock($conn, $name):int {
+    return (int)($conn->query("SELECT RELEASE_LOCK('$name')", \PDO::FETCH_NUM)->fetch()[0]);
+}
 ?>
