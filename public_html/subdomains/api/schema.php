@@ -196,6 +196,8 @@ class Context {
     public static int $cost = 0;
 
     public static function init() {
+
+        foreach (getallheaders() as $k => $v) self::$headers[strtolower($k)] = $v;
         
     }
 
