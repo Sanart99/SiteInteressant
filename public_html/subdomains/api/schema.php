@@ -106,7 +106,7 @@ class OperationType extends InterfaceType {
                 ],
                 'resultMessage' => [
                     'type' => fn() => Type::nonNull(Type::string()),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : (is_string($o) ? $o : 'No problem detected.')
+                    'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : 'No problem detected.'
                 ]
             ]
         ];
@@ -121,7 +121,10 @@ class SimpleOperationType extends ObjectType {
             'fields' => [
                 Types::Operation()->getField('success'),
                 Types::Operation()->getField('resultCode'),
-                Types::Operation()->getField('resultMessage')
+                'resultMessage' => [
+                    'type' => fn() => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : (is_string($o) ? $o : 'No problem detected.')
+                ]
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
