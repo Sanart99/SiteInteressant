@@ -59,6 +59,25 @@ class BufferManager {
         return 0;
     }
 
+    public static function get(array $path):?array {
+        $checkPath = function() use($path) {
+            $a =& BufferManager::$result;
+            foreach ($path as $s) {
+                if (array_key_exists($s,$a)) { $a =& $a[$s]; continue; }
+                else return false;
+            }
+            return $a;
+        };
+
+        $v = $checkPath();
+        if (is_array($v)) return $v;
+        BufferManager::exec();
+        $v = $checkPath();
+        if (is_array($v)) return $v;
+        
+        return null;
+    }
+
     public static function exec() {
         while (self::$reqGroup->count() > 0) {
             $start = self::$reqGroup->count();
