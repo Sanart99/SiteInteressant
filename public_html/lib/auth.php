@@ -34,24 +34,24 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
     $m = crypt_password($pwd);
     $stmt = $conn->prepare("SELECT * FROM users WHERE name=? AND password=? LIMIT 1");
     $stmt->execute([$name,$m[2]]);
-    $user = $stmt->fetch(\PDO::FETCH_ASSOC);
-    if ($user == false) { $registerAttempt(null,false,ErrorType::NOTFOUND->name); return ErrorType::NOTFOUND; }
+    $userRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if ($userRow == false) { $registerAttempt(null,false,ErrorType::NOTFOUND->name); return ErrorType::NOTFOUND; }
     
     // Generate session id and register connection
     $sid = bin2hex(random_bytes(16));
     $stmt = $conn->prepare("INSERT INTO connections (user_id,session_id,app_id,created_at,last_activity_at) VALUES(?,?,?,?,?);");
-    if ($stmt->execute([$user['id'],$sid,$appId,$sNow,$sNow]) === false) ErrorType::DATABASE_ERROR; // Couldn't register connection
+    if ($stmt->execute([$userRow['id'],$sid,$appId,$sNow,$sNow]) === false) ErrorType::DATABASE_ERROR; // Couldn't register connection
 
-    $registerAttempt($user['id'],true,null);
+    $registerAttempt($userRow['id'],true,null);
 
     // All good, create cookie
     $time = $rememberMe ? time()+(60*60*24*30) : 0;
     $secure = !((bool)$_SERVER['LD_LOCAL']);
     setcookie("sid", $sid, $time, "/", $domain, $secure, true);
 
-    $row = UsersBuffer::storeRegisteredUser($user);
-    Context::setAuthenticatedUser(RegisteredUser::initFromRow($row));
-    return $row;
+    $user = RegisteredUser::initFromRow(UsersBuffer::storeRegisteredUser($userRow));
+    Context::setAuthenticatedUser($user);
+    return $user;
 }
 
 function logout_user_from_everything(LDPDO $conn, int $userId) {
@@ -71,18 +71,18 @@ function register_user(LDPDO $conn, string $username, string $password, string $
     else if ($inviteRow['user_id'] != null) { delete_cookie("invite_sid"); return ErrorType::UNKNOWN; } // sus
 
     $conn->query("START TRANSACTION");
-    $stmt = $conn->prepare("INSERT INTO users (name,password) VALUES (?,?) RETURNING *");
-    $stmt->execute([$username,crypt_password($password)[2]]);
+    $stmt = $conn->prepare("INSERT INTO users (name,password,registration_date) VALUES (?,?,?) RETURNING *");
+    $stmt->execute([$username,crypt_password($password)[2],(new \DateTime('now'))->format('Y-m-d H:i:s')]);
     if ($stmt->rowCount() != 1) return ErrorType::DATABASE_ERROR;
 
-    $user = $stmt->fetch(\PDO::FETCH_ASSOC);    
+    $userRow = $stmt->fetch(\PDO::FETCH_ASSOC);    
     $stmt = $conn->prepare("UPDATE invite_queues SET user_id=? WHERE code=? AND session_id=? LIMIT 1");
-    $stmt->execute([$user['id'],$inviteRow['code'],$inviteSid]);
+    $stmt->execute([$userRow['id'],$inviteRow['code'],$inviteSid]);
     if ($stmt->rowCount() != 1) return ErrorType::DATABASE_ERROR;
     $conn->query("COMMIT");
-
     setcookie("invite_sid", "", time()-3600, "/", $_SERVER['LD_LINK_DOMAIN']);
-    return $user;
+
+    return RegisteredUser::initFromRow(UsersBuffer::storeRegisteredUser($userRow));
 }
 
 function get_user_from_sid(LDPDO $conn, string $sid):?RegisteredUser {

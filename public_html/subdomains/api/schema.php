@@ -68,7 +68,7 @@ class QueryType extends ObjectType {
                         if (!isset($_COOKIE['sid'])) return null;
                         $user = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
                         if ($user == null) return null;
-                        return $user['data']['id'];
+                        return $user->id;
                     }
                 ]
             ]
@@ -88,7 +88,7 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
-                        return $user instanceof ErrorType ? $user : $user['data']['id'];
+                        return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ],
                 'logoutUserFromEverything' => [
@@ -118,7 +118,7 @@ class MutationType extends ObjectType {
                     'resolve' => function($o, $args) {
                         if (!isset($_COOKIE['invite_sid'])) return ErrorType::OPERATION_UNAUTHORIZED;
                         $user = register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
-                        return $user instanceof ErrorType ? $user : $user['data']['id'];
+                        return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ]
             ]
