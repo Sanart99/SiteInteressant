@@ -62,6 +62,21 @@ class PageInfo {
 }
 
 enum ErrorType {
+    case USER_INVALID;
+    case USERNAME_INVALID;
+    case PASSWORD_INVALID;
+    case EMAIL_INVALID;
+    case EMAIL_DUPLICATE;
+
+    case INVITECODE_INVALID;
+    case INVITECODE_EXPIRED;
+    case INVITECODE_LIMITREACHED;
+    case INVITECODE_NOTFOUND;
+    case INVITECODE_ALREADYPROCESSED;
+
+    case DBLOCK_TAKEN;
+
+    case PROHIBITED;
     case DATABASE_ERROR;
     case OPERATION_UNAUTHORIZED;
     case DUPLICATE;

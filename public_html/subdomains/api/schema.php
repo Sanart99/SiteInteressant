@@ -5,6 +5,8 @@ $libDir = __DIR__.'/../../lib';
 require_once $libDir.'/utils/utils.php';
 require_once $libDir.'/db.php';
 require_once $libDir.'/parser.php';
+require_once $libDir.'/auth.php';
+require_once $libDir.'/user.php';
 require_once __DIR__.'/buffers.php';
 dotenv();
 
@@ -17,8 +19,16 @@ use LDLib\General\{
     ErrorType,
     TypedException
 };
+use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 
+use function LDLib\Auth\{
+    get_user_from_sid,
+    login_user,
+    logout_user_from_everything,
+    process_invite_code,
+    register_user
+};
 use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 
@@ -51,6 +61,15 @@ class QueryType extends ObjectType {
                         'text' => Type::string()
                     ],
                     'resolve' => fn($o, $args) => textToHTML($args['text'])
+                ],
+                'viewer' => [
+                    'type' => fn() => Types::RegisteredUser(),
+                    'resolve' => function() {
+                        if (!isset($_COOKIE['sid'])) return null;
+                        $user = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
+                        if ($user == null) return null;
+                        return $user['data']['id'];
+                    }
                 ]
             ]
         ]);
@@ -61,7 +80,47 @@ class MutationType extends ObjectType {
     public function __construct() {
         parent::__construct([
             'fields' => [
-                
+                'loginUser' => [
+                    'type' => fn() => Types::OperationOnRegisteredUser(),
+                    'args' => [
+                        'username' => Type::nonNull(Type::string()),
+                        'password' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
+                        return $user instanceof ErrorType ? $user : $user['data']['id'];
+                    }
+                ],
+                'logoutUserFromEverything' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        return 'Disconnected from '.(string)logout_user_from_everything(DBManager::getConnection(), $user->id).' device(s).';
+                    }
+                ],
+                'processInviteCode' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'code' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $v = process_invite_code(DBManager::getConnection(), $args['code']);
+                        return $v instanceof ErrorType ? $v : true;
+                    }
+                ],
+                'registerUser' => [
+                    'type' => fn() => Types::OperationOnRegisteredUser(),
+                    'args' => [
+                        'username' => Type::nonNull(Type::string()),
+                        'password' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o, $args) {
+                        if (!isset($_COOKIE['invite_sid'])) return ErrorType::OPERATION_UNAUTHORIZED;
+                        $user = register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
+                        return $user instanceof ErrorType ? $user : $user['data']['id'];
+                    }
+                ]
             ]
         ]);
     }
@@ -191,6 +250,68 @@ class PageInfoType extends ObjectType {
     }
 }
 
+/***** OPERATIONS *****/
+
+class OperationOnRegisteredUserType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Operation()],
+            'fields' => [
+                Types::Operation()->getField('success'),
+                Types::Operation()->getField('resultCode'),
+                Types::Operation()->getField('resultMessage'),
+                'registeredUser' => [
+                    'type' => Types::RegisteredUser(),
+                    'resolve' => fn($o) => $o instanceof ErrorType ? null : $o
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+/*****  *****/
+
+class RegisteredUserType extends ObjectType {
+    public static function authCheck(array $row, ?ResolveInfo $ri=null) {
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser != null && ($authUser->id === $row['data']['id'] || $authUser->titles->contains('Administrator'))) return true;
+        if ($ri != null) Context::addLog($ri->fieldNodes[0]->name->value, "User not authorized.");
+        return false;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => function($o,$args,$context,$ri) {
+                        UsersBuffer::requestFromId($o);
+                        return quickReactPromise(function() use($o,$ri) {
+                            $row = UsersBuffer::getFromId($o);
+                            if ($row == null || !self::authCheck($row,$ri)) return null;
+                            return "USER_{$row['data']['id']}";
+                        });
+                    }
+                ],
+                'name' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => function($o,$args,$context,$ri) {
+                        UsersBuffer::requestFromId($o);
+                        return quickReactPromise(function() use($o,$ri) {
+                            $row = UsersBuffer::getFromId($o);
+                            if ($row == null || !self::authCheck($row,$ri)) return null;
+                            return $row['data']['name'];
+                        });
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /*****  *****/
 class Context {
     public static array $a = [];
@@ -199,13 +320,24 @@ class Context {
     public static int $cost = 0;
 
     public static function init() {
-
+        self::$a = [
+            'authenticatedUser' => null
+        ];
         foreach (getallheaders() as $k => $v) self::$headers[strtolower($k)] = $v;
-        
+
+        if (isset($_COOKIE['sid'])) self::$a['authenticatedUser'] = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
     }
 
     public static function addLog(string $name, string $msg) {
         array_push(self::$logs, "$name: $msg");
+    }
+
+    public static function getAuthenticatedUser():?RegisteredUser {
+        return self::$a['authenticatedUser'];
+    }
+
+    public static function setAuthenticatedUser(RegisteredUser $user):?RegisteredUser {
+        return self::$a['authenticatedUser'] = $user;
     }
 }
 
@@ -362,12 +494,20 @@ class Types {
         return self::$types['PageInfo'] ??= new PageInfoType();
     }
 
+    public static function RegisteredUser():RegisteredUserType {
+        return self::$types['RegisteredUser'] ??= new RegisteredUserType();
+    }
+
     public static function Operation():OperationType {
         return self::$types['Operation'] ??= new OperationType();
     }
 
     public static function SimpleOperation():SimpleOperationType {
         return self::$types['SimpleOperation'] ??= new SimpleOperationType();
+    }
+
+    public static function OperationOnRegisteredUser():OperationOnRegisteredUserType {
+        return self::$types['OperationOnRegisteredUser'] ??= new OperationOnRegisteredUserType();
     }
 
     public static function DateTime():DateTimeType {

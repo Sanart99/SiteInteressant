@@ -16,7 +16,7 @@ use LDLib\General\ {
 use function LDLib\Database\get_tracked_pdo;
 
 enum DataType {
-
+    case User;
 }
 
 class BufferManager {
@@ -92,10 +92,49 @@ class BufferManager {
             $start = self::$req->count();
             foreach (self::$req->getIterator() as $a) {
                 switch ($a[0]) {
-                    /* ... */
+                    case DataType::User: UsersBuffer::exec(self::$conn);
                 }
             }
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
+        }
+    }
+}
+
+class UsersBuffer {
+    public static function storeRegisteredUser(array $row, ?array $metadata = null):array {
+        BufferManager::$req->remove([DataType::User,$row['id']]);
+        BufferManager::$fet->add([DataType::User,$row['id']]);
+        return BufferManager::$result['users'][$row['id']] = ['data' => $row, 'metadata' => $metadata];
+    }
+
+    public static function requestFromId(int $id):bool {
+        return BufferManager::request(DataType::User, $id) == 0;
+    }
+
+    public static function getFromId(int $id):?array {
+        return BufferManager::get(['users',$id]);
+    }
+
+    public static function exec(LDPDO $conn) {
+        $bufRes =& BufferManager::$result;
+        $req =& BufferManager::$req;
+        $fet =& BufferManager::$fet;
+
+        $toRemove = [];
+        foreach ($req->getIterator() as $v) if ($v[0] === DataType::User) {
+            $userId = $v[1];
+
+            $stmt = $conn->prepare("SELECT * FROM users WHERE id=?");
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+            $bufRes['users'][$userId] = $row === false ? null : ['data' => $row, 'metadata' => null];
+            array_push($toRemove,$v);
+            break;
+        }
+        foreach ($toRemove as $v) {
+            $req->remove($v);
+            $fet->add($v);
         }
     }
 }
