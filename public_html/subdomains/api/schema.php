@@ -126,7 +126,7 @@ class MutationType extends ObjectType {
     }
 }
 
-/***** GraphQL Interfaces *****/
+/***** Interfaces *****/
 
 class NodeType extends InterfaceType {
     public function __construct(array $config2 = null) {
@@ -173,6 +173,8 @@ class OperationType extends InterfaceType {
     }
 }
 
+/***** Parent Classes and Unions *****/
+
 class SimpleOperationType extends ObjectType {
     public function __construct(array $config2 = null) {
         $config = [
@@ -189,8 +191,6 @@ class SimpleOperationType extends ObjectType {
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
     }
 }
-
-/***** Parent Classes and Unions *****/
 
 class ConnectionType extends ObjectType {
     public function __construct(callable $edgeType, array $config2 = null) {
@@ -250,7 +250,7 @@ class PageInfoType extends ObjectType {
     }
 }
 
-/***** OPERATIONS *****/
+/***** Operations *****/
 
 class OperationOnRegisteredUserType extends ObjectType {
     public function __construct(array $config2 = null) {
@@ -312,7 +312,8 @@ class RegisteredUserType extends ObjectType {
     }
 }
 
-/*****  *****/
+/***** Support classes *****/
+
 class Context {
     public static array $a = [];
     public static array $headers = [];
@@ -475,6 +476,8 @@ class EmailType extends ScalarType {
     }
 }
 
+/*****  *****/
+
 class Types {
     private static array $types = [];
 
@@ -486,29 +489,39 @@ class Types {
         return self::$types['Mutation'] ??= new MutationType();
     }
 
+    /***** Interfaces *****/
+
     public static function Node():NodeType {
         return self::$types['Node'] ??= new NodeType();
-    }
-
-    public static function PageInfo():PageInfoType {
-        return self::$types['PageInfo'] ??= new PageInfoType();
-    }
-
-    public static function RegisteredUser():RegisteredUserType {
-        return self::$types['RegisteredUser'] ??= new RegisteredUserType();
     }
 
     public static function Operation():OperationType {
         return self::$types['Operation'] ??= new OperationType();
     }
 
+    /***** Parent Classes and Unions *****/
+
     public static function SimpleOperation():SimpleOperationType {
         return self::$types['SimpleOperation'] ??= new SimpleOperationType();
     }
 
+    public static function PageInfo():PageInfoType {
+        return self::$types['PageInfo'] ??= new PageInfoType();
+    }
+
+    /***** Operations *****/
+
     public static function OperationOnRegisteredUser():OperationOnRegisteredUserType {
         return self::$types['OperationOnRegisteredUser'] ??= new OperationOnRegisteredUserType();
     }
+
+    /*****  *****/
+
+    public static function RegisteredUser():RegisteredUserType {
+        return self::$types['RegisteredUser'] ??= new RegisteredUserType();
+    }
+
+    /***** Scalars *****/
 
     public static function DateTime():DateTimeType {
         return self::$types['DateTime'] ??= new DateTimeType();
