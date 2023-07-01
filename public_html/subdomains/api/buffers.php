@@ -157,9 +157,9 @@ class BufferManager {
             $startCursor = $result[0]['cursor'] ?? null;
             $endCursor = $result[count($result)-1]['cursor'] ?? null;
             $hasPreviousPage = ($last != null && $hadMoreResults) ||
-                ($after != null && $conn->query("SELECT _rowid FROM $dbName WHERE $cursWhere1 $whereCond LIMIT 1")->fetch() !== false);
+                ($after != null && $conn->query("SELECT 1 FROM $dbName WHERE $cursWhere1 $whereCond LIMIT 1")->fetch() !== false);
             $hasNextPage = ($first != null && $hadMoreResults) ||
-                ($before != null && $conn->query("SELECT _rowid FROM $dbName WHERE $cursWhere2 $whereCond LIMIT 1")->fetch() !== false);
+                ($before != null && $conn->query("SELECT 1 FROM $dbName WHERE $cursWhere2 $whereCond LIMIT 1")->fetch() !== false);
         }
 
         $storeAll([
