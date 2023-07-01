@@ -350,6 +350,55 @@ class DBManager {
     }
 }
 
+class Generator {
+    public static Set $generatedConnections;
+
+    public static function init() {
+       self::$generatedConnections = new Set();
+    }
+
+    public static function genConnection(string $objectType) {
+        if (preg_match('/^\w+$/',$objectType) === 0) throw new \Exception("genConnection error: $objectType");
+        eval(<<<PHP
+        namespace Schema;
+
+        class {$objectType}sConnectionType extends ConnectionType {
+            public function __construct(array \$config2 = null) {
+                \$config = [
+                    'fields' => [
+                        'edges' => [
+                            'resolve' => fn(\$o) => \$o['data']
+                        ],
+                        'pageInfo' => [
+                            'resolve' => fn(\$o) =>  \$o['metadata']['pageInfo']
+                        ]
+                    ]
+                ];
+                parent::__construct(fn() => Types::getEdgeObjectType('{$objectType}'), \$config2 == null ? \$config : array_merge_recursive_distinct(\$config,\$config2));
+            }
+        }
+        
+        class {$objectType}EdgeType extends EdgeType {
+            public function __construct(array \$config2 = null) {
+                \$config = [
+                    'fields' => [
+                        'node' => [
+                            'resolve' => fn(\$o) => \$o
+                        ],
+                        'cursor' => [
+                            'resolve' => fn(\$o) => \$o['cursor']
+                        ]
+                    ]
+                ];
+                parent::__construct(fn() => Types::{$objectType}(), \$config2 == null ? \$config : array_merge_recursive_distinct(\$config,\$config2));
+            }
+        }
+        PHP);
+        self::$generatedConnections[] = $objectType;
+    }
+}
+Generator::init();
+
 /***** Scalars *****/
 
 class DateTimeType extends ScalarType {
