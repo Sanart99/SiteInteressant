@@ -97,7 +97,7 @@ class MutationType extends ObjectType {
         parent::__construct([
             'fields' => [
                 'forum_newThread' => [
-                    'type' => fn() => Types::OperationOnThread(),
+                    'type' => fn() => Types::getOperationObjectType('OnThread'),
                     'args' => [
                         'title' => Type::nonNull(Type::string()),
                         'tags' => Type::nonNull(Type::listOf(Type::nonNull(Type::string()))),
@@ -151,7 +151,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'loginUser' => [
-                    'type' => fn() => Types::OperationOnRegisteredUser(),
+                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
                     'args' => [
                         'username' => Type::nonNull(Type::string()),
                         'password' => Type::nonNull(Type::string())
@@ -180,7 +180,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'registerUser' => [
-                    'type' => fn() => Types::OperationOnRegisteredUser(),
+                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
                     'args' => [
                         'username' => Type::nonNull(Type::string()),
                         'password' => Type::nonNull(Type::string())
@@ -324,41 +324,6 @@ class PageInfoType extends ObjectType {
 
 /***** Operations *****/
 
-class OperationOnRegisteredUserType extends ObjectType {
-    public function __construct(array $config2 = null) {
-        $config = [
-            'interfaces' => [Types::Operation()],
-            'fields' => [
-                Types::Operation()->getField('success'),
-                Types::Operation()->getField('resultCode'),
-                Types::Operation()->getField('resultMessage'),
-                'registeredUser' => [
-                    'type' => Types::RegisteredUser(),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? null : $o
-                ]
-            ]
-        ];
-        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
-    }
-}
-
-class OperationOnThreadType extends ObjectType {
-    public function __construct(array $config2 = null) {
-        $config = [
-            'interfaces' => [Types::Operation()],
-            'fields' => [
-                Types::Operation()->getField('success'),
-                Types::Operation()->getField('resultCode'),
-                Types::Operation()->getField('resultMessage'),
-                'thread' => [
-                    'type' => Types::Thread(),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? null : $o
-                ]
-            ]
-        ];
-        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
-    }
-}
 
 /*****  *****/
 
@@ -598,6 +563,9 @@ class Generator {
 
     public static function init() {
        self::$generatedConnections = new Set();
+
+       self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
+       self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
     }
 
     public static function genConnection(string $objectType) {
@@ -827,6 +795,10 @@ class Types {
         return self::$types["{$s}Edge"] ??= (new \ReflectionClass("\\Schema\\{$s}EdgeType"))->newInstance();
     }
 
+    public static function getOperationObjectType(string $name) {
+        return self::$types["Operation{$name}Type"] ??= (new \ReflectionClass("\\Schema\\Operation{$name}Type"))->newInstance();
+    }
+
     /***** Interfaces *****/
 
     public static function Node():NodeType {
@@ -848,14 +820,6 @@ class Types {
     }
 
     /***** Operations *****/
-
-    public static function OperationOnRegisteredUser():OperationOnRegisteredUserType {
-        return self::$types['OperationOnRegisteredUser'] ??= new OperationOnRegisteredUserType();
-    }
-
-    public static function OperationOnThread():OperationOnThreadType {
-        return self::$types['OperationOnThread'] ??= new OperationOnThreadType();
-    }
 
     /*****  *****/
 
