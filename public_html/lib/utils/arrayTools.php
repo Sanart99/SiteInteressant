@@ -1,5 +1,7 @@
 <?php
-class ExploreException extends Exception {
+namespace LDLib\Utils\ArrayTools;
+
+class ExploreException extends \Exception {
 	public function __construct($msg, $code = 0, $throwable = null) {
 		parent::__construct($msg,$code,$throwable);
 	}
