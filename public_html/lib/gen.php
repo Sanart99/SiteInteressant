@@ -77,6 +77,11 @@ enum ErrorType {
     case INVITECODE_NOTFOUND;
     case INVITECODE_ALREADYPROCESSED;
 
+    case TITLE_TOOLONG;
+    case MESSAGE_TOOSHORT;
+    case MESSAGE_TOOLONG;
+    case TAG_INVALID;
+
     case DBLOCK_TAKEN;
 
     case PROHIBITED;
@@ -84,6 +89,7 @@ enum ErrorType {
     case OPERATION_UNAUTHORIZED;
     case DUPLICATE;
     case NOTFOUND;
+    case EXPIRED;
     case UNKNOWN;
 }
 

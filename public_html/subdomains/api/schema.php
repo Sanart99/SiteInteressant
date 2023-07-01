@@ -7,6 +7,8 @@ require_once $libDir.'/db.php';
 require_once $libDir.'/parser.php';
 require_once $libDir.'/auth.php';
 require_once $libDir.'/user.php';
+require_once $libDir.'/forum.php';
+require_once $libDir.'/utils/arrayTools.php';
 require_once __DIR__.'/buffers.php';
 dotenv();
 
@@ -20,8 +22,10 @@ use LDLib\General\{
     ErrorType,
     TypedException
 };
+use LDLib\Forum\{Thread, Comment, ThreadPermission};
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
+use LDLib\General\PaginationVals;
 
 use function LDLib\Auth\{
     get_user_from_sid,
@@ -32,6 +36,12 @@ use function LDLib\Auth\{
 };
 use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
+use function LDLib\Forum\{
+    create_thread,
+    thread_add_comment,
+    thread_edit_comment,
+    thread_remove_comment
+};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -56,6 +66,10 @@ class QueryType extends ObjectType {
                         'id' => Type::nonNull(Type::id())
                     ],
                     'resolve' => fn($_, $args) => $args['id']
+                ],
+                'forum' => [
+                    'type' => fn() => Types::Forum(),
+                    'resolve' => fn() => Data::Empty
                 ],
                 'parseText' => [
                     'type' => fn() => Type::string(),
@@ -82,6 +96,60 @@ class MutationType extends ObjectType {
     public function __construct() {
         parent::__construct([
             'fields' => [
+                'forum_newThread' => [
+                    'type' => fn() => Types::OperationOnThread(),
+                    'args' => [
+                        'title' => Type::nonNull(Type::string()),
+                        'tags' => Type::nonNull(Type::listOf(Type::nonNull(Type::string()))),
+                        'content' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = create_thread(DBManager::getConnection(),$user,$args['title'],$args['tags'],$user->settings->defaultThreadPermission,$args['content']);
+                        return $v instanceof ErrorType ? $v : $v[0]->id;
+                    }
+                ],
+                'forumThread_addComment' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'content' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = thread_add_comment(DBManager::getConnection(),$user,$args['threadId'],$args['content']);
+                        return $v instanceof ErrorType ? $v : true;
+                    }
+                ],
+                'forumThread_editComment' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'commentNumber' => Type::nonNull(Type::int()),
+                        'content' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content']);
+                        return $v instanceof ErrorType ? $v : true;
+                    }
+                ],
+                'forumThread_removeComment' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'commentNumber' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
+                        return $v instanceof ErrorType ? $v : true;
+                    }
+                ],
                 'loginUser' => [
                     'type' => fn() => Types::OperationOnRegisteredUser(),
                     'args' => [
@@ -138,6 +206,8 @@ class NodeType extends InterfaceType {
             ],
             'resolveType' => function ($id) {
                 switch (true) {
+                    case (preg_match('/^forum_\d+$/',$id,$m) > 0): $s = 'Thread'; break;
+                    case (preg_match('/^forum_\d+-\d+$/',$id,$m) > 0): $s = 'Comment'; break;
                     default: throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOTFOUND);
                 }
 
@@ -272,6 +342,24 @@ class OperationOnRegisteredUserType extends ObjectType {
     }
 }
 
+class OperationOnThreadType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Operation()],
+            'fields' => [
+                Types::Operation()->getField('success'),
+                Types::Operation()->getField('resultCode'),
+                Types::Operation()->getField('resultMessage'),
+                'thread' => [
+                    'type' => Types::Thread(),
+                    'resolve' => fn($o) => $o instanceof ErrorType ? null : $o
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /*****  *****/
 
 class RegisteredUserType extends ObjectType {
@@ -307,6 +395,159 @@ class RegisteredUserType extends ObjectType {
                             return $row['data']['name'];
                         });
                     }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class ForumType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'threads' => [
+                    'type' => fn() => Types::getConnectionObjectType('Thread'),
+                    'args' => [
+                        'first' => Type::int(),
+                        'last' => Type::int(),
+                        'after' => Type::id(),
+                        'before' => Type::id(),
+                        'sortBy' => Type::string()
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        if (Context::getAuthenticatedUser() == null) return null;
+                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag->sortBy = $args['sortBy']??'';
+                        ForumBuffer::requestThreads($pag);
+                        return quickReactPromise(function() use($o,$args,$pag,$ri) {
+                            $threadData = ForumBuffer::getThreads($pag);
+                            return $threadData;
+                        });
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class ThreadType extends ObjectType {
+    private static function process(mixed $o, callable $f) {
+        if (Context::getAuthenticatedUser() == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+        ForumBuffer::requestThread($o);
+        return quickReactPromise(function() use($o,$f) {
+            $row = ForumBuffer::getThread($o);
+            if ($row == null || $row['data'] == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => Thread::initFromRow($row)->nodeId)
+                ],
+                'dbId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['id'])
+                ],
+                'authorId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['author_id'])
+                ],
+                'title' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['title'])
+                ],
+                'tags' => [
+                    'type' => fn() => Type::listOf(Type::string()),
+                    'resolve' => fn($o) => self::process($o,fn($row) => explode(',',$row['data']['tags']))
+                ],
+                'creationDate' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['creation_date'])
+                ],
+                'lastUpdateDate' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['last_update_date'])
+                ],
+                'permission' => [
+                    'type' => fn() => Types::ThreadPermission(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => ThreadPermission::from($row['data']['permission']))
+                ],
+                'comments' => [
+                    'type' => fn() => Types::getConnectionObjectType('Comment'),
+                    'args' => [
+                        'first' => Type::int(),
+                        'last' => Type::int(),
+                        'after' => Type::id(),
+                        'before' => Type::id()
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        return self::process($o,function($row) use($pag) {
+                            ForumBuffer::requestComments($row['data']['id'],$pag);
+                            return quickReactPromise(function() use ($row,$pag) {
+                                $data = ForumBuffer::getComments($row['data']['id'],$pag);
+                                return $data;
+                            });
+                        });
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class CommentType extends ObjectType {
+    private static function process(mixed $o, callable $f) {
+        if (Context::getAuthenticatedUser() == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::initFromRow($o['edge']['data'])->nodeId;
+        ForumBuffer::requestComment($o);
+        return quickReactPromise(function() use($o,$f) {
+            $row = ForumBuffer::getComment($o);
+            if ($row == null || $row['data'] == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => Comment::initFromRow($row)->nodeId)
+                ],
+                'threadId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['thread_id'])
+                ],
+                'number' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['number'])
+                ],
+                'authorId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['author_id'])
+                ],
+                'creationDate' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['creation_date'])
+                ],
+                'lastEditionDate' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['last_edition_date'])
+                ],
+                'content' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['content'])
                 ]
             ]
         ];
@@ -576,10 +817,32 @@ class Types {
         return self::$types['OperationOnRegisteredUser'] ??= new OperationOnRegisteredUserType();
     }
 
+    public static function OperationOnThread():OperationOnThreadType {
+        return self::$types['OperationOnThread'] ??= new OperationOnThreadType();
+    }
+
     /*****  *****/
 
     public static function RegisteredUser():RegisteredUserType {
         return self::$types['RegisteredUser'] ??= new RegisteredUserType();
+    }
+
+    public static function Forum():ForumType {
+        return self::$types['Forum'] ??= new ForumType();
+    }
+
+    public static function Thread():ThreadType {
+        return self::$types['Thread'] ??= new ThreadType();
+    }
+
+    public static function Comment():CommentType {
+        return self::$types['Comment'] ??= new CommentType();
+    }
+
+    /***** Enums *****/
+
+    public static function ThreadPermission():PhpEnumType {
+        return self::$types['ThreadPermission'] ??= new PhpEnumType(ThreadPermission::class);
     }
 
     /***** Scalars *****/

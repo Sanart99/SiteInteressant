@@ -17,12 +17,20 @@ use function LDLib\Database\get_tracked_pdo;
 
 enum DataType {
     case User;
+    case ForumThread;
+    case ForumComment;
 }
 
 class BufferManager {
     /** Contains all the fetched data, the other buffers references it. */
     public static array $result = [
-        /* ... */
+        'users' => [],
+        'forum' => [
+            'threads' => [],
+            'threadsM' => [],
+            'comments' => [],
+            'commentsM' => []
+        ]
     ];
 
     private static ?LDPDO $conn = null;
@@ -83,7 +91,8 @@ class BufferManager {
             $start = self::$reqGroup->count();
             foreach (self::$reqGroup->getIterator() as $a) {
                 switch ($a[0]) {
-                    /* ... */
+                    case DataType::ForumThread:
+                    case DataType::ForumComment: ForumBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$reqGroup->count()) throw new \Error("ReqGroup error. ({$a[0]->name})");
@@ -92,7 +101,9 @@ class BufferManager {
             $start = self::$req->count();
             foreach (self::$req->getIterator() as $a) {
                 switch ($a[0]) {
-                    case DataType::User: UsersBuffer::exec(self::$conn);
+                    case DataType::ForumThread:
+                    case DataType::ForumComment: ForumBuffer::exec(self::$conn); break;
+                    case DataType::User: UsersBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
@@ -202,6 +213,164 @@ class UsersBuffer {
             $bufRes['users'][$userId] = $row === false ? null : ['data' => $row, 'metadata' => null];
             array_push($toRemove,$v);
             break;
+        }
+        foreach ($toRemove as $v) {
+            $req->remove($v);
+            $fet->add($v);
+        }
+    }
+}
+
+class ForumBuffer {
+    public static function storeThread(array $row, ?array $metadata = null):array {
+        BufferManager::$req->remove([DataType::ForumThread,$row['id']]);
+        BufferManager::$fet->add([DataType::ForumThread,$row['id']]);
+        return BufferManager::$result['forum']['threads'][$row['id']] = ['data' => $row, 'metadata' => $metadata];
+    }
+
+    public static function storeComment(array $row, ?array $metadata = null):array {
+        $comment = \LDLib\Forum\Comment::initFromRow($row);
+        BufferManager::$req->remove([DataType::ForumComment,$comment->nodeId]);
+        BufferManager::$fet->add([DataType::ForumComment,$comment->nodeId]);
+        return BufferManager::$result['forum']['comments'][$comment->nodeId] = ['data' => $row, 'metadata' => $metadata];
+    }
+
+    public static function forgetComment(string $id) {
+        BufferManager::$fet->remove([DataType::ForumComment,$id]);
+        unset(BufferManager::$result['forum']['comments'][$id]);
+    }
+
+    public static function requestThread(int|string $id) {
+        if (is_string($id) && preg_match('/^forum_(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumThread, (int)$m[1]);
+        else if (is_int($id)) return BufferManager::request(DataType::ForumThread, $id);
+        throw new SafeBufferException("requestThread: invalid id '$id'");
+    }
+
+    public static function requestComment(string $id) {
+        if (preg_match('/^forum_(\d+)-(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumComment,[(int)$m[1],(int)$m[2]]);
+        throw new SafeBufferException("requestComment: invalid id '$id'");
+    }
+
+    public static function requestThreads(PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::ForumThread,$pag);
+    }
+
+    public static function requestComments(int $threadId, PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::ForumComment,[$threadId,$pag]);
+    }
+
+    public static function getThread(int|string $id) {
+        if (is_string($id) && preg_match('/^forum_(\d+)$/',$id,$m) > 0) return BufferManager::get(['forum','threads',(int)$m[1]]);
+        else if (is_int($id)) return BufferManager::get(['forum','threads',$id]);
+        throw new SafeBufferException("getThread: invalid id '$id'");
+    }
+
+    public static function getThreads(PaginationVals $pag) {
+        return BufferManager::get(['forum','threadsM',$pag->getString()]);
+    }
+
+    public static function getComment(string $id) {
+        return BufferManager::get(['forum','comments',$id]);
+    }
+
+    public static function getComments(int $threadId, PaginationVals $pag) {
+        return BufferManager::get(['forum','commentsM',$threadId,$pag->getString()]);
+    }
+
+    public static function exec(LDPDO $conn) {
+        $bufRes =& BufferManager::$result;
+        $rg =& BufferManager::$reqGroup;
+        $fg =& BufferManager::$fetGroup;
+        $req =& BufferManager::$req;
+        $fet =& BufferManager::$fet;
+
+        $toRemove = [];
+        foreach ($rg->getIterator() as $v) switch ($v[0]) {
+            case DataType::ForumThread:
+                $pag = $v[1];
+
+                if ($pag->sortBy == 'lastUpdate') {
+                    $cursF = function($vCurs,$i) {
+                        switch ($i) {
+                            case 1: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>{$vCurs[1]}))";
+                            case 2: return "(last_update_date<'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<{$vCurs[1]}))";
+                            case 3: return "last_update_date,id";
+                            case 4: return "last_update_date,id DESC";
+                            case 5: return "(last_update_date<='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<={$vCurs[1]}))";
+                            case 6: return "(last_update_date>='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>={$vCurs[1]}))";
+                            default: throw new \Schema\SafeBufferException("cursorF ??");
+                        }
+                    };
+
+                    BufferManager::pagRequest($conn, 'threads', '', $pag, $cursF,
+                        fn($row) => base64_encode("{$row['last_update_date']}!{$row['id']}"),
+                        fn($s) => (preg_match('/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)!(\d+)$/',base64_decode($s),$m) === 0) ? ['2000-01-01 00:00:00',1] : [$m[1],(int)$m[2]],
+                        function ($row) use(&$bufRes,&$req,&$fet) {
+                            $bufRes['forum']['threads'][$row['data']['id']] = $row;
+                            $req->remove([DataType::ForumThread,$row['data']['id']]);
+                            $fet->add([DataType::ForumThread,$row['data']['id']]);
+                        },
+                        function($rows) use(&$bufRes,&$pag) { $bufRes['forum']['threadsM'][$pag->getString()] = $rows; },
+                        
+                    );
+                } else {
+                    BufferManager::pagRequest($conn, 'threads', '', $pag, 'id',
+                        fn($row) => base64_encode($row['id']),
+                        fn($s) => (preg_match('/^\d+$/',base64_decode($s),$m) === 0) ? 1 : (int)$m[0],
+                        function ($row) use(&$bufRes,&$req,&$fet) {
+                            $bufRes['forum']['threads'][$row['data']['id']] = $row;
+                            $req->remove([DataType::ForumThread,$row['data']['id']]);
+                            $fet->add([DataType::ForumThread,$row['data']['id']]);
+                        },
+                        function($rows) use(&$bufRes,&$pag) { $bufRes['forum']['threadsM'][$pag->getString()] = $rows; }
+                    );
+                }
+                array_push($toRemove,$v);
+                break;
+            case DataType::ForumComment:
+                $threadId = $v[1][0];
+                $pag = $v[1][1];
+
+                BufferManager::pagRequest($conn, 'comments', "thread_id=$threadId", $pag, 'number',
+                    fn($row) => base64_encode("{$row['thread_id']}-{$row['number']}"),
+                    fn($s) => preg_match('/^\d+-(\d+)$/', base64_decode($s), $m) > 0 ? (int)$m[1] : 0,
+                    function ($row) use(&$bufRes,&$req,&$fet) {
+                        $comm = \LDLib\Forum\Comment::initFromRow($row);
+                        $bufRes['forum']['comments'][$comm->nodeId] = $row;
+                        $req->remove([DataType::ForumComment,[$comm->threadId,$comm->number]]);
+                        $fet->add([DataType::ForumComment,[$comm->threadId,$comm->number]]);
+                    },
+                    function($rows) use(&$bufRes,&$threadId,&$pag) { $bufRes['forum']['commentsM'][$threadId][$pag->getString()] = $rows; }
+                );
+                array_push($toRemove,$v);
+                break;
+        }
+        foreach ($toRemove as $v) {
+            $rg->remove($v);
+            $fg->add($v);
+        }
+        $toRemove = [];
+        foreach ($req->getIterator() as $v) switch ($v[0]) {
+            case DataType::ForumThread:
+                $threadId = $v[1];
+
+                $stmt = $conn->prepare("SELECT * FROM threads WHERE id=? LIMIT 1");
+                $stmt->execute([$threadId]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['forum']['threads'][$threadId] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                array_push($toRemove, $v);
+                break;
+            case DataType::ForumComment:
+                $threadId = $v[1][0];
+                $number = $v[1][1];
+                $stmt = $conn->prepare("SELECT * FROM comments WHERE thread_id=? AND number=? LIMIT 1");
+                $stmt->execute([$threadId,$number]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['forum']['comments'][\LDLib\Forum\Comment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                array_push($toRemove, $v);
+                break;
         }
         foreach ($toRemove as $v) {
             $req->remove($v);
