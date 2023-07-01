@@ -7,6 +7,7 @@ require_once __DIR__.'/db.php';
 class PaginationVals {
     public readonly ?int $first;
     public readonly ?int $last;
+    public ?string $sortBy = null;
     private ?string $after;
     private ?string $before;
     private string $s;
@@ -17,24 +18,24 @@ class PaginationVals {
         $this->last = $last;
         $this->after = $after;
         $this->before = $before;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
     }
 
     public function setAfterCursor(string $after) {
         $this->after = $after;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
     }
 
     public function setBeforeCursor(string $before) {
         $this->before = $before;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
     }
 
     public function getAfterCursor() { return $this->after; }
     public function getBeforeCursor() { return $this->before; }
     public function getString() { return $this->s; }
 
-    public static function asString(?int $first, ?int $last, ?string $after, ?string $before):string {
+    public static function asString(?int $first, ?int $last, ?string $after, ?string $before, ?string $sortBy):string {
         $s = '';
         if ($first != null && $first > 0) $s .= "f-{$first}";
         else if ($last != null && $last > 0) $s .= "l-{$last}";
@@ -42,6 +43,8 @@ class PaginationVals {
         
         if ($after != null) $s .= "-a-{$after}";
         else if ($before != null) $s .= "-b-{$before}";
+
+        if ($sortBy!=null) $s .= "-sort:$sortBy";
 
         return $s;
     }
