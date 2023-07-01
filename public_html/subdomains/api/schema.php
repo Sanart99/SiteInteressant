@@ -236,7 +236,7 @@ class PageInfoType extends ObjectType {
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => $o->hasPreviousPage
                 ],
-                'startCursror' => [
+                'startCursor' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => $o->startCursor
                 ],
