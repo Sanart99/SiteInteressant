@@ -639,6 +639,42 @@ class Generator {
         PHP);
         self::$generatedConnections[] = $objectType;
     }
+
+    public static function genQuickOperation(string $name, array $fieldsKV) {
+        if (preg_match('/^\w+$/',$name) === 0) throw new \Exception("genOperation error: $name");
+        $sFields = '';
+        foreach ($fieldsKV as $k => $v)
+            if (preg_match('/^\w+$/',$k) === 0 || preg_match('/^[\w:\(\)$]+$/',$v) === 0) throw new \Exception("genOperation error: [$k=>$v]");
+            else {
+                $sFields .= <<<PHP
+                '$k' => [
+                    'type' => $v,
+                    'resolve' => fn(\$o) => \$o instanceof ErrorType ? null : \$o
+                ],
+                PHP;
+            }
+
+        eval(<<<PHP
+        namespace Schema;
+        use GraphQL\Type\Definition\ObjectType;
+        use LDLib\General\ErrorType;
+
+        class Operation{$name}Type extends ObjectType {
+            public function __construct(array \$config2 = null) {
+                \$config = [
+                    'interfaces' => [Types::Operation()],
+                    'fields' => [
+                        Types::Operation()->getField('success'),
+                        Types::Operation()->getField('resultCode'),
+                        Types::Operation()->getField('resultMessage'),
+                        $sFields
+                    ]
+                ];
+                parent::__construct(\$config2 == null ? \$config : array_merge_recursive_distinct(\$config,\$config2));
+            }
+        }
+        PHP);
+    }
 }
 Generator::init();
 
