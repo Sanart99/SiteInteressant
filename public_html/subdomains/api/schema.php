@@ -540,6 +540,16 @@ class Types {
         return self::$types['Mutation'] ??= new MutationType();
     }
 
+    public static function getConnectionObjectType(string $s) {
+        if (!Generator::$generatedConnections->contains($s)) Generator::genConnection($s);
+        return self::$types["{$s}sConnection"] ??= (new \ReflectionClass("\\Schema\\{$s}sConnectionType"))->newInstance();
+    }
+
+    public static function getEdgeObjectType(string $s) {
+        if (!Generator::$generatedConnections->contains($s)) Generator::genConnection($s);
+        return self::$types["{$s}Edge"] ??= (new \ReflectionClass("\\Schema\\{$s}EdgeType"))->newInstance();
+    }
+
     /***** Interfaces *****/
 
     public static function Node():NodeType {
