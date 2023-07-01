@@ -98,6 +98,77 @@ class BufferManager {
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
         }
     }
+
+    public static function pagRequest(LDPDO $conn, string $dbName, string $whereCond="", PaginationVals $pag, string|callable $cursorRow,
+        callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll) {
+        $first = $pag->first;
+        $last = $pag->last;
+        $after = $pag->getAfterCursor();
+        $before = $pag->getBeforeCursor();
+
+        // Make and exec sql
+        $n = 0;
+        $vCurs = null;
+        $sql = "SELECT * FROM $dbName";
+        if ($after != null) {
+            $vCurs = $decodeCursor($after);
+            $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,1) : " WHERE $cursorRow>$vCurs";
+        } else if ($before != null) {
+            $vCurs = $decodeCursor($before);
+            $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,2) : " WHERE $cursorRow<$vCurs";
+        }
+        if (is_string($vCurs)) $vCurs = "'$vCurs'";
+
+        if ($whereCond != "") {
+            $whereCond = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
+            $sql .= " $whereCond";
+        }
+
+        if ($first != null && $first > 0) {
+            $n = $first+1;
+            $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,3)." LIMIT $n" : " ORDER BY $cursorRow LIMIT $n";
+        } else if ($last != null && $last > 0) {
+            $n = $last+1;
+            $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,4)." LIMIT $n" : " ORDER BY $cursorRow DESC LIMIT $n";
+        }
+        $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+
+        // Store results
+        $result = [];
+        $hadMoreResults = false;
+        while ($row = $stmt->fetch()) {
+            if (count($result) == $n-1) { $hadMoreResults = true; break; }
+            
+            $v = ['data' => $row, 'metadata' => null];
+            $storeOne($v);
+
+            $refRow =& $v;
+            $cursor = $encodeCursor($row);
+            if (count($result) === 0) $startCursor = $cursor;           
+            $result[] = ['edge' => $refRow, 'cursor' => $cursor];
+        }
+
+        if (count($result) > 0) {
+            if ($after != null || $before != null) {
+                $cursWhere1 = is_callable($cursorRow) ? $cursorRow($vCurs,5) : "$cursorRow<=$vCurs";
+                $cursWhere2 = is_callable($cursorRow) ? $cursorRow($vCurs,6) : "$cursorRow>=$vCurs";
+            }
+
+            $startCursor = $result[0]['cursor'] ?? null;
+            $endCursor = $result[count($result)-1]['cursor'] ?? null;
+            $hasPreviousPage = ($last != null && $hadMoreResults) ||
+                ($after != null && $conn->query("SELECT _rowid FROM $dbName WHERE $cursWhere1 $whereCond LIMIT 1")->fetch() !== false);
+            $hasNextPage = ($first != null && $hadMoreResults) ||
+                ($before != null && $conn->query("SELECT _rowid FROM $dbName WHERE $cursWhere2 $whereCond LIMIT 1")->fetch() !== false);
+        }
+
+        $storeAll([
+            'data' => $result,
+            'metadata' => [
+                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false)
+            ]
+        ]);
+    }
 }
 
 class UsersBuffer {
