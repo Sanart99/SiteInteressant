@@ -123,12 +123,13 @@ class BufferManager {
         $sql = "SELECT * FROM $dbName";
         if ($after != null) {
             $vCurs = $decodeCursor($after);
+            if (is_string($vCurs)) $vCurs = "'$vCurs'";
             $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,1) : " WHERE $cursorRow>$vCurs";
         } else if ($before != null) {
             $vCurs = $decodeCursor($before);
+            if (is_string($vCurs)) $vCurs = "'$vCurs'";
             $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,2) : " WHERE $cursorRow<$vCurs";
         }
-        if (is_string($vCurs)) $vCurs = "'$vCurs'";
 
         if ($whereCond != "") {
             $whereCond = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
