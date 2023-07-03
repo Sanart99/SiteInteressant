@@ -90,6 +90,7 @@ enum ErrorType {
     case DUPLICATE;
     case NOTFOUND;
     case EXPIRED;
+    case INVALID;
     case UNKNOWN;
 }
 
