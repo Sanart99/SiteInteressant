@@ -20,8 +20,10 @@ header('Access-Control-Allow-Headers: Cache-Control, Content-Type');
 header('Access-Control-Allow-Credentials: true');
 
 $rawInput = file_get_contents('php://input');
-if (empty($rawInput)) { http_response_code(200); echo "..."; return; }
-$input = json_decode($rawInput, true);
+if (!empty($rawInput)) $input = json_decode($rawInput, true);
+else if (isset($_POST['gqlQuery'])) $input = json_decode($_POST['gqlQuery'], true);
+else { http_response_code(200); echo "..."; return; }
+
 if ($input == null) { http_response_code(400); echo "JSON ERROR."; return; }
 else if (!array_key_exists('query',$input)) { http_response_code(400); echo "Bad request : $input"; return;  }
 
