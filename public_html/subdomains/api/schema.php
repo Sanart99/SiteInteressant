@@ -190,6 +190,28 @@ class MutationType extends ObjectType {
                         $user = register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
                         return $user instanceof ErrorType ? $user : $user->id;
                     }
+                ],
+                'uploadAvatar' => [
+                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
+                    'resolve' => function() {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::OPERATION_UNAUTHORIZED;
+                        if (!isset($_FILES['imgAvatar'])) return ErrorType::NOTFOUND;
+                        $file = $_FILES['imgAvatar'];
+                        if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK || $file['size'] > 20000) return ErrorType::INVALID;
+                        $ext = array_search(mime_content_type($file['tmp_name']),[
+                            'jpg' => 'image/jpeg',
+                            'gif' => 'image/gif',
+                            'png' => 'image/png'
+                        ], true);
+                        if ($ext === false) return ErrorType::INVALID;
+                        
+                        $avatarName = "{$user->id}-".sha1_file($file['tmp_name']).".$ext";
+                        $v = move_uploaded_file($file['tmp_name'],Context::$avatarsDir."/$avatarName");
+                        if ($v === false) return ErrorType::UNKNOWN;
+                        if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return ErrorType::DATABASE_ERROR;
+                        return $user->id;
+                    }
                 ]
             ]
         ]);
@@ -527,6 +549,7 @@ class Context {
     public static array $headers = [];
     public static array $logs = [];
     public static int $cost = 0;
+    public static string $avatarsDir = __DIR__.'/../res/avatars';
 
     public static function init() {
         self::$a = [
