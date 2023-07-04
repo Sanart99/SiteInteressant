@@ -159,6 +159,7 @@ class BufferManager {
             if (count($result) === 0) $startCursor = $cursor;           
             $result[] = ['edge' => $refRow, 'cursor' => $cursor];
         }
+        if ($last != null) $result = array_reverse($result);
 
         if (count($result) > 0) {
             if ($after != null || $before != null) {
