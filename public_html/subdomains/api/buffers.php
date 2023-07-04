@@ -111,7 +111,7 @@ class BufferManager {
     }
 
     public static function pagRequest(LDPDO $conn, string $dbName, string $whereCond="", PaginationVals $pag, string|callable $cursorRow,
-        callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll, string $select='*') {
+        callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll, string $select='*', ?array $executeVals = null) {
         $first = $pag->first;
         $last = $pag->last;
         $after = $pag->getAfterCursor();
@@ -143,12 +143,15 @@ class BufferManager {
             $n = $last+1;
             $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,4)." LIMIT $n" : " ORDER BY $cursorRow DESC LIMIT $n";
         }
-        $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+        if ($executeVals != null) {
+            $stmt = $conn->prepare($sql);
+            $stmt->execute($executeVals);
+        } else $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
 
         // Store results
         $result = [];
         $hadMoreResults = false;
-        while ($row = $stmt->fetch()) {
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             if (count($result) == $n-1) { $hadMoreResults = true; break; }
             
             $v = ['data' => $row, 'metadata' => null];
