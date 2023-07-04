@@ -56,7 +56,7 @@ class PageInfo {
     public readonly ?string $endCursor;
     public readonly bool $hasPreviousPage;
     public readonly bool $hasNextPage;
-    public readonly int $pageCount;
+    public readonly ?int $pageCount;
 
     public function __construct(?string $startCursor, ?string $endCursor, bool $hasPreviousPage, bool $hasNextPage, ?int $pageCount) {
         $this->startCursor = $startCursor;

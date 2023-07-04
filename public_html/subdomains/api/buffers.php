@@ -182,7 +182,7 @@ class BufferManager {
             'data' => $result,
             'metadata' => [
                 'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,
-                    ($pag->requestPageCount == true) ? $conn->query("SELECT COUNT(*) FROM $dbName")->fetch(\PDO::FETCH_NUM)[0] : null)
+                    ($pag->requestPageCount == true) ? ($conn->query("SELECT COUNT(*) FROM $dbName")->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1 : null)
             ]
         ]);
     }
