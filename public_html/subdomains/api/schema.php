@@ -337,6 +337,10 @@ class PageInfoType extends ObjectType {
                 'endCursor' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => $o->endCursor
+                ],
+                'pageCount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => $o->pageCount
                 ]
             ]
         ];
