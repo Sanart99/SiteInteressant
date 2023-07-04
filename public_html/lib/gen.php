@@ -8,6 +8,7 @@ class PaginationVals {
     public readonly ?int $first;
     public readonly ?int $last;
     public ?string $sortBy = null;
+    public bool $requestPageCount = false;
     private ?string $after;
     private ?string $before;
     private string $s;
@@ -55,12 +56,14 @@ class PageInfo {
     public readonly ?string $endCursor;
     public readonly bool $hasPreviousPage;
     public readonly bool $hasNextPage;
+    public readonly int $pageCount;
 
-    public function __construct(?string $startCursor, ?string $endCursor, bool $hasPreviousPage, bool $hasNextPage) {
+    public function __construct(?string $startCursor, ?string $endCursor, bool $hasPreviousPage, bool $hasNextPage, ?int $pageCount) {
         $this->startCursor = $startCursor;
         $this->endCursor = $endCursor;
         $this->hasPreviousPage = $hasPreviousPage;
         $this->hasNextPage = $hasNextPage;
+        $this->pageCount = $pageCount;
     }
 }
 

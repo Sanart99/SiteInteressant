@@ -111,7 +111,7 @@ class BufferManager {
     }
 
     public static function pagRequest(LDPDO $conn, string $dbName, string $whereCond="", PaginationVals $pag, string|callable $cursorRow,
-        callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll) {
+        callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll, string $select='*') {
         $first = $pag->first;
         $last = $pag->last;
         $after = $pag->getAfterCursor();
@@ -120,7 +120,7 @@ class BufferManager {
         // Make and exec sql
         $n = 0;
         $vCurs = null;
-        $sql = "SELECT * FROM $dbName";
+        $sql = "SELECT $select FROM $dbName";
         if ($after != null) {
             $vCurs = $decodeCursor($after);
             if (is_string($vCurs)) $vCurs = "'$vCurs'";
@@ -178,7 +178,8 @@ class BufferManager {
         $storeAll([
             'data' => $result,
             'metadata' => [
-                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false)
+                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,
+                    ($pag->requestPageCount == true) ? $conn->query("SELECT COUNT(*) FROM $dbName")->fetch(\PDO::FETCH_NUM)[0] : null)
             ]
         ]);
     }
