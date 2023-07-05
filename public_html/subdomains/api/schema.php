@@ -22,7 +22,7 @@ use LDLib\General\{
     ErrorType,
     TypedException
 };
-use LDLib\Forum\{Thread, Comment, ThreadPermission};
+use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSorting, TidComment, TidThread};
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
@@ -38,6 +38,7 @@ use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
     create_thread,
+    search,
     thread_add_comment,
     thread_edit_comment,
     thread_remove_comment
@@ -77,6 +78,38 @@ class QueryType extends ObjectType {
                         'text' => Type::string()
                     ],
                     'resolve' => fn($o, $args) => textToHTML($args['text'])
+                ],
+                'search' => [
+                    'type' => fn() => Types::getConnectionObjectType('ForumSearchItem'),
+                    'args' => [
+                        'keywords' => Type::nonNull(Type::string()),
+                        'sortBy' => [
+                            'type' => Type::nonNull(Types::SearchSorting()),
+                            'defaultValue' => SearchSorting::ByDate
+                        ],
+                        'startDate' => Types::DateTime(),
+                        'endDate' => Types::DateTime(),
+                        'userIds' => Type::listOf(Type::nonNull(Type::int())),
+                        'first' => Type::int(),
+                        'last' => Type::int(),
+                        'after' => Type::id(),
+                        'before' => Type::id(),
+                        'withPageCount' => [
+                            'type' => Type::nonNull(Type::boolean()),
+                            'defaultValue' => false
+                        ]
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::OPERATION_UNAUTHORIZED;
+                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag->requestPageCount = $args['withPageCount'];
+                        $fsq = new ForumSearchQuery($args['keywords'], $args['sortBy'], $args['startDate']??null, $args['endDate']??null, $args['userIds']??null);
+                        ForumBuffer::requestSearch($fsq,$pag);
+                        return quickReactPromise(function() use($fsq,$pag) {
+                            return ForumBuffer::getSearch($fsq,$pag);
+                        });
+                    }
                 ],
                 'viewer' => [
                     'type' => fn() => Types::RegisteredUser(),
@@ -229,7 +262,9 @@ class NodeType extends InterfaceType {
             'resolveType' => function ($id) {
                 switch (true) {
                     case (preg_match('/^forum_\d+$/',$id,$m) > 0): $s = 'Thread'; break;
+                    case (preg_match('/^forum_tid_\d+$/',$id,$m) > 0): $s = 'TidThread'; break;
                     case (preg_match('/^forum_\d+-\d+$/',$id,$m) > 0): $s = 'Comment'; break;
+                    case (preg_match('/^forum_tid_\d+-\d+$/',$id,$m) > 0): $s = 'TidComment'; break;
                     default: throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOTFOUND);
                 }
 
@@ -393,6 +428,28 @@ class RegisteredUserType extends ObjectType {
     }
 }
 
+class ForumSearchItemType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'thread' => [
+                    'type' => fn() => Types::TidThread(),
+                    'resolve' => fn($o) => $o['edge']['data']['thread_id'],
+                ],
+                'comment' => [
+                    'type' => fn() => Types::TidComment(),
+                    'resolve' => fn($o) => $o
+                ],
+                'relevance' => [
+                    'type' => fn() => Type::float(),
+                    'resolve' => fn($o) => $o['edge']['data']['relevance']
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 class ForumType extends ObjectType {
     public function __construct(array $config2 = null) {
         $config = [
@@ -414,6 +471,96 @@ class ForumType extends ObjectType {
                         return quickReactPromise(function() use($o,$args,$pag,$ri) {
                             $threadData = ForumBuffer::getThreads($pag);
                             return $threadData;
+                        });
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class TidThreadType extends ObjectType {
+    private static function process(mixed $o, callable $f) {
+        if (Context::getAuthenticatedUser() == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+        ForumBuffer::requestTidThread($o);
+        return quickReactPromise(function() use($o,$f) {
+            $row = ForumBuffer::getTidThread($o);
+            if ($row == null || $row['data'] == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => TidThread::getIdFromRow($row))
+                ],
+                'dbId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['id'])
+                ],
+                'authorId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
+                'title' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['title'])
+                ],
+                'deducedDate' => [
+                    'type' => fn() => Types::Date(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['created_at'])
+                ],
+                'minorTag' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['minor_tag'])
+                ],
+                'majorTag' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['major_tag'])
+                ],
+                'states' => [
+                    'type' => fn() => Type::listOf(Type::string()),
+                    'resolve' => fn($o) => self::process($o, function($row) { $v=explode(',',$row['data']['states']); return $v == [""] ? [] : $v; })
+                ],
+                'kubeCount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['kube_count'])
+                ],
+                'pageCount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['page_count'])
+                ],
+                'commentCount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['comment_count'])
+                ],
+                'comments' => [
+                    'type' => fn() => Types::getConnectionObjectType('TidComment'),
+                    'args' => [
+                        'first' => Type::int(),
+                        'last' => Type::int(),
+                        'after' => Type::id(),
+                        'before' => Type::id(),
+                        'withPageCount' => [
+                            'type' => Type::nonNull(Type::boolean()),
+                            'defaultValue' => false
+                        ]
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag->requestPageCount = $args['withPageCount'];
+                        return self::process($o,function($row) use($pag) {
+                            ForumBuffer::requestTidComments($row['data']['id'],$pag);
+                            return quickReactPromise(function() use ($row,$pag) {
+                                $data = ForumBuffer::getTidComments($row['data']['id'],$pag);
+                                return $data;
+                            });
                         });
                     }
                 ]
@@ -489,6 +636,64 @@ class ThreadType extends ObjectType {
                             });
                         });
                     }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class TidCommentType extends ObjectType {
+    private static function process(mixed $o, callable $f) {
+        if (Context::getAuthenticatedUser() == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = TidComment::getIdFromRow($o['edge']['data']);
+        ForumBuffer::requestTidComment($o);
+        return quickReactPromise(function() use($o,$f) {
+            $row = ForumBuffer::getTidComment($o);
+            if ($row == null || $row['data'] == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => TidComment::getIdFromRow($row))
+                ],
+                'dbId' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['id'])
+                ],
+                'threadId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['thread_id'])
+                ],
+                'authorId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
+                'states' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
+                    'resolve' => fn($o) => self::process($o, function($row) { $v=explode(',',$row['data']['states']); return $v == [""] ? [] : $v; })
+                ],
+                'content' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['content'])
+                ],
+                'contentWarning' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['content_warning'])
+                ],
+                'deducedDate' => [
+                    'type' => fn() => Types::Date(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['deduced_date'])
+                ],
+                'loadTimestamp' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['load_timestamp'])
                 ]
             ]
         ];
@@ -862,11 +1067,27 @@ class Types {
         return self::$types['Thread'] ??= new ThreadType();
     }
 
+    public static function TidThread():TidThreadType {
+        return self::$types['TidThread'] ??= new TidThreadType();
+    }
+
     public static function Comment():CommentType {
         return self::$types['Comment'] ??= new CommentType();
     }
 
+    public static function TidComment():TidCommentType {
+        return self::$types['TidComment'] ??= new TidCommentType();
+    }
+
+    public static function ForumSearchItem():ForumSearchItemType {
+        return self::$types['ForumSearchItem'] ??= new ForumSearchItemType();
+    }
+
     /***** Enums *****/
+
+    public static function SearchSorting():PhpEnumType {
+        return self::$types['SearchSorting'] ??= new PhpEnumType(SearchSorting::class);
+    }
 
     public static function ThreadPermission():PhpEnumType {
         return self::$types['ThreadPermission'] ??= new PhpEnumType(ThreadPermission::class);

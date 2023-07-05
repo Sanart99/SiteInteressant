@@ -8,6 +8,7 @@ require_once $libDir.'/db.php';
 use Ds\Set;
 use GraphQL\Error\ClientAware;
 use LDLib\Database\LDPDO;
+use LDLib\Forum\{ForumSearchQuery,SearchSorting};
 use LDLib\General\ {
     PageInfo,
     PaginationVals
@@ -19,6 +20,9 @@ enum DataType {
     case User;
     case ForumThread;
     case ForumComment;
+    case ForumTidThread;
+    case ForumTidComment;
+    case ForumSearch;
 }
 
 class BufferManager {
@@ -29,7 +33,11 @@ class BufferManager {
             'threads' => [],
             'threadsM' => [],
             'comments' => [],
-            'commentsM' => []
+            'commentsM' => [],
+            'tid_threads' => [],
+            'tid_threadsM' => [],
+            'tid_comments' => [],
+            'tid_commentsM' => []
         ]
     ];
 
@@ -92,7 +100,10 @@ class BufferManager {
             foreach (self::$reqGroup->getIterator() as $a) {
                 switch ($a[0]) {
                     case DataType::ForumThread:
-                    case DataType::ForumComment: ForumBuffer::exec(self::$conn); break;
+                    case DataType::ForumTidThread:
+                    case DataType::ForumComment:
+                    case DataType::ForumTidComment:
+                    case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$reqGroup->count()) throw new \Error("ReqGroup error. ({$a[0]->name})");
@@ -102,7 +113,9 @@ class BufferManager {
             foreach (self::$req->getIterator() as $a) {
                 switch ($a[0]) {
                     case DataType::ForumThread:
-                    case DataType::ForumComment: ForumBuffer::exec(self::$conn); break;
+                    case DataType::ForumTidThread:
+                    case DataType::ForumComment:
+                    case DataType::ForumTidComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User: UsersBuffer::exec(self::$conn); break;
                 }
             }
@@ -252,9 +265,20 @@ class ForumBuffer {
         throw new SafeBufferException("requestThread: invalid id '$id'");
     }
 
+    public static function requestTidThread(int|string $id) {
+        if (is_string($id) && preg_match('/^forum_tid_(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumTidThread, (int)$m[1]);
+        else if (is_int($id)) return BufferManager::request(DataType::ForumTidThread, $id);
+        throw new SafeBufferException("requestTidThread: invalid id '$id'");
+    }
+
     public static function requestComment(string $id) {
         if (preg_match('/^forum_(\d+)-(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumComment,[(int)$m[1],(int)$m[2]]);
         throw new SafeBufferException("requestComment: invalid id '$id'");
+    }
+
+    public static function requestTidComment(string $id) {
+        if (preg_match('/^forum_tid_(\d+)-(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumTidComment,[(int)$m[1],(int)$m[2]]);
+        throw new SafeBufferException("requestTidComment: invalid id '$id'");
     }
 
     public static function requestThreads(PaginationVals $pag) {
@@ -265,10 +289,24 @@ class ForumBuffer {
         return BufferManager::requestGroup(DataType::ForumComment,[$threadId,$pag]);
     }
 
+    public static function requestTidComments(int $threadId, PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::ForumTidComment,[$threadId,$pag]);
+    }
+
+    public static function requestSearch(ForumSearchQuery $fsq, PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::ForumSearch,[$fsq,$pag]);
+    }
+
     public static function getThread(int|string $id) {
         if (is_string($id) && preg_match('/^forum_(\d+)$/',$id,$m) > 0) return BufferManager::get(['forum','threads',(int)$m[1]]);
         else if (is_int($id)) return BufferManager::get(['forum','threads',$id]);
         throw new SafeBufferException("getThread: invalid id '$id'");
+    }
+
+    public static function getTidThread(int|string $id) {
+        if (is_string($id) && preg_match('/^forum_tid_(\d+)$/',$id,$m) > 0) return BufferManager::get(['forum','tid_threads',(int)$m[1]]);
+        else if (is_int($id)) return BufferManager::get(['forum','tid_threads',$id]);
+        throw new SafeBufferException("getTidThread: invalid id '$id'");
     }
 
     public static function getThreads(PaginationVals $pag) {
@@ -279,8 +317,22 @@ class ForumBuffer {
         return BufferManager::get(['forum','comments',$id]);
     }
 
+    public static function getTidComment(string $id) {
+        return BufferManager::get(['forum','tid_comments',$id]);
+    }
+
     public static function getComments(int $threadId, PaginationVals $pag) {
         return BufferManager::get(['forum','commentsM',$threadId,$pag->getString()]);
+    }
+
+    public static function getTidComments(int $threadId, PaginationVals $pag) {
+        return BufferManager::get(['forum','tid_commentsM',$threadId,$pag->getString()]);
+    }
+
+    public static function getSearch(ForumSearchQuery $fsq, PaginationVals $pag) {
+        $s1 = $fsq->asString();
+        $s2 = $pag->getString();
+        return BufferManager::get(['forum','search',"$s1...$s2"]);
     }
 
     public static function exec(LDPDO $conn) {
@@ -350,6 +402,104 @@ class ForumBuffer {
                 );
                 array_push($toRemove,$v);
                 break;
+            case DataType::ForumTidComment:
+                $threadId = $v[1][0];
+                $pag = $v[1][1];
+
+                BufferManager::pagRequest($conn, 'tid_comments', "thread_id=$threadId", $pag, 'id',
+                    fn($row) => base64_encode("{$row['thread_id']}-{$row['id']}"),
+                    fn($s) => preg_match('/^\d+-(\d+)$/', base64_decode($s), $m) > 0 ? (int)$m[1] : 0,
+                    function ($row) use(&$bufRes,&$req,&$fet) {
+                        $comm = \LDLib\Forum\TidComment::initFromRow($row);
+                        $bufRes['forum']['tid_comments'][$comm->nodeId] = $row;
+                        $req->remove([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
+                        $fet->add([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
+                    },
+                    function($rows) use(&$bufRes,&$threadId,&$pag) { $bufRes['forum']['tid_commentsM'][$threadId][$pag->getString()] = $rows; }
+                );
+                array_push($toRemove,$v);
+                break;
+            case DataType::ForumSearch:
+                $fsq = $v[1][0];
+                $pag = $v[1][1];
+                $keywords = $fsq->keywords;
+                
+                $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
+                if ($fsq->startDate != null) { $v = $fsq->startDate->format('Y-m-d'); $sqlWhere .= " AND deduced_date>='$v'"; }
+                if ($fsq->endDate != null) { $v = $fsq->endDate->format('Y-m-d'); $sqlWhere .= " AND deduced_date<='$v'"; }
+                if ($fsq->userIds != null) {
+                    $sqlWhere .= ' AND (';
+                    for ($i=0; $i<count($fsq->userIds); $i++) $sqlWhere .= $i > 0 ? " OR author_id={$fsq->userIds[$i]}" : "author_id={$fsq->userIds[$i]}";
+                    $sqlWhere .= ')';
+                }
+
+                switch ($fsq->sortBy) {
+                    case SearchSorting::ByDate:
+                        $sRow = 'deduced_date';
+                        $cursF = function($vCurs,$i) use($sRow) {
+                            switch ($i) {
+                                case 1: return "($sRow<'{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id>{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>{$vCurs[2]}))))";
+                                case 2: return "($sRow>'{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id<{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<{$vCurs[2]}))))";
+                                case 3: return "$sRow DESC,thread_id,id";
+                                case 4: return "$sRow,thread_id DESC,id DESC";
+                                case 5: return "($sRow>='{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id<={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<={$vCurs[2]}))))";
+                                case 6: return "($sRow<='{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id>={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>={$vCurs[2]}))))";
+                                default: throw new \Schema\SafeBufferException("cursorF ??");
+                            }
+                        };
+                        break;
+                    case SearchSorting::ByRelevance:
+                        $sRow = 'relevance';
+                        $cursF = function($vCurs,$i) {
+                            $sRow = '(MATCH(content) AGAINST(:keywords IN BOOLEAN MODE))';
+                            $tol = 0.00001;
+                            switch ($i) {
+                                case 1: return "($sRow<{$vCurs[0]}-$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id>{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>{$vCurs[2]}))))";
+                                case 2: return "($sRow>{$vCurs[0]}+$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id<{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<{$vCurs[2]}))))";
+                                case 3: return "relevance DESC,thread_id,id";
+                                case 4: return "relevance,thread_id DESC,id DESC";
+                                case 5: return "($sRow>={$vCurs[0]}-$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id<={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<={$vCurs[2]}))))";
+                                case 6: return "($sRow<={$vCurs[0]}+$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id>={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>={$vCurs[2]}))))";
+                                default: throw new \Schema\SafeBufferException("cursorF ??");
+                            }
+                        };
+                        break;
+                    default: throw new \Exception('?????????azeae');
+                }
+
+                $threadIds = [];
+                BufferManager::pagRequest($conn, 'tid_comments', $sqlWhere, $pag, $cursF,
+                    function($row) use($sRow) { return base64_encode("{$row[$sRow]}!{$row['thread_id']}!{$row['id']}"); },
+                    fn($s) => (preg_match('/^(?:(\d{4}-\d\d-\d\d|\d+\.?\d*))!(\d+)!(\d+)$/',base64_decode($s),$m) === 0) ? ["2001-01-01",1,1] : [$m[1],$m[2],$m[3]],
+                    function ($row) use(&$bufRes,&$req,&$fet,&$threadIds) {
+                        $comm = \LDLib\Forum\TidComment::initFromRow($row);
+                        $threadIds[] = $comm->threadId;
+                        $bufRes['forum']['tid_comments'][$comm->nodeId] = $row;
+                        $req->remove([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
+                        $fet->add([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
+                    },
+                    function($rows) use(&$bufRes,&$fsq,&$pag) {
+                        $s1 = $fsq->asString();
+                        $s2 = $pag->getString();
+                        $bufRes['forum']['search']["$s1...$s2"] = $rows;
+                    },
+                    "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance",
+                    [':keywords' => $keywords]
+                );
+
+                $sql = 'SELECT * FROM tid_threads WHERE ';
+                for ($i=0; $i<count($threadIds); $i++) {
+                    if ($i != 0) $sql .= ' OR ';
+                    $sql .= "id={$threadIds[$i]}";
+                }
+                $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+                while ($row = $stmt->fetch()) {
+                    $req->remove(DataType::ForumTidThread,$row['id']);
+                    $fet->add(DataType::ForumTidThread,$row['id']);
+                    $bufRes['forum']['tid_threads'][(int)$row['id']] = ['data' => $row, 'metadata' => null];
+                }
+
+                array_push($toRemove, $v);
         }
         foreach ($toRemove as $v) {
             $rg->remove($v);
@@ -367,6 +517,15 @@ class ForumBuffer {
                 $bufRes['forum']['threads'][$threadId] = ['data' => $row === false ? null : $row, 'metadata' => null];
                 array_push($toRemove, $v);
                 break;
+            case DataType::ForumTidThread:
+                $threadId = $v[1];
+                $stmt = $conn->prepare("SELECT * FROM tid_threads WHERE id=? LIMIT 1");
+                $stmt->execute([$threadId]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['forum']['tid_threads'][$threadId] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                array_push($toRemove, $v);
+                break;
             case DataType::ForumComment:
                 $threadId = $v[1][0];
                 $number = $v[1][1];
@@ -375,6 +534,16 @@ class ForumBuffer {
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
                 $bufRes['forum']['comments'][\LDLib\Forum\Comment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                array_push($toRemove, $v);
+                break;
+            case DataType::ForumTidComment:
+                $threadId = $v[1][0];
+                $id = $v[1][1];
+                $stmt = $conn->prepare("SELECT * FROM tid_comments WHERE thread_id=? AND id=? LIMIT 1");
+                $stmt->execute([$threadId,$id]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['forum']['tid_comments'][\LDLib\Forum\TidComment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
                 array_push($toRemove, $v);
                 break;
         }

@@ -14,6 +14,11 @@ enum ThreadPermission:string {
     case CURRENT_USERS = 'current_users';
 }
 
+enum SearchSorting {
+    case ByRelevance;
+    case ByDate;
+}
+
 class Thread {
     public readonly string $nodeId;
     public readonly int $id;
@@ -39,6 +44,13 @@ class Thread {
         $data = isset($row['data']) ? $row['data'] : $row;
         return new self($data['id'], $data['title'], $data['author_id'], explode(',',$data['tags']),
             ThreadPermission::from($data['permission']), new \DateTimeImmutable($data['creation_date']),new \DateTimeImmutable($data['last_update_date']));
+    }
+}
+
+class TidThread {
+    public static function getIdFromRow(array $row) {
+        $data = isset($row['data']) ? $row['data'] : $row;
+        return "forum_tid_{$data['id']}";
     }
 }
 
@@ -70,6 +82,60 @@ class Comment {
     public static function getIdFromRow(array $row) {
         $data = isset($row['data']) ? $row['data'] : $row;
         return "forum_{$data['thread_id']}-{$data['number']}";
+    }
+}
+
+class TidComment {
+    public readonly string $nodeId;
+    public readonly int $threadId;
+    public readonly int $id;
+    public readonly int $authorId;
+    public readonly string $content;
+    public readonly \DateTimeInterface $deducedDate;
+
+    private function __construct(int $threadId, int $id, int $authorId, string $content, \DateTimeInterface $deducedDate) {
+        $this->nodeId = "forum_tid_{$threadId}-{$id}";
+        $this->threadId = $threadId;
+        $this->id = $id;
+        $this->authorId = $authorId;
+        $this->content = $content;
+        $this->deducedDate = $deducedDate;
+    }
+
+    public static function initFromRow(array $row) {
+        $data = isset($row['data']) ? $row['data'] : $row;
+        return new self($data['thread_id'], $data['id'], $data['author_id'], $data['content'],
+            new \DateTimeImmutable($data['deduced_date']));
+    }
+
+    public static function getIdFromRow(array $row) {
+        $data = isset($row['data']) ? $row['data'] : $row;
+        return "forum_tid_{$data['thread_id']}-{$data['id']}";
+    }
+}
+
+class ForumSearchQuery {
+    public readonly string $keywords;
+    public readonly SearchSorting $sortBy;
+    public readonly ?\DateTimeInterface $startDate;
+    public readonly ?\DateTimeInterface $endDate;
+    public readonly ?array $userIds;
+
+    public function __construct(string $keywords, SearchSorting $sortBy, ?\DateTimeInterface $startDate = null, ?\DateTimeInterface $endDate = null, ?array $userIds = null) {
+        if (preg_match('/^[\w\+\~\-,\s]+$/', $keywords) == 0) throw new \Exception('Invalid keywords.');
+        $this->keywords = $keywords;
+        $this->sortBy = $sortBy;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
+        $this->userIds = $userIds;
+    }
+
+    public function asString():string {
+        $s = "`k:{$this->keywords}`sort:{$this->sortBy->name}";
+        if ($this->startDate != null) $s .= "`sDate:{$this->startDate->format('Y-m-d H:i:s')}";
+        if ($this->endDate != null) $s .= "`eDate:{$this->endDate->format('Y-m-d H:i:s')}";
+        if ($this->userIds != null) { $v = implode(',',$this->userIds); $s .= "`ids:$v"; }
+        return $s;
     }
 }
 
