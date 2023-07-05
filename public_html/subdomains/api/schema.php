@@ -624,10 +624,15 @@ class ThreadType extends ObjectType {
                         'first' => Type::int(),
                         'last' => Type::int(),
                         'after' => Type::id(),
-                        'before' => Type::id()
+                        'before' => Type::id(),
+                        'withPageCount' => [
+                            'type' => Type::nonNull(Type::boolean()),
+                            'defaultValue' => false
+                        ]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag->requestPageCount = $args['withPageCount'];
                         return self::process($o,function($row) use($pag) {
                             ForumBuffer::requestComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
