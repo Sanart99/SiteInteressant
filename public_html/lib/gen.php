@@ -8,17 +8,18 @@ class PaginationVals {
     public readonly ?int $first;
     public readonly ?int $last;
     public ?string $sortBy = null;
-    public bool $requestPageCount = false;
+    public bool $requestPageCount;
     private ?string $after;
     private ?string $before;
     private string $s;
 
-    public function __construct(?int $first, ?int $last, ?string $after, ?string $before) {
+    public function __construct(?int $first, ?int $last, ?string $after, ?string $before, bool $requestPageCount = false) {
         if (($first == null || $first < 0) && ($last == null || $last < 0)) throw new \InvalidArgumentException("Invalid arguments.");
         $this->first = $first;
         $this->last = $last;
         $this->after = $after;
         $this->before = $before;
+        $this->requestPageCount = $requestPageCount;
         $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
     }
 
