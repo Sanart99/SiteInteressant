@@ -21,6 +21,7 @@ use GraphQL\Utils\Utils;
 use LDLib\Database\LDPDO;
 use LDLib\General\{
     ErrorType,
+    PageInfo,
     TypedException
 };
 use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSorting, TidComment, TidThread};
@@ -78,36 +79,29 @@ class QueryType extends ObjectType {
                 'parseText' => [
                     'type' => fn() => Type::string(),
                     'args' => [
-                        'text' => Type::string()
+                        'text' => Type::nonNull(Type::string())
                     ],
-                    'resolve' => fn($o, $args) => textToHTML($args['text'])
+                    'resolve' => fn($o, $args) => Context::getAuthenticatedUser() == null ? null : textToHTML($args['text'])
                 ],
                 'search' => [
                     'type' => fn() => Types::getConnectionObjectType('ForumSearchItem'),
                     'args' => [
                         'keywords' => Type::nonNull(Type::string()),
-                        'sortBy' => [
-                            'type' => Type::nonNull(Types::SearchSorting()),
-                            'defaultValue' => SearchSorting::ByDate
-                        ],
-                        'startDate' => Types::DateTime(),
-                        'endDate' => Types::DateTime(),
-                        'userIds' => Type::listOf(Type::nonNull(Type::int())),
-                        'first' => Type::int(),
-                        'last' => Type::int(),
-                        'after' => Type::id(),
-                        'before' => Type::id(),
-                        'withPageCount' => [
-                            'type' => Type::nonNull(Type::boolean()),
-                            'defaultValue' => false
-                        ]
+                        'sortBy' => [ 'type' => Type::nonNull(Types::SearchSorting()), 'defaultValue' => SearchSorting::ByDate ],
+                        'startDate' => [ 'type' => Types::DateTime(), 'defaultValue' => null ],
+                        'endDate' => [ 'type' => Types::DateTime(), 'defaultValue' => null ],
+                        'userIds' => [ 'type' => Type::listOf(Type::nonNull(Type::int())), 'defaultValue' => null ],
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
                     ],
                     'resolve' => function($o, $args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::OPERATION_UNAUTHORIZED;
-                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
-                        $pag->requestPageCount = $args['withPageCount'];
-                        $fsq = new ForumSearchQuery($args['keywords'], $args['sortBy'], $args['startDate']??null, $args['endDate']??null, $args['userIds']??null);
+                        if ($user == null) return ConnectionType::getEmptyConnection();
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $fsq = new ForumSearchQuery($args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
                         ForumBuffer::requestSearch($fsq,$pag);
                         return quickReactPromise(function() use($fsq,$pag) {
                             return ForumBuffer::getSearch($fsq,$pag);
@@ -117,10 +111,8 @@ class QueryType extends ObjectType {
                 'viewer' => [
                     'type' => fn() => Types::RegisteredUser(),
                     'resolve' => function() {
-                        if (!isset($_COOKIE['sid'])) return null;
-                        $user = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
-                        if ($user == null) return null;
-                        return $user->id;
+                        $user = Context::getAuthenticatedUser();
+                        return $user == null ? null : $user->id;
                     }
                 ]
             ]
@@ -133,7 +125,7 @@ class MutationType extends ObjectType {
         parent::__construct([
             'fields' => [
                 'forum_newThread' => [
-                    'type' => fn() => Types::getOperationObjectType('OnThread'),
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThread')),
                     'args' => [
                         'title' => Type::nonNull(Type::string()),
                         'tags' => Type::nonNull(Type::listOf(Type::nonNull(Type::string()))),
@@ -147,7 +139,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'forumThread_addComment' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'threadId' => Type::nonNull(Type::int()),
                         'content' => Type::nonNull(Type::string())
@@ -160,7 +152,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'forumThread_editComment' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'threadId' => Type::nonNull(Type::int()),
                         'commentNumber' => Type::nonNull(Type::int()),
@@ -174,7 +166,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'forumThread_removeComment' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'threadId' => Type::nonNull(Type::int()),
                         'commentNumber' => Type::nonNull(Type::int())
@@ -187,18 +179,19 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'loginUser' => [
-                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnRegisteredUser')),
                     'args' => [
                         'username' => Type::nonNull(Type::string()),
                         'password' => Type::nonNull(Type::string())
                     ],
                     'resolve' => function($o,$args) {
+                        if (Context::getAuthenticatedUser() != null) return ErrorType::OPERATION_UNAUTHORIZED;
                         $user = login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
                         return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ],
                 'logoutUserFromEverything' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'resolve' => function ($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return ErrorType::USER_INVALID;
@@ -206,7 +199,7 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'processInviteCode' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'code' => Type::nonNull(Type::string())
                     ],
@@ -216,19 +209,20 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'registerUser' => [
-                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnRegisteredUser')),
                     'args' => [
                         'username' => Type::nonNull(Type::string()),
                         'password' => Type::nonNull(Type::string())
                     ],
                     'resolve' => function($o, $args) {
-                        if (!isset($_COOKIE['invite_sid'])) return ErrorType::OPERATION_UNAUTHORIZED;
+                        $authUser = Context::getAuthenticatedUser();
+                        if ($authUser != null || !isset($_COOKIE['invite_sid'])) return ErrorType::OPERATION_UNAUTHORIZED;
                         $user = register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
                         return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ],
                 'setNotificationToRead' => [
-                    'type' => fn() => Types::SimpleOperation(),
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'userId' => Type::nonNull(Type::int()),
                         'notifId' => Type::nonNull(Type::string())
@@ -240,10 +234,10 @@ class MutationType extends ObjectType {
                     }
                 ],
                 'uploadAvatar' => [
-                    'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnRegisteredUser')),
                     'resolve' => function() {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::OPERATION_UNAUTHORIZED;
+                        if ($user == null) return ErrorType::USER_INVALID;
                         if (!isset($_FILES['imgAvatar'])) return ErrorType::NOTFOUND;
                         $file = $_FILES['imgAvatar'];
                         if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK || $file['size'] > 20000) return ErrorType::INVALID;
@@ -319,15 +313,10 @@ class OperationType extends InterfaceType {
 
 class NotificationType extends InterfaceType {
     public static function process(mixed $o, callable $f) {
-        if (Context::getAuthenticatedUser() == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data'];
-
-        return quickReactPromise(function() use($o,$f) {
-            return $f($o);
-            $row = ForumBuffer::getComment($o);
-            if ($row == null || $row['data'] == null) return null;
-            return $f($row);
-        });
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge'];
+        return $f($o);
     }
 
     public function __construct(array $config2 = null) {
@@ -335,31 +324,31 @@ class NotificationType extends InterfaceType {
             'fields' => [
                 'dbId' => [
                     'type' => fn() => Type::string(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => $o['id'])
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['id'])
                 ],
                 'date' => [
                     'type' => fn() => Types::DateTime(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => $o['date'])
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['date'])
                 ],
                 'notificationGroup' => [
                     'type' => fn() => Types::NotificationGroup(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => NotificationGroup::from($o['group']))
+                    'resolve' => fn($o) => self::process($o,fn($o) => NotificationGroup::from($o['data']['group']))
                 ],
                 'actionName' => [
                     'type' => fn() => Type::string(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => $o['action'])
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['action'])
                 ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => in_array(1,json_decode($o['readnotifs_ids'],null,512,JSON_OBJECT_AS_ARRAY)))
+                    'resolve' => fn($o) => self::process($o,fn($o) => in_array(1,json_decode($o['data']['readnotifs_ids'],null,512,JSON_OBJECT_AS_ARRAY)))
                 ],
                 'associatedUser' => [
                     'type' => fn() => Types::RegisteredUser(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => $o['user_id'])
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['user_id'])
                 ]
             ],
             'resolveType' => fn($o) => self::process($o,function($o) {
-                $details = json_decode($o['details'],true);
+                $details = json_decode($o['data']['details'],true);
                 if ($details['threadId'] != null && $details['commentNumber'] != null) return Types::ForumNotification();
                 return Types::BaseNotification();
             })
@@ -388,6 +377,10 @@ class SimpleOperationType extends ObjectType {
 }
 
 class ConnectionType extends ObjectType {
+    public static function getEmptyConnection() {
+        return ['data' => null, 'metadata' => ['pageInfo' => new PageInfo(null,null,false,false,null)]];
+    }
+
     public function __construct(callable $edgeType, array $config2 = null) {
         $config = [
             'fields' => [
@@ -455,11 +448,17 @@ class PageInfoType extends ObjectType {
 /*****  *****/
 
 class RegisteredUserType extends ObjectType {
-    public static function authCheck(array $row, ?ResolveInfo $ri=null) {
+    public static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
-        if ($authUser != null && ($authUser->id === $row['data']['id'] || $authUser->titles->contains('Administrator'))) return true;
-        if ($ri != null) Context::addLog($ri->fieldNodes[0]->name->value, "User not authorized.");
-        return false;
+        if ($authUser == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+
+        UsersBuffer::requestFromId($o);
+        return quickReactPromise(function() use($o,$f,&$authUser) {
+            $row = UsersBuffer::getFromId($o);
+            if ($row == null) return null;
+            return ($authUser->titles->contains('Administrator') || $authUser->id == $row['data']['id']) ? $f($row) : null;
+        });
     }
 
     public function __construct(array $config2 = null) {
@@ -468,51 +467,31 @@ class RegisteredUserType extends ObjectType {
             'fields' => [
                 'id' => [
                     'type' => fn() => Type::id(),
-                    'resolve' => function($o,$args,$context,$ri) {
-                        UsersBuffer::requestFromId($o);
-                        return quickReactPromise(function() use($o,$ri) {
-                            $row = UsersBuffer::getFromId($o);
-                            if ($row == null || !self::authCheck($row,$ri)) return null;
-                            return "USER_{$row['data']['id']}";
-                        });
-                    }
+                    'resolve' => fn($o) => self::process($o, fn($o) => "USER_{$o['data']['id']}")
                 ],
                 'name' => [
                     'type' => fn() => Type::string(),
-                    'resolve' => function($o,$args,$context,$ri) {
-                        UsersBuffer::requestFromId($o);
-                        return quickReactPromise(function() use($o,$ri) {
-                            $row = UsersBuffer::getFromId($o);
-                            if ($row == null || !self::authCheck($row,$ri)) return null;
-                            return $row['data']['name'];
-                        });
-                    }
+                    'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
                 ],
                 'notifications' => [
                     'type' => fn() => Types::getConnectionObjectType('Notification'),
                     'args' => [
-                        'userId' => Type::nonNull(Type::int()),
-                        'first' => Type::int(),
-                        'last' => Type::int(),
-                        'after' => Type::id(),
-                        'before' => Type::id(),
-                        'withPageCount' => [
-                            'type' => Type::nonNull(Type::boolean()),
-                            'defaultValue' => false
-                        ]
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
                     ],
-                    'resolve' => function($o,$args,$context,$ri) {
-                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
-                        $pag->requestPageCount = $args['withPageCount'];
-                        UsersBuffer::requestFromId($o);
-                        UsersBuffer::requestUserNotifications($args['userId'],$pag);
-                        return quickReactPromise(function() use($o,$ri,$pag) {
-                            $userRow = UsersBuffer::getFromId($o);
-                            $row = UsersBuffer::getUserNotifications($o,$pag);
-                            if ($row == null || !self::authCheck($userRow,$ri)) return null;
+                    'resolve' => fn($o,$args) => self::process($o, function($o) use(&$args) {
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $userId = (int)$o['data']['id'];
+                        UsersBuffer::requestUserNotifications($userId,$pag);
+                        return quickReactPromise(function() use(&$userId,&$pag) {
+                            $row = UsersBuffer::getUserNotifications($userId,$pag);
+                            if ($row == null) return null;
                             return $row;
                         });
-                    }
+                    })
                 ]
             ]
         ];
@@ -549,20 +528,20 @@ class ForumType extends ObjectType {
                 'threads' => [
                     'type' => fn() => Types::getConnectionObjectType('Thread'),
                     'args' => [
-                        'first' => Type::int(),
-                        'last' => Type::int(),
-                        'after' => Type::id(),
-                        'before' => Type::id(),
-                        'sortBy' => Type::string()
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         if (Context::getAuthenticatedUser() == null) return null;
-                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
                         $pag->sortBy = $args['sortBy']??'';
                         ForumBuffer::requestThreads($pag);
                         return quickReactPromise(function() use($o,$args,$pag,$ri) {
-                            $threadData = ForumBuffer::getThreads($pag);
-                            return $threadData;
+                            return ForumBuffer::getThreads($pag);
                         });
                     }
                 ]
@@ -574,7 +553,8 @@ class ForumType extends ObjectType {
 
 class TidThreadType extends ObjectType {
     private static function process(mixed $o, callable $f) {
-        if (Context::getAuthenticatedUser() == null) return null;
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null || !$authUser->titles->contains('oldInteressant')) return null;
         if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
         ForumBuffer::requestTidThread($o);
         return quickReactPromise(function() use($o,$f) {
@@ -635,18 +615,14 @@ class TidThreadType extends ObjectType {
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('TidComment'),
                     'args' => [
-                        'first' => Type::int(),
-                        'last' => Type::int(),
-                        'after' => Type::id(),
-                        'before' => Type::id(),
-                        'withPageCount' => [
-                            'type' => Type::nonNull(Type::boolean()),
-                            'defaultValue' => false
-                        ]
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
-                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
-                        $pag->requestPageCount = $args['withPageCount'];
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
                         return self::process($o,function($row) use($pag) {
                             ForumBuffer::requestTidComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
@@ -664,13 +640,14 @@ class TidThreadType extends ObjectType {
 
 class ThreadType extends ObjectType {
     private static function process(mixed $o, callable $f) {
-        if (Context::getAuthenticatedUser() == null) return null;
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
         if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
         ForumBuffer::requestThread($o);
-        return quickReactPromise(function() use($o,$f) {
+        return quickReactPromise(function() use(&$o,&$f,&$authUser) {
             $row = ForumBuffer::getThread($o);
             if ($row == null || $row['data'] == null) return null;
-            return $f($row);
+            return ($authUser->titles->contains('oldInteressant') || $authUser->registrationDate >= new \DateTimeImmutable($row['data']['created_at'])) ? $f($row) : null;
         });
     }
 
@@ -717,18 +694,14 @@ class ThreadType extends ObjectType {
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('Comment'),
                     'args' => [
-                        'first' => Type::int(),
-                        'last' => Type::int(),
-                        'after' => Type::id(),
-                        'before' => Type::id(),
-                        'withPageCount' => [
-                            'type' => Type::nonNull(Type::boolean()),
-                            'defaultValue' => false
-                        ]
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
-                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
-                        $pag->requestPageCount = $args['withPageCount'];
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
                         return self::process($o,function($row) use($pag) {
                             ForumBuffer::requestComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
@@ -746,11 +719,14 @@ class ThreadType extends ObjectType {
 
 class TidCommentType extends ObjectType {
     private static function process(mixed $o, callable $f) {
-        if (Context::getAuthenticatedUser() == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = TidComment::getIdFromRow($o['edge']['data']);
-        ForumBuffer::requestTidComment($o);
-        return quickReactPromise(function() use($o,$f) {
-            $row = ForumBuffer::getTidComment($o);
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null || !$authUser->titles->contains('oldInteressant')) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge'];
+        
+        $commNodeId = TidComment::getIdFromRow($o['data']);
+        ForumBuffer::getTidComment($commNodeId);
+        return quickReactPromise(function() use($commNodeId,$f) {
+            $row = ForumBuffer::getTidComment($commNodeId);
             if ($row == null || $row['data'] == null) return null;
             return $f($row);
         });
@@ -804,13 +780,23 @@ class TidCommentType extends ObjectType {
 
 class CommentType extends ObjectType {
     private static function process(mixed $o, callable $f) {
-        if (Context::getAuthenticatedUser() == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::initFromRow($o['edge']['data'])->nodeId;
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::getIdFromRow($o['edge']['data']['id']);
+
         ForumBuffer::requestComment($o);
-        return quickReactPromise(function() use($o,$f) {
+        return quickReactPromise(function() use(&$o,&$f,&$authUser) {
             $row = ForumBuffer::getComment($o);
             if ($row == null || $row['data'] == null) return null;
-            return $f($row);
+            if ($authUser->titles->contains('oldInteressant')) return $f($row);
+
+            $comment = Comment::initFromRow($row['data']);
+            ForumBuffer::requestThread($comment->threadId);
+            return quickReactPromise(function() use(&$comment,&$authUser,&$f,&$row) {
+                $threadRow = ForumBuffer::getThread($comment->threadId);
+                if ($authUser->registrationDate < new \DateTimeImmutable($threadRow['data']['creation_date'])) return null;
+                return $f($row);
+            });
         });
     }
 
@@ -877,12 +863,12 @@ class ForumNotificationType extends BaseNotificationType {
             'fields' => [
                 'thread' => [
                     'type' => fn() => Types::Thread(),
-                    'resolve' => fn($o) => NotificationType::process($o, fn($o) => json_decode($o['details'],true)['threadId'])
+                    'resolve' => fn($o) => NotificationType::process($o, fn($o) => json_decode($o['data']['details'],true)['threadId'])
                 ],
                 'comment' => [
                     'type' => fn() => Types::Comment(),
                     'resolve' => fn($o) => NotificationType::process($o, function($o) {
-                        $details = json_decode($o['details'],true);
+                        $details = json_decode($o['data']['details'],true);
                         return "forum_{$details['threadId']}-{$details['commentNumber']}";
                     })
                 ]
