@@ -143,10 +143,9 @@ class BufferManager {
             if (is_string($vCurs)) $vCurs = "'$vCurs'";
             $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,2) : " WHERE $cursorRow<$vCurs";
         }
-
         if ($whereCond != "") {
-            $whereCond = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
-            $sql .= " $whereCond";
+            $whereCondAfterCurs = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
+            $sql .= " $whereCondAfterCurs";
         }
 
         if ($first != null && $first > 0) {
@@ -177,25 +176,48 @@ class BufferManager {
         }
         if ($last != null) $result = array_reverse($result);
 
-        if (count($result) > 0) {
+        $nResults = count($result);
+        if ($nResults > 0) {
             if ($after != null || $before != null) {
-                $cursWhere1 = is_callable($cursorRow) ? $cursorRow($vCurs,5) : "$cursorRow<=$vCurs";
-                $cursWhere2 = is_callable($cursorRow) ? $cursorRow($vCurs,6) : "$cursorRow>=$vCurs";
-            }
+                $where1 = (is_callable($cursorRow) ? $cursorRow($vCurs,5) : "$cursorRow<=$vCurs") . " $whereCondAfterCurs";
+                $where2 = (is_callable($cursorRow) ? $cursorRow($vCurs,6) : "$cursorRow>=$vCurs") . " $whereCondAfterCurs";
+            } else $where1 = $where2 = $whereCond;
 
             $startCursor = $result[0]['cursor'] ?? null;
-            $endCursor = $result[count($result)-1]['cursor'] ?? null;
-            $hasPreviousPage = ($last != null && $hadMoreResults) ||
-                ($after != null && $conn->query("SELECT 1 FROM $dbName WHERE $cursWhere1 $whereCond LIMIT 1")->fetch() !== false);
-            $hasNextPage = ($first != null && $hadMoreResults) ||
-                ($before != null && $conn->query("SELECT 1 FROM $dbName WHERE $cursWhere2 $whereCond LIMIT 1")->fetch() !== false);
+            $endCursor = $result[$nResults-1]['cursor'] ?? null;
+
+            $hasPreviousPage = false;
+            $hasNextPage = false;
+            if ($last != null && $hadMoreResults) $hasPreviousPage = true;
+            else if ($after != null) {
+                if ($executeVals != null) {
+                    $stmt = $conn->prepare($sql);
+                    $stmt->execute($executeVals);
+                    $hasPreviousPage = $stmt->fetch() !== false;
+                } else $hasPreviousPage = $conn->query("SELECT 1 FROM $dbName WHERE $where1 LIMIT 1")->fetch() !== false;
+            }
+            if ($first != null && $hadMoreResults) $hasNextPage = true;
+            else if ($first != null) {
+                if ($executeVals != null) {
+                    $stmt = $conn->prepare($sql);
+                    $stmt->execute($executeVals);
+                    $hasNextPage = $stmt->fetch() !== false;
+                } else $hasNextPage = $conn->query("SELECT 1 FROM $dbName WHERE $where2 LIMIT 1")->fetch() !== false;
+            }
         }
 
+        $pageCount = null;
+        if ($pag->requestPageCount == true) {
+            if ($executeVals != null) {
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
+                $stmt->execute($executeVals);
+                $pageCount = ($stmt->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1;
+            } else return $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0];
+        }
         $storeAll([
             'data' => $result,
             'metadata' => [
-                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,
-                    ($pag->requestPageCount == true) ? ($conn->query("SELECT COUNT(*) FROM $dbName")->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1 : null)
+                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,$pageCount)
             ]
         ]);
     }
