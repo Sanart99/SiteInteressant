@@ -18,6 +18,7 @@ use function LDLib\Database\get_tracked_pdo;
 
 enum DataType {
     case User;
+    case Notification;
     case ForumThread;
     case ForumComment;
     case ForumTidThread;
@@ -104,6 +105,7 @@ class BufferManager {
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
+                    case DataType::Notification: UsersBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$reqGroup->count()) throw new \Error("ReqGroup error. ({$a[0]->name})");
@@ -234,16 +236,50 @@ class UsersBuffer {
         return BufferManager::request(DataType::User, $id) == 0;
     }
 
+    public static function requestUserNotifications(int $userId, PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::Notification,[$userId,$pag]);
+    }
+
     public static function getFromId(int $id):?array {
         return BufferManager::get(['users',$id]);
+    }
+
+    public static function getUserNotifications(int $userId, PaginationVals $pag) {
+        return BufferManager::get(['notificationsM',$userId,$pag->getString()]);
     }
 
     public static function exec(LDPDO $conn) {
         $bufRes =& BufferManager::$result;
         $req =& BufferManager::$req;
         $fet =& BufferManager::$fet;
+        $rg =& BufferManager::$reqGroup;
+        $fg =& BufferManager::$fetGroup;
 
         $toRemove = [];
+
+        foreach ($rg->getIterator() as $v) if ($v[0] === DataType::Notification) {
+            $userId = $v[1][0];
+            $pag = $v[1][1];
+            BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,?) = 1', $pag,'id',
+                fn($row) => base64_encode($row['id']),
+                fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? intval($m[0]) : 1,
+                function($row) use(&$bufRes,&$req,&$fet,&$userId) {
+                    $bufRes['notifications'][$userId][$row['data']['id']] = $row;
+                    $req->remove([DataType::Notification,[$userId,$row['data']['id']]]);
+                    $fet->add([DataType::Notification,[$userId,$row['data']['id']]]);
+                },
+                function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['notificationsM'][$userId][$pag->getString()] = $rows; },
+                '*',
+                [$userId]
+            );
+
+            array_push($toRemove,$v);
+            break;
+        }
+        foreach ($toRemove as $v) {
+            $rg->remove($v);
+            $fg->add($v);
+        }
         foreach ($req->getIterator() as $v) if ($v[0] === DataType::User) {
             $userId = $v[1];
 

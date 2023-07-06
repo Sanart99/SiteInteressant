@@ -8,6 +8,7 @@ require_once $libDir.'/parser.php';
 require_once $libDir.'/auth.php';
 require_once $libDir.'/user.php';
 require_once $libDir.'/forum.php';
+require_once $libDir.'/records.php';
 require_once $libDir.'/utils/arrayTools.php';
 require_once __DIR__.'/buffers.php';
 dotenv();
@@ -26,6 +27,7 @@ use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSort
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
+use LdLib\Records\NotificationGroup;
 
 use function LDLib\Auth\{
     get_user_from_sid,
@@ -43,6 +45,7 @@ use function LDLib\Forum\{
     thread_edit_comment,
     thread_remove_comment
 };
+use function LdLib\Records\set_notification_to_read;
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -224,6 +227,18 @@ class MutationType extends ObjectType {
                         return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ],
+                'setNotificationToRead' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'userId' => Type::nonNull(Type::int()),
+                        'notifId' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null || $user->id != $args['userId']) return ErrorType::OPERATION_UNAUTHORIZED;
+                        return set_notification_to_read(DBManager::getConnection(),$args['userId'],$args['notifId']);
+                    }
+                ],
                 'uploadAvatar' => [
                     'type' => fn() => Types::getOperationObjectType('OnRegisteredUser'),
                     'resolve' => function() {
@@ -297,6 +312,57 @@ class OperationType extends InterfaceType {
                     'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : 'No problem detected.'
                 ]
             ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class NotificationType extends InterfaceType {
+    public static function process(mixed $o, callable $f) {
+        if (Context::getAuthenticatedUser() == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data'];
+
+        return quickReactPromise(function() use($o,$f) {
+            return $f($o);
+            $row = ForumBuffer::getComment($o);
+            if ($row == null || $row['data'] == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'dbId' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['id'])
+                ],
+                'date' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['date'])
+                ],
+                'notificationGroup' => [
+                    'type' => fn() => Types::NotificationGroup(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => NotificationGroup::from($o['group']))
+                ],
+                'actionName' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['action'])
+                ],
+                'isRead' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => in_array(1,json_decode($o['readnotifs_ids'],null,512,JSON_OBJECT_AS_ARRAY)))
+                ],
+                'associatedUser' => [
+                    'type' => fn() => Types::RegisteredUser(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['user_id'])
+                ]
+            ],
+            'resolveType' => fn($o) => self::process($o,function($o) {
+                $details = json_decode($o['details'],true);
+                if ($details['threadId'] != null && $details['commentNumber'] != null) return Types::ForumNotification();
+                return Types::BaseNotification();
+            })
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
     }
@@ -419,6 +485,32 @@ class RegisteredUserType extends ObjectType {
                             $row = UsersBuffer::getFromId($o);
                             if ($row == null || !self::authCheck($row,$ri)) return null;
                             return $row['data']['name'];
+                        });
+                    }
+                ],
+                'notifications' => [
+                    'type' => fn() => Types::getConnectionObjectType('Notification'),
+                    'args' => [
+                        'userId' => Type::nonNull(Type::int()),
+                        'first' => Type::int(),
+                        'last' => Type::int(),
+                        'after' => Type::id(),
+                        'before' => Type::id(),
+                        'withPageCount' => [
+                            'type' => Type::nonNull(Type::boolean()),
+                            'defaultValue' => false
+                        ]
+                    ],
+                    'resolve' => function($o,$args,$context,$ri) {
+                        $pag = new PaginationVals($args['first']??null,$args['last']??null,$args['after']??null,$args['before']??null);
+                        $pag->requestPageCount = $args['withPageCount'];
+                        UsersBuffer::requestFromId($o);
+                        UsersBuffer::requestUserNotifications($args['userId'],$pag);
+                        return quickReactPromise(function() use($o,$ri,$pag) {
+                            $userRow = UsersBuffer::getFromId($o);
+                            $row = UsersBuffer::getUserNotifications($o,$pag);
+                            if ($row == null || !self::authCheck($userRow,$ri)) return null;
+                            return $row;
                         });
                     }
                 ]
@@ -618,6 +710,10 @@ class ThreadType extends ObjectType {
                     'type' => fn() => Types::ThreadPermission(),
                     'resolve' => fn($o) => self::process($o,fn($row) => ThreadPermission::from($row['data']['permission']))
                 ],
+                'followingIds' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
+                    'resolve' => fn($o) => self::process($o,fn($row) => explode(',',$row['data']['following_ids'])),
+                ],
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('Comment'),
                     'args' => [
@@ -749,6 +845,46 @@ class CommentType extends ObjectType {
                 'content' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['content'])
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+/***** Notifications *****/
+
+class BaseNotificationType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Notification()],
+            'fields' => [
+                Types::Notification()->getField('dbId'),
+                Types::Notification()->getField('date'),
+                Types::Notification()->getField('notificationGroup'),
+                Types::Notification()->getField('actionName'),
+                Types::Notification()->getField('isRead'),
+                Types::Notification()->getField('associatedUser')
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class ForumNotificationType extends BaseNotificationType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'thread' => [
+                    'type' => fn() => Types::Thread(),
+                    'resolve' => fn($o) => NotificationType::process($o, fn($o) => json_decode($o['details'],true)['threadId'])
+                ],
+                'comment' => [
+                    'type' => fn() => Types::Comment(),
+                    'resolve' => fn($o) => NotificationType::process($o, function($o) {
+                        $details = json_decode($o['details'],true);
+                        return "forum_{$details['threadId']}-{$details['commentNumber']}";
+                    })
                 ]
             ]
         ];
@@ -1046,6 +1182,10 @@ class Types {
         return self::$types['Operation'] ??= new OperationType();
     }
 
+    public static function Notification():NotificationType {
+        return self::$types['Notification'] ??= new NotificationType();
+    }
+
     /***** Parent Classes and Unions *****/
 
     public static function SimpleOperation():SimpleOperationType {
@@ -1088,6 +1228,16 @@ class Types {
         return self::$types['ForumSearchItem'] ??= new ForumSearchItemType();
     }
 
+    /***** Notifications *****/
+
+    public static function BaseNotification():BaseNotificationType {
+        return self::$types['BaseNotification'] ??= new BaseNotificationType();
+    }
+
+    public static function ForumNotification():ForumNotificationType {
+        return self::$types['ForumNotification'] ??= new ForumNotificationType();
+    }
+
     /***** Enums *****/
 
     public static function SearchSorting():PhpEnumType {
@@ -1096,6 +1246,10 @@ class Types {
 
     public static function ThreadPermission():PhpEnumType {
         return self::$types['ThreadPermission'] ??= new PhpEnumType(ThreadPermission::class);
+    }
+
+    public static function NotificationGroup():PhpEnumType {
+        return self::$types['NotificationGroup'] ??= new PhpEnumType(NotificationGroup::class);
     }
 
     /***** Scalars *****/

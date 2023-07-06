@@ -148,8 +148,8 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $conn->query('START TRANSACTION');
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
 
-    $stmt = $conn->prepare('INSERT INTO threads (author_id,title,tags,creation_date,last_update_date,permission) VALUES (?,?,?,?,?,?) RETURNING *');
-    $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value]);
+    $stmt = $conn->prepare('INSERT INTO threads (author_id,title,tags,creation_date,last_update_date,permission,following_ids) VALUES (?,?,?,?,?,?,?) RETURNING *');
+    $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value,"[$user->id]"]);
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date) VALUES (?,?,?,?,?) RETURNING *');
@@ -181,8 +181,9 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
 
-    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date) VALUES (?,?,?,?,?)");
-    $stmt->execute([$user->id,'forum','addComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
+    $followingIds = $conn->query("SELECT following_ids FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_NUM)[0];
+    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date,notified_ids) VALUES (?,?,?,?,?,?)");
+    $stmt->execute([$user->id,'forum','addComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$followingIds]);
 
     $conn->query('COMMIT');
     ForumBuffer::storeComment($commentRow);
