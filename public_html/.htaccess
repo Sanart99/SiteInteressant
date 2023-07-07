@@ -26,3 +26,6 @@ RewriteRule ^((.*\/|)[^.]+)$ $1.php [NC,DPI]
 RewriteCond %{HTTP_HOST} !(?:^(api\.|res\.)) [NC]
 RewriteCond %{REQUEST_URI} !^/subdomains/www
 RewriteRule (.*) /subdomains/www/$1 [PT]
+
+RewriteCond %{REQUEST_URI} ^/subdomains/www/(home)(?:/.*)?\.php$ [NC]
+RewriteRule ^subdomains/www/([^/]*)(/.*)?\.php$ /subdomains/www/index.php?loadPage=/pages/$1.php&urlEnd=$2&%{QUERY_STRING} [L]
