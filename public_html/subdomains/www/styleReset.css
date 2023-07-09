@@ -1,0 +1,66 @@
+<?php
+header('Content-Type: text/css');
+
+echo <<<CSS
+:where(article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section) {
+	display: block;
+}
+*, *::before, *::after {
+	padding: 0;
+	margin: 0;
+	box-sizing: border-box;
+	margin-block-start: 0px;
+	margin-block-end: 0px;
+	margin-inline-start: 0px;
+	margin-inline-end: 0px;
+	padding-inline-start: 0px;
+}
+:where(html, body) {
+	height: 100%;
+}
+:where(body) {
+	line-height: 1;
+	-webkit-font-smoothing: antialiased;
+}
+:where(table) {
+	border-collapse: collapse;
+	border-spacing: 0px;
+}
+:where(picture, video, canvas) {
+	display: block;
+	max-width: 100%;
+}
+:where(input, button, textarea, select) {
+	font: inherit;
+}
+:where(input:disabled, button:disabled, select:disabled) {
+	opacity: 50%;
+}
+:where(button:active, select:active, button:focus, select:focus) {
+	border-style: unset;
+	outline: unset;
+}
+:where(button:hover, input[type="submit"]:hover) {
+	cursor: pointer;
+}
+:where(p, h1, h2, h3, h4, h5, h6) {
+	overflow-wrap: break-word;
+}
+:where(#root, #__next) {
+	isolation: isolate;
+}
+:where(ol, ul) {
+	list-style: none;
+}
+:where(input:focus-visible) {
+	outline: unset;
+}
+:where(hr) {
+	border: none;
+	margin-block-start: 0em;
+	margin-block-end: 0em;
+}
+CSS;
+?>
+
