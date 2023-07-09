@@ -17,6 +17,7 @@ footer, header, hgroup, menu, nav, section) {
 	padding-inline-start: 0px;
 }
 :where(html, body) {
+	width: 100%;
 	height: 100%;
 }
 :where(body) {
