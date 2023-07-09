@@ -12,6 +12,7 @@ echo <<<CSS
     --color-orange-1: #FF7900;
     --color-orange-2: #FF6600;
     --color-orange-text-1: #BD3D00;
+    --bg-gradient-1: linear-gradient(var(--color-grey-lighter), var(--color-grey-darker));
 
     font-family: Arial, sans-serif;
 }

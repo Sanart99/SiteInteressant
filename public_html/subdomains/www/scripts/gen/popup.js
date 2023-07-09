@@ -206,7 +206,7 @@ function getConnexionForm() {
     JAVASCRIPT,
     'css' => <<<CSS
     #connexionForm {
-        background: linear-gradient(var(--color-grey-lighter), var(--color-grey-darker));
+        background: var(--bg-gradient-1);
         color: var(--color-black-1);
         display: flex;
         flex-direction: column;
