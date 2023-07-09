@@ -1,4 +1,4 @@
-<FilesMatch \.(?:php|js)$>
+<FilesMatch \.(?:php|js|css)$>
     SetHandler application/x-httpd-php
 </FilesMatch>
 
@@ -6,7 +6,7 @@
     SetEnv LD_USE_DYNAMIC_ROOT_LINK 1
 </If>
 <If "%{HTTP_HOST} =~ /^(?:api\.|res\.)?siteinteressant\.net$/">
-    AddHandler application/x-httpd-lsphp .js .php    
+    AddHandler application/x-httpd-lsphp .js .php .css  
 </If>
 <Else>
     php_flag display_startup_errors on
