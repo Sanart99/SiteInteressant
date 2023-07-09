@@ -12,7 +12,7 @@ foreach ($_GET as $k => $v) {
 }
 $loadPageURL = $loadPage.$qString;
 
-$scriptsToLoad = ['init.js','quick.js','router.js','load.js'];
+$scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/popup.js'];
 ?>
 <!DOCTYPE html>
 
@@ -20,6 +20,8 @@ $scriptsToLoad = ['init.js','quick.js','router.js','load.js'];
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="<?php echo $root ?>/styleReset.css" type="text/css">
+		<link rel="stylesheet" href="<?php echo $root ?>/style.css" type="text/css">
         <title>Site Interessant</title>
 
         <?php foreach ($scriptsToLoad as $s) echo "<script src=\"$root/scripts/$s\"></script>" ?>

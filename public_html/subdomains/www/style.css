@@ -1,0 +1,29 @@
+<?php
+header('Content-Type: text/css');
+ob_start();
+require_once __DIR__.'/scripts/gen/popup.js';
+ob_end_clean();
+
+echo <<<CSS
+:root {
+    --color-black-1: #1D2028;
+    --color-grey-lighter: #EEEDEB;
+    --color-grey-darker: #DDDBD8;
+    --color-orange-1: #FF7900;
+    --color-orange-2: #FF6600;
+    --color-orange-text-1: #BD3D00;
+
+    font-family: Arial, sans-serif;
+}
+body {
+    position: absolute;
+}
+a {
+    color: var(--color-orange-text-1);
+}
+
+CSS;
+
+echo getPopupDiv()['css'];
+echo getConnexionForm()['css'];
+?>
