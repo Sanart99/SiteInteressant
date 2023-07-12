@@ -1,6 +1,11 @@
 <?php
 $libDir = __DIR__.'/../../lib';
+$scriptsLib = 'scripts';
+ob_start();
 require_once $libDir.'/utils/utils.php';
+require_once $scriptsLib.'/gen/main.js';
+require_once $scriptsLib.'/gen/popup.js';
+ob_end_clean();
 
 $root = get_root_link();
 
@@ -28,19 +33,31 @@ $scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/p
     </head>
 
     <body>
-        <p>Index.php</p>
+        <?= getIndexElems()['html']; ?>
+        <?= getPopupDiv()['html']; ?>
+        <div id="bodyDiv" style="height: 100%;">
+            <p>Index.php</p>
+        </div>
     </body>
 
     <script>
-        configRouter(document.querySelector('body'));
+        const elem = document.querySelector('#bodyDiv');
+        configRouter(elem);
         
-        let get = "<?php echo $loadPageURL; ?>";
-        document.querySelector('body').innerHTML = get;   
-        loadPage(get);
-
+        loadPage("<?php echo $loadPageURL; ?>");
         addEventListener("popstate", (event) => {
             let url = history.state.pageUrl;
             loadPage(url);
         });
+
+        <?= getPopupDiv()['js']; ?>
+        <?php if (!isset($_COOKIE['sid'])): ?>
+        popupDiv.insertAdjacentHTML('beforeend',`<?= getConnexionForm()['html']; ?>`);
+        popupDiv.openTo('#connexionForm');
+        <?= getConnexionForm()['js']; ?>
+        connexionForm.openTo('#connexionForm_connect');
+        <?php endif; ?>
+
+        <?= getIndexElems()['js']; ?>
 	</script>
 </html>

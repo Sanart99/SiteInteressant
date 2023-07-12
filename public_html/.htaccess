@@ -19,7 +19,7 @@ Header merge Cache-Control no-cache
 RewriteEngine on
 
 RewriteCond %{REQUEST_URI} ^/$ [NC]
-RewriteRule .* index
+RewriteRule .* home
 
 RewriteRule ^((.*\/|)[^.]+)$ $1.php [NC,DPI]
 

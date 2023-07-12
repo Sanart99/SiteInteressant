@@ -37,13 +37,44 @@ function getPopupDiv() {
         overflow: hidden;
         padding-bottom: 1rem;
     }
+    .popupContainer {
+        background: var(--bg-gradient-1);
+        color: var(--color-black-1);
+        display: flex;
+        flex-direction: column;
+    }
+    .popupContainer input[type="text"], .popupContainer input[type="password"] {
+        background-color: var(--color-grey-darker);
+        border: 1px solid #9F9D9B;
+        height: 2rem;
+        font-size: 1.2rem;
+        box-shadow: inset 0px 1px 2px #C7C5C0;
+        border: 0px;
+        border-top: 1px solid #C7C6C0;
+        border-bottom: 1px solid white;
+        outline: 1px solid #9f9d9b;
+    }
+    .popupContainer input[type="submit"], .popupContainer input[type="button"] {
+        background-color: var(--color-orange-2);
+        color: white;
+        width: 100%;
+        height: 2rem;
+        font-size: 1.2rem;
+        border:0;
+        text-shadow: 0px 1px 2px black;
+        box-shadow: inset 0px 15px 0px #FF7900, inset 0px -1px 0px #A63F00, 0px 2px 2px rgba(0,0,0,0.4);
+        cursor: pointer;
+    }
+    .popupContainer input[type="submit"]:hover, .popupContainer input[type="button"]:hover {
+        border: 1px solid white;
+    }
     CSS];
 }
 $getPopupDiv = getPopupDiv()['html'];
 
 function getConnexionForm() {
     return ['html' => <<<HTML
-    <div id="connexionForm" style="display:none;">
+    <div id="connexionForm" class="popupContainer" style="display:none;">
         <div id="connexionForm_titleDiv">
             <p>•••</p>
         </div>
@@ -205,12 +236,6 @@ function getConnexionForm() {
 
     JAVASCRIPT,
     'css' => <<<CSS
-    #connexionForm {
-        background: var(--bg-gradient-1);
-        color: var(--color-black-1);
-        display: flex;
-        flex-direction: column;
-    }
     #connexionForm label {
         font-weight: bold;
         font-size: 1.2rem;
@@ -225,36 +250,12 @@ function getConnexionForm() {
         justify-content: center;
         margin-bottom: 1rem;
     }
-    #connexionForm input[type="text"], #connexionForm input[type="password"] {
-        background-color: var(--color-grey-darker);
-        border: 1px solid #9F9D9B;
-        height: 2rem;
-        font-size: 1.2rem;
-        box-shadow: inset 0px 1px 2px #C7C5C0;
-        border: 0px;
-        border-top: 1px solid #C7C6C0;
-        border-bottom: 1px solid white;
-        outline: 1px solid #9f9d9b;
-    }
-    #connexionForm input[type="submit"] {
-        background-color: var(--color-orange-2);
-        color: white;
-        width: 100%;
-        height: 2rem;
-        font-size: 1.2rem;
-        border:0;
-        text-shadow: 0px 1px 2px black;
-        box-shadow: inset 0px 15px 0px #FF7900, inset 0px -1px 0px #A63F00, 0px 2px 2px rgba(0,0,0,0.4);
-    }
     #connexionForm_connect_subActions {
         text-align: right;
         font-size: 0.8rem;
     }
     #connexionForm_connect_subActions p {
         padding: 0.1rem 0px;
-    }
-    #connexionForm input[type="submit"]:hover {
-        border: 1px solid white;
     }
     .connexionForm_subDiv {
         display: flex;
@@ -278,6 +279,46 @@ function getConnexionForm() {
 }
 $getConnexionForm = getConnexionForm()['html'];
 
+function getDisconnectElem() {
+    return ['html' => <<<HTML
+    <div id="askDisconnect" class="popupContainer">
+        <input id="askDisconnect_cancel" type="button" value="Retour"/>
+        <input id="askDisconnect_disconnect" type="button" value="Se déconnecter"/>
+    </div>
+
+    HTML,
+    'js' => <<<JAVASCRIPT
+    const cancel = document.querySelector('#askDisconnect_cancel');
+    cancel.addEventListener('click', popupDiv.close);
+    document.querySelector('#askDisconnect_disconnect').addEventListener('click', () => {
+        sendQuery(`mutation LogoutUser {
+            logoutUser {
+                __typename
+                success
+                resultCode
+                resultMessage
+            }
+        }`).then((res) => {
+            if (!res.ok) basicQueryError();
+            else return res.json();
+        }).then((json) => {
+            if (json?.data?.logoutUser?.success == null) basicQueryError();
+            location.reload();
+        });
+    });
+
+    JAVASCRIPT,
+    'css' => <<<CSS
+    #askDisconnect {
+        padding: 1rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    CSS];
+}
+$getDisconnectElem = getDisconnectElem()['html'];
+
 echo <<<JAVASCRIPT
 function getPopupDiv() {
     return `$getPopupDiv`;
@@ -285,5 +326,9 @@ function getPopupDiv() {
 
 function getConnexionForm() {
     return `$getConnexionForm`;
+}
+
+function getDisconnectElem() {
+    return `$getDisconnectElem`;
 }
 JAVASCRIPT;

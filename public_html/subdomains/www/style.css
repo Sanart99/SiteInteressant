@@ -1,12 +1,14 @@
 <?php
 header('Content-Type: text/css');
 ob_start();
+require_once __DIR__.'/scripts/gen/main.js';
 require_once __DIR__.'/scripts/gen/popup.js';
 ob_end_clean();
 
 echo <<<CSS
 :root {
     --color-black-1: #1D2028;
+    --color-black-2: #4E5162;
     --color-grey-lighter: #EEEDEB;
     --color-grey-darker: #DDDBD8;
     --color-orange-1: #FF7900;
@@ -25,6 +27,11 @@ a {
 
 CSS;
 
+echo getIndexElems()['css'];
 echo getPopupDiv()['css'];
+
 echo getConnexionForm()['css'];
+echo getDisconnectElem()['css'];
+
+echo getHomeMainDiv()['css'];
 ?>

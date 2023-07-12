@@ -33,6 +33,7 @@ use LdLib\Records\NotificationGroup;
 use function LDLib\Auth\{
     get_user_from_sid,
     login_user,
+    logout_user,
     logout_user_from_everything,
     process_invite_code,
     register_user
