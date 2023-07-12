@@ -14,7 +14,7 @@ function getPopupDiv() {
         const e = popupDiv.querySelector(sel);
         if (e != null) e.style.display = '';
     }; 
-    popupDiv.close = () => { e.style.display = 'none'; };
+    popupDiv.close = () => { popupDiv.style.display = 'none'; };
     
     JAVASCRIPT,
     'css' => <<<CSS
@@ -92,7 +92,7 @@ function getConnexionForm() {
         if (e.dataset.titleTo != null) connexionForm.querySelector('#connexionForm_titleDiv p').innerHTML = e.dataset.titleTo;
         if (e != null) e.style.display = '';
     };
-    connexionForm.close = () => { e.style.display = 'none'; };
+    connexionForm.close = () => { connexionForm.style.display = 'none'; };
 
     const connect = connexionForm.querySelector('#connexionForm_connect');
     const register = connexionForm.querySelector('#connexionForm_register');
