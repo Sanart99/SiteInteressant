@@ -826,8 +826,8 @@ class CommentType extends ObjectType {
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['number'])
                 ],
-                'authorId' => [
-                    'type' => fn() => Type::int(),
+                'author' => [
+                    'type' => fn() => Types::RegisteredUser(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['author_id'])
                 ],
                 'creationDate' => [
