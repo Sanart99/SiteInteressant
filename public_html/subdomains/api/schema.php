@@ -479,6 +479,10 @@ class RegisteredUserType extends ObjectType {
                     'type' => fn() => Type::id(),
                     'resolve' => fn($o) => self::process($o, fn($o) => "USER_{$o['data']['id']}")
                 ],
+                'dbId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['id'])
+                ],
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
