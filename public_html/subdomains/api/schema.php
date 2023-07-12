@@ -792,7 +792,7 @@ class CommentType extends ObjectType {
     private static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
         if ($authUser == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::getIdFromRow($o['edge']['data']['id']);
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::getIdFromRow($o['edge']['data']);
 
         ForumBuffer::requestComment($o);
         return quickReactPromise(function() use(&$o,&$f,&$authUser) {
