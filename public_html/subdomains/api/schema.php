@@ -190,6 +190,15 @@ class MutationType extends ObjectType {
                         return $user instanceof ErrorType ? $user : $user->id;
                     }
                 ],
+                'logoutUser' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $rowDeleted = logout_user(DBManager::getConnection(), $user->id);
+                        return "Row deleted: ".($rowDeleted === true ? 'true' : 'false');
+                    }
+                ],
                 'logoutUserFromEverything' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'resolve' => function ($o,$args) {

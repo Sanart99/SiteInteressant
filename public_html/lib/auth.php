@@ -54,6 +54,13 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
     return $user;
 }
 
+function logout_user(LDPDO $conn, int $userId) {
+    setcookie("sid", "", time()-3600, "/", $_SERVER['LD_LINK_DOMAIN']);
+    $stmt = $conn->prepare("DELETE FROM connections WHERE session_id=?");
+    $stmt->execute([$_COOKIE['sid']]);
+    return $stmt->rowCount() === 1;
+}
+
 function logout_user_from_everything(LDPDO $conn, int $userId) {
     setcookie("sid", "", time()-3600, "/", $_SERVER['LD_LINK_DOMAIN']);
     return $conn->query("DELETE FROM connections WHERE user_id=$userId")->rowCount();
