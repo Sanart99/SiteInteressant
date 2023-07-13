@@ -487,6 +487,14 @@ class RegisteredUserType extends ObjectType {
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
                 ],
+                'avatarURL' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, function($o) {
+                        $avatarName = $o['data']['avatar_name'];
+                        $root = get_root_link('res');
+                        return $avatarName == null ? "{$root}/avatars/default.jpg" : "{$root}/avatars/$avatarName";
+                    })
+                ],
                 'notifications' => [
                     'type' => fn() => Types::getConnectionObjectType('Notification'),
                     'args' => [
