@@ -410,8 +410,8 @@ class ForumBuffer {
                         switch ($i) {
                             case 1: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>{$vCurs[1]}))";
                             case 2: return "(last_update_date<'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<{$vCurs[1]}))";
-                            case 3: return "last_update_date,id";
-                            case 4: return "last_update_date,id DESC";
+                            case 3: return "last_update_date DESC,id";
+                            case 4: return "last_update_date DESC,id DESC";
                             case 5: return "(last_update_date<='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<={$vCurs[1]}))";
                             case 6: return "(last_update_date>='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>={$vCurs[1]}))";
                             default: throw new \Schema\SafeBufferException("cursorF ??");
