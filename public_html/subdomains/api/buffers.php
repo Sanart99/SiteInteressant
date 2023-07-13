@@ -148,7 +148,7 @@ class BufferManager {
         if ($whereCond != "") {
             $whereCondAfterCurs = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
             $sql .= " $whereCondAfterCurs";
-        }
+        } else $whereCond = "1=1";
 
         if ($first != null && $first > 0) {
             $n = $first+1;
@@ -214,7 +214,7 @@ class BufferManager {
                 $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
                 $stmt->execute($executeVals);
                 $pageCount = ($stmt->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1;
-            } else return $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0];
+            } else $pageCount = ($conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1;
         }
         $storeAll([
             'data' => $result,
