@@ -75,12 +75,13 @@ async function importScript(src, callback) {
     }
 }
 
-function sendQuery(query, variables, headers, operationName) {
+function sendQuery(query, variables, headers, operationName, moreOptions) {
     let options = {
         method: 'POST',
         headers: headers == null ? { 'Content-Type':'application/json', 'Cache-Control':'no-cache' } : headers,
         body: JSON.stringify({'query':query, 'variables':variables, 'operationName':operationName}),
-        credentials: 'include'
+        credentials: 'include',
+        ...moreOptions
     }
     return fetch("$graphql",options);
 }
