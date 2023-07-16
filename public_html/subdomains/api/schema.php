@@ -711,7 +711,7 @@ class ThreadType extends ObjectType {
                 ],
                 'followingIds' => [
                     'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
-                    'resolve' => fn($o) => self::process($o,fn($row) => explode(',',$row['data']['following_ids'])),
+                    'resolve' => fn($o) => self::process($o,fn($row) => json_decode($row['data']['following_ids']) ),
                 ],
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('Comment'),
