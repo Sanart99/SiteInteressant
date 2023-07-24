@@ -43,9 +43,8 @@ use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
     create_thread,
     search,
-    thread_add_comment,
-    thread_edit_comment,
-    thread_remove_comment
+    thread_add_comment, thread_edit_comment, thread_remove_comment,
+    thread_follow, thread_unfollow
 };
 use function LdLib\Records\set_notification_to_read;
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
@@ -177,6 +176,28 @@ class MutationType extends ObjectType {
                         if ($user == null) return ErrorType::USER_INVALID;
                         $v = thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
                         return $v instanceof ErrorType ? $v : true;
+                    }
+                ],
+                'forumThread_follow' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        return thread_follow(DBManager::getConnection(),$user,$args['threadId']);
+                    }
+                ],
+                'forumThread_unfollow' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        return thread_unfollow(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
                 'loginUser' => [
