@@ -156,7 +156,7 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($msg),$sNow]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date) VALUES (?,?,?,?,?)");
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','addThread',json_encode(['threadId' => $threadRow['id']]),$sNow]);
 
     $conn->query('COMMIT');
@@ -182,7 +182,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
 
     $followingIds = $conn->query("SELECT following_ids FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_NUM)[0];
-    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date,notified_ids) VALUES (?,?,?,?,?,?)");
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date,notified_ids) VALUES (?,?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','addComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$followingIds]);
 
     $conn->query('COMMIT');
@@ -210,7 +210,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
 
-    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date) VALUES (?,?,?,?,?)");
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','editComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
 
     $conn->query('COMMIT');
@@ -229,7 +229,7 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($commentRow['creation_date']))->getTimestamp()) / 60;
     if ($minutes > 1.5) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
-    $stmt = $conn->prepare("INSERT INTO records (user_id,type,type2,details,date) VALUES (?,?,?,?,?)");
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','remComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
 
     $conn->query('COMMIT');
