@@ -237,4 +237,20 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     ForumBuffer::forgetComment($comment->nodeId);
     return $comment;
 }
+
+function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId) {
+    $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
+    $ids->add($user->id);
+    $stmt = $conn->prepare('UPDATE threads SET following_ids=? WHERE id=?');
+    $stmt->execute([json_encode($ids),$threadId]);
+    return true;
+}
+
+function thread_unfollow(LDPDO $conn, RegisteredUser $user, int $threadId) {
+    $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
+    $ids->remove($user->id);
+    $stmt = $conn->prepare('UPDATE threads SET following_ids=? WHERE id=?');
+    $stmt->execute([json_encode($ids),$threadId]);
+    return true;
+}
 ?>
