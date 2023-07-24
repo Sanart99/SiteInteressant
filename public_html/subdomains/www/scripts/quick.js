@@ -13,5 +13,13 @@ function basicQueryError(msg) {
     alert(msg instanceof String ? msg : 'Erreur interne.');
     throw new Error('Internal error.');
 }
+
+function getDateAsString(date) {
+    const a = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full'}).format(date).split(' ');
+    a[0] = a[0].charAt(0).toUpperCase() + a[0].slice(1);
+    a[2] = a[2].charAt(0).toUpperCase() + a[2].slice(1);
+    return a;
+}
+
 JAVASCRIPT;
 ?>
