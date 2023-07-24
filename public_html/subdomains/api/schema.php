@@ -1062,12 +1062,13 @@ class DateTimeType extends ScalarType {
     public function serialize($value) {
         if ($value instanceof \DateTimeInterface) $value->format('Y-m-d H:i:s');
         else if (is_string($value) && preg_match('/^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$/', $value) > 0) return $value;
+        else if (is_string($value) && preg_match('/^\d\d\d\d-\d\d-\d\d$/', $value) > 0) return "$value 00:00:00";
         
         throw new InvariantViolation("Could not serialize following value as DateTime: ".Utils::printSafe($value));
     }
 
     public function parseValue($value) {
-        if (!is_string($value) || preg_match('/^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$/', $value) == 0)
+        if (!is_string($value) || preg_match('/^\d\d\d\d-\d\d-\d\d(?: \d\d:\d\d:\d\d)?$/', $value) == 0)
             throw new Error("Cannot represent following value as DateTime: ".Utils::printSafeJson($value));
         
         try {
@@ -1084,7 +1085,7 @@ class DateTimeType extends ScalarType {
             throw new Error('Query error: Can only parse strings got: '.$valueNode->kind, [$valueNode]);
 
         $s = $valueNode->value;
-        if (preg_match('/^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d$/', $s) == 0) throw new Error("Not a valid datetime: '$s'", [$valueNode]);
+        if (preg_match('/^\d\d\d\d-\d\d-\d\d(?: \d\d:\d\d:\d\d)?$/', $s) == 0) throw new Error("Not a valid datetime: '$s'", [$valueNode]);
         try { $v = new \DateTimeImmutable($s); } catch (\Exception $e) { throw new Error("Not a valid datetime: '$s'", [$valueNode]); }
 
         return $v;
