@@ -9,17 +9,20 @@ class PaginationVals {
     public readonly ?int $last;
     public ?string $sortBy = null;
     public bool $requestPageCount;
+    public bool $lastPageSpecialBehavior;
+    public int $skipPages = 0;
     private ?string $after;
     private ?string $before;
     private string $s;
 
-    public function __construct(?int $first, ?int $last, ?string $after, ?string $before, bool $requestPageCount = false) {
+    public function __construct(?int $first, ?int $last, ?string $after, ?string $before, bool $requestPageCount=false, bool $lastPageSpecialBehavior=false) {
         if (($first == null || $first < 0) && ($last == null || $last < 0)) throw new \InvalidArgumentException("Invalid arguments.");
         $this->first = $first;
         $this->last = $last;
         $this->after = $after;
         $this->before = $before;
         $this->requestPageCount = $requestPageCount;
+        $this->lastPageSpecialBehavior = $lastPageSpecialBehavior;
         $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
     }
 
@@ -58,13 +61,15 @@ class PageInfo {
     public readonly bool $hasPreviousPage;
     public readonly bool $hasNextPage;
     public readonly ?int $pageCount;
+    public readonly ?int $currPage;
 
-    public function __construct(?string $startCursor, ?string $endCursor, bool $hasPreviousPage, bool $hasNextPage, ?int $pageCount) {
+    public function __construct(?string $startCursor, ?string $endCursor, bool $hasPreviousPage, bool $hasNextPage, ?int $pageCount, ?int $currPage) {
         $this->startCursor = $startCursor;
         $this->endCursor = $endCursor;
         $this->hasPreviousPage = $hasPreviousPage;
         $this->hasNextPage = $hasNextPage;
         $this->pageCount = $pageCount;
+        $this->currPage = $currPage;
     }
 }
 

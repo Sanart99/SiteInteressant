@@ -125,101 +125,169 @@ class BufferManager {
         }
     }
 
-    public static function pagRequest(LDPDO $conn, string $dbName, string $whereCond="", PaginationVals $pag, string|callable $cursorRow,
+    public static function pagRequest(LDPDO $conn, string $dbName, string $whereCond="1=1", PaginationVals $pag, string|callable $cursorRow,
         callable $encodeCursor, callable $decodeCursor, callable $storeOne, callable $storeAll, string $select='*', ?array $executeVals = null) {
+        if ($whereCond == "") $whereCond = "1=1";
         $first = $pag->first;
         $last = $pag->last;
         $after = $pag->getAfterCursor();
         $before = $pag->getBeforeCursor();
 
+        $executeValsWhereOnly = null; 
+        if ($executeVals != null) {
+            $executeValsWhereOnly = [];
+            foreach ($executeVals as $k => $v) if (str_contains($whereCond,$k)) $executeValsWhereOnly[$k] = $v;
+            if (count($executeValsWhereOnly) == 0) $executeValsWhereOnly = null;
+        }
+
         // Make and exec sql
+        $sql = "SELECT $select FROM $dbName";
         $n = 0;
         $vCurs = null;
-        $sql = "SELECT $select FROM $dbName";
-        if ($after != null) {
-            $vCurs = $decodeCursor($after);
-            if (is_string($vCurs)) $vCurs = "'$vCurs'";
-            $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,1) : " WHERE $cursorRow>$vCurs";
-        } else if ($before != null) {
-            $vCurs = $decodeCursor($before);
-            if (is_string($vCurs)) $vCurs = "'$vCurs'";
-            $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,2) : " WHERE $cursorRow<$vCurs";
-        }
-        if ($whereCond != "") {
+        $pageCount = null;
+        $currPage = null;
+        $getLastPage = $pag->lastPageSpecialBehavior && $last != null && ($before == null && $after == null);
+
+        if ($getLastPage) { // if requesting last page: do this
+            
+            if ($executeValsWhereOnly != null) {
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
+                $stmt->execute($executeValsWhereOnly);
+                $count = $stmt->fetch(\PDO::FETCH_NUM)[0];
+            } else $count = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0];
+
+            $n = $first != null ? $first : $last;
+            $i = $count % $n;
+            if ($i == 0) $i = $n;
+            if ($executeVals != null) {
+                $stmt = $conn->prepare("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow)." LIMIT $i");
+                $stmt->execute($executeVals);
+            } else $stmt = $conn->query("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow)." LIMIT $i");
+
+            $before=null;
+            $whereCondAfterCurs = "AND $whereCond";
+        } else { // otherwise do as normal
+            if ($after != null) {
+                $vCurs = $decodeCursor($after);
+                if (is_string($vCurs)) $vCurs = "'$vCurs'";
+                $sql .= is_callable($cursorRow) ? " WHERE ".$cursorRow($vCurs,1) : " WHERE $cursorRow>$vCurs";
+            }
+            if ($before != null) {
+                $vCurs = $decodeCursor($before);
+                if (is_string($vCurs)) $vCurs = "'$vCurs'";
+                $sql .= $after != null ? " AND " : " WHERE ";
+                $sql .= is_callable($cursorRow) ? $cursorRow($vCurs,2) : "$cursorRow<$vCurs";
+            }
+            
             $whereCondAfterCurs = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
             $sql .= " $whereCondAfterCurs";
-        } else $whereCond = "1=1";
+            if ($pag->skipPages > 0) $whereCondAfterCurs = " AND $whereCond";
 
-        if ($first != null && $first > 0) {
-            $n = $first+1;
-            $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,3)." LIMIT $n" : " ORDER BY $cursorRow LIMIT $n";
-        } else if ($last != null && $last > 0) {
-            $n = $last+1;
-            $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,4)." LIMIT $n" : " ORDER BY $cursorRow DESC LIMIT $n";
-        }
-        if ($executeVals != null) {
-            $stmt = $conn->prepare($sql);
-            $stmt->execute($executeVals);
-        } else $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+            if ($first != null && $first > 0) {
+                $n = $first;
+                $n2 = $pag->skipPages > 0 ? ($first*($pag->skipPages+1))+1 : $n+1;
+                $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,3)." LIMIT $n2" : " ORDER BY $cursorRow LIMIT $n2";
+            } else if ($last != null && $last > 0) {
+                $n = $last;
+                $n2 = $pag->skipPages > 0 ? ($last*($pag->skipPages+1))+1 : $n+1;
+                $sql .= is_callable($cursorRow) ? " ORDER BY ".$cursorRow($vCurs,4)." LIMIT $n2" : " ORDER BY $cursorRow DESC LIMIT $n2";
+            }
+
+            if ($executeVals != null) {
+                $stmt = $conn->prepare($sql);
+                $stmt->execute($executeVals);
+            } else $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+        }        
 
         // Store results
         $result = [];
+        $aRows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         $hadMoreResults = false;
-        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            if (count($result) == $n-1) { $hadMoreResults = true; break; }
+        for ($i=0; $i<count($aRows); $i++) {
+            if ($i < $n*$pag->skipPages) continue;
+            if (count($result) == $n) { $hadMoreResults = true; break; }
+            $row = $aRows[$i];
             
             $v = ['data' => $row, 'metadata' => null];
             $storeOne($v);
 
             $refRow =& $v;
             $cursor = $encodeCursor($row);
-            if (count($result) === 0) $startCursor = $cursor;           
+            if (count($result) === 0) $startCursor = $cursor;
+            $endCursor = $cursor;
             $result[] = ['edge' => $refRow, 'cursor' => $cursor];
         }
-        if ($last != null) $result = array_reverse($result);
-
         $nResults = count($result);
+        if ($last != null && $nResults > 0) {
+            $result = array_reverse($result);
+            $startCursor = $result[0]['cursor'];
+            $endCursor = $result[$nResults-1]['cursor'];
+        }
+
+        // Set $after and $vCurs according to the result
+        if (($getLastPage || $pag->skipPages > 0) && $nResults>0) {
+            $after = $encodeCursor($result[0]['edge']['data']);
+            $vCurs = $decodeCursor($after);
+        }
+        
         if ($nResults > 0) {
             if ($after != null || $before != null) {
                 $where1 = (is_callable($cursorRow) ? $cursorRow($vCurs,5) : "$cursorRow<=$vCurs") . " $whereCondAfterCurs";
                 $where2 = (is_callable($cursorRow) ? $cursorRow($vCurs,6) : "$cursorRow>=$vCurs") . " $whereCondAfterCurs";
             } else $where1 = $where2 = $whereCond;
 
-            $startCursor = $result[0]['cursor'] ?? null;
-            $endCursor = $result[$nResults-1]['cursor'] ?? null;
-
             $hasPreviousPage = false;
             $hasNextPage = false;
             if ($last != null && $hadMoreResults) $hasPreviousPage = true;
             else if ($after != null) {
-                if ($executeVals != null) {
-                    $stmt = $conn->prepare($sql);
-                    $stmt->execute($executeVals);
+                if ($executeValsWhereOnly != null) {
+                    $stmt = $conn->prepare("SELECT 1 FROM $dbName WHERE $where1 LIMIT 1");
+                    $stmt->execute($executeValsWhereOnly);
                     $hasPreviousPage = $stmt->fetch() !== false;
                 } else $hasPreviousPage = $conn->query("SELECT 1 FROM $dbName WHERE $where1 LIMIT 1")->fetch() !== false;
             }
             if ($first != null && $hadMoreResults) $hasNextPage = true;
-            else if ($first != null) {
-                if ($executeVals != null) {
-                    $stmt = $conn->prepare($sql);
-                    $stmt->execute($executeVals);
+            else if ($before != null) {
+                if ($executeValsWhereOnly != null) {
+                    $stmt = $conn->prepare("SELECT 1 FROM $dbName WHERE $where2 LIMIT 1");
+                    $stmt->execute($executeValsWhereOnly);
                     $hasNextPage = $stmt->fetch() !== false;
                 } else $hasNextPage = $conn->query("SELECT 1 FROM $dbName WHERE $where2 LIMIT 1")->fetch() !== false;
             }
         }
 
-        $pageCount = null;
-        if ($pag->requestPageCount == true) {
-            if ($executeVals != null) {
+        if ($pag->requestPageCount == true) {            
+            if ($executeValsWhereOnly != null) {
                 $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
-                $stmt->execute($executeVals);
-                $pageCount = ($stmt->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1;
-            } else $pageCount = ($conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / ($n-1))+1;
+                $stmt->execute($executeValsWhereOnly);
+                $pageCount = (int)($stmt->fetch(\PDO::FETCH_NUM)[0] / $n)+1;
+            } else $pageCount = (int)($conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / $n)+1;
+            
+            if ($nResults == 0) $currPage = null; 
+            else if ($after == null && $before == null) $currPage = $first != null ? 1 : $pageCount;
+            else {
+                try {
+                    $data = $result[0]['edge']['data'];
+                    $vCurs2 = $decodeCursor($encodeCursor($data));
+                    if (is_string($vCurs)) $vCurs2 = "'$vCurs2'";
+
+                    $s = is_callable($cursorRow) ? "$whereCond AND ".$cursorRow($vCurs2,5) : "$whereCond AND $cursorRow<=$vCurs2";
+                    
+                    if ($executeValsWhereOnly != null) {
+                        $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $s");
+                        $stmt->execute($executeValsWhereOnly);
+                        $nItemsBefore = $stmt->fetch()[0];
+                    } else $nItemsBefore = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $s")->fetch()[0];
+                    
+                    $currPage = ceil($nItemsBefore / $n);
+                } catch (\Exception $e) {  }
+            }
         }
+        
         $storeAll([
             'data' => $result,
             'metadata' => [
-                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,$pageCount)
+                'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,$pageCount,$currPage)
             ]
         ]);
     }
@@ -260,7 +328,7 @@ class UsersBuffer {
         foreach ($rg->getIterator() as $v) if ($v[0] === DataType::Notification) {
             $userId = $v[1][0];
             $pag = $v[1][1];
-            BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,?) = 1', $pag,'id',
+            BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag,'id',
                 fn($row) => base64_encode($row['id']),
                 fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? intval($m[0]) : 1,
                 function($row) use(&$bufRes,&$req,&$fet,&$userId) {
@@ -270,7 +338,7 @@ class UsersBuffer {
                 },
                 function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['notificationsM'][$userId][$pag->getString()] = $rows; },
                 '*',
-                [$userId]
+                [':userId' => $userId]
             );
 
             array_push($toRemove,$v);
@@ -408,12 +476,13 @@ class ForumBuffer {
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
                         switch ($i) {
-                            case 1: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>{$vCurs[1]}))";
-                            case 2: return "(last_update_date<'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<{$vCurs[1]}))";
+                            case 1: return "(last_update_date<'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>{$vCurs[1]}))";
+                            case 2: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<{$vCurs[1]}))";
                             case 3: return "last_update_date DESC,id";
-                            case 4: return "last_update_date DESC,id DESC";
-                            case 5: return "(last_update_date<='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<={$vCurs[1]}))";
-                            case 6: return "(last_update_date>='{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>={$vCurs[1]}))";
+                            case 4: return "last_update_date ,id DESC";
+                            case 5: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<={$vCurs[1]}))";
+                            case 6: return "(last_update_date<'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id>={$vCurs[1]}))";
+                            // case 7: return "(last_update_date>'{$vCurs[0]}' OR (last_update_date='{$vCurs[0]}' AND id<={$vCurs[1]}))";
                             default: throw new \Schema\SafeBufferException("cursorF ??");
                         }
                     };
@@ -446,7 +515,7 @@ class ForumBuffer {
             case DataType::ForumComment:
                 $threadId = $v[1][0];
                 $pag = $v[1][1];
-
+                
                 BufferManager::pagRequest($conn, 'comments', "thread_id=$threadId", $pag, 'number',
                     fn($row) => base64_encode("{$row['thread_id']}-{$row['number']}"),
                     fn($s) => preg_match('/^\d+-(\d+)$/', base64_decode($s), $m) > 0 ? (int)$m[1] : 0,
@@ -494,14 +563,19 @@ class ForumBuffer {
                 switch ($fsq->sortBy) {
                     case SearchSorting::ByDate:
                         $sRow = 'deduced_date';
-                        $cursF = function($vCurs,$i) use($sRow) {
+                        $cursF = function($vCurs,$i) {
+                            if ($vCurs != null) {
+                                $date = $vCurs[0];
+                                $thId = $vCurs[1];
+                                $id = $vCurs[2];
+                            }
                             switch ($i) {
-                                case 1: return "($sRow<'{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id>{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>{$vCurs[2]}))))";
-                                case 2: return "($sRow>'{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id<{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<{$vCurs[2]}))))";
-                                case 3: return "$sRow DESC,thread_id,id";
-                                case 4: return "$sRow,thread_id DESC,id DESC";
-                                case 5: return "($sRow>='{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id<={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<={$vCurs[2]}))))";
-                                case 6: return "($sRow<='{$vCurs[0]}' OR ($sRow='{$vCurs[0]}' AND (thread_id>={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>={$vCurs[2]}))))";
+                                case 1: return "(deduced_date<'$date' OR (deduced_date='$date' AND (thread_id>$thId OR (thread_id=$thId AND id>$id))))";
+                                case 2: return "(deduced_date>'$date' OR (deduced_date='$date' AND (thread_id<$thId OR (thread_id=$thId AND id<$id))))";
+                                case 3: return "deduced_date DESC,thread_id,id";
+                                case 4: return "deduced_date,thread_id DESC,id DESC";
+                                case 5: return "(deduced_date>'$date' OR (deduced_date='$date' AND (thread_id<$thId OR (thread_id=$thId AND id<=$id))))";
+                                case 6: return "(deduced_date<'$date' OR (deduced_date='$date' AND (thread_id>$thId OR (thread_id=$thId AND id>=$id))))";
                                 default: throw new \Schema\SafeBufferException("cursorF ??");
                             }
                         };
@@ -511,13 +585,18 @@ class ForumBuffer {
                         $cursF = function($vCurs,$i) {
                             $sRow = '(MATCH(content) AGAINST(:keywords IN BOOLEAN MODE))';
                             $tol = 0.00001;
+                            if ($vCurs != null) {
+                                $relevance = $vCurs[0];
+                                $thId = $vCurs[1];
+                                $id = $vCurs[2];
+                            }
                             switch ($i) {
-                                case 1: return "($sRow<{$vCurs[0]}-$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id>{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>{$vCurs[2]}))))";
-                                case 2: return "($sRow>{$vCurs[0]}+$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id<{$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<{$vCurs[2]}))))";
+                                case 1: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND id>$id))))";
+                                case 2: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND id<$id))))";
                                 case 3: return "relevance DESC,thread_id,id";
                                 case 4: return "relevance,thread_id DESC,id DESC";
-                                case 5: return "($sRow>={$vCurs[0]}-$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id<={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id<={$vCurs[2]}))))";
-                                case 6: return "($sRow<={$vCurs[0]}+$tol OR (abs({$vCurs[0]}-$sRow)<=$tol AND (thread_id>={$vCurs[1]} OR (thread_id={$vCurs[1]} AND id>={$vCurs[2]}))))";
+                                case 5: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND id<=$id))))";
+                                case 6: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND id>=$id))))";
                                 default: throw new \Schema\SafeBufferException("cursorF ??");
                             }
                         };
