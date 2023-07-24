@@ -101,6 +101,7 @@ class QueryType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return ConnectionType::getEmptyConnection();
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $pag->lastPageSpecialBehavior = true;
                         $fsq = new ForumSearchQuery($args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
                         ForumBuffer::requestSearch($fsq,$pag);
                         return quickReactPromise(function() use($fsq,$pag) {
@@ -409,7 +410,7 @@ class SimpleOperationType extends ObjectType {
 
 class ConnectionType extends ObjectType {
     public static function getEmptyConnection() {
-        return ['data' => null, 'metadata' => ['pageInfo' => new PageInfo(null,null,false,false,null)]];
+        return ['data' => null, 'metadata' => ['pageInfo' => new PageInfo(null,null,false,false,null,null)]];
     }
 
     public function __construct(callable $edgeType, array $config2 = null) {
@@ -466,6 +467,10 @@ class PageInfoType extends ObjectType {
                 'pageCount' => [
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => $o->pageCount
+                ],
+                'currPage' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => $o->currPage
                 ]
             ]
         ];
@@ -576,12 +581,15 @@ class ForumType extends ObjectType {
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
                         'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
                         'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
-                        'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ]
+                        'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ],
+                        'enableLastPageSpecialBehavior' => [ 'type' => Type::boolean(), 'defaultValue' => true ],
+                        'skipPages' => Type::int()
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         if (Context::getAuthenticatedUser() == null) return null;
-                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['enableLastPageSpecialBehavior']);
                         $pag->sortBy = $args['sortBy']??'';
+                        $pag->skipPages = $args['skipPages']??0;
                         ForumBuffer::requestThreads($pag);
                         return quickReactPromise(function() use($o,$args,$pag,$ri) {
                             return ForumBuffer::getThreads($pag);
