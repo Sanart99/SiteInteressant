@@ -160,9 +160,9 @@ class BufferManager {
             $i = $count % $n;
             if ($i == 0) $i = $n;
             if ($executeVals != null) {
-                $stmt = $conn->prepare("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow)." LIMIT $i");
+                $stmt = $conn->prepare("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
                 $stmt->execute($executeVals);
-            } else $stmt = $conn->query("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow)." LIMIT $i");
+            } else $stmt = $conn->query("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
 
             $before=null;
             $whereCondAfterCurs = "AND $whereCond";
