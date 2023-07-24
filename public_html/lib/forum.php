@@ -89,11 +89,11 @@ class TidComment {
     public readonly string $nodeId;
     public readonly int $threadId;
     public readonly int $id;
-    public readonly int $authorId;
+    public readonly ?int $authorId;
     public readonly string $content;
     public readonly \DateTimeInterface $deducedDate;
 
-    private function __construct(int $threadId, int $id, int $authorId, string $content, \DateTimeInterface $deducedDate) {
+    private function __construct(int $threadId, int $id, ?int $authorId, string $content, \DateTimeInterface $deducedDate) {
         $this->nodeId = "forum_tid_{$threadId}-{$id}";
         $this->threadId = $threadId;
         $this->id = $id;
