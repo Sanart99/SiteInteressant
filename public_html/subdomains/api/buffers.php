@@ -39,7 +39,8 @@ class BufferManager {
             'tid_threadsM' => [],
             'tid_comments' => [],
             'tid_commentsM' => []
-        ]
+        ],
+        'notificationsM' => []
     ];
 
     private static ?LDPDO $conn = null;
