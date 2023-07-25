@@ -9,6 +9,7 @@ require_once $libDir.'/auth.php';
 require_once $libDir.'/user.php';
 require_once $libDir.'/forum.php';
 require_once $libDir.'/records.php';
+require_once $libDir.'/net.php';
 require_once $libDir.'/utils/arrayTools.php';
 require_once __DIR__.'/buffers.php';
 dotenv();
@@ -46,6 +47,7 @@ use function LDLib\Forum\{
     thread_add_comment, thread_edit_comment, thread_remove_comment,
     thread_follow, thread_unfollow
 };
+use function LDLib\Net\curl_fetch;
 use function LdLib\Records\set_notification_to_read;
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
@@ -287,6 +289,47 @@ class MutationType extends ObjectType {
                         if ($v === false) return ErrorType::UNKNOWN;
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return ErrorType::DATABASE_ERROR;
                         return $user->id;
+                    }
+                ],
+                'uploadTidEmojis' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'forUserId' => Type::int()
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null || !$user->titles->contains('Administrator')) return ErrorType::OPERATION_UNAUTHORIZED;
+                        if (!isset($_FILES['smileysJSON'])) return ErrorType::NOTFOUND;
+                        $json = json_decode(file_get_contents($_FILES['smileysJSON']['tmp_name']),true);
+                        $tidDir = realpath(__DIR__.'/../res/emojis/tid');
+                        $conn = DBManager::getConnection();
+
+                        set_time_limit(300);
+                        $userData = ($args['forUserId']??null) == null ? null : [];
+                        foreach ($json as $category => $smData) {
+                            $category = htmlspecialchars($category);
+                            $dirCategory = "$tidDir/$category";
+                            if (!file_exists($dirCategory)) mkdir($dirCategory);
+                            foreach ($smData as $sm) {
+                                if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0) continue;
+                                $name = $m[1];
+
+                                if (is_array($userData) && ($sm['amount']??null) != null) $userData[] = ['path' => "tid/$category/$name", 'amount' => $sm['amount'] ];
+                                $stmt = $conn->prepare('INSERT INTO emojis(id,aliases,consommable) VALUES (:path,:aliases,:isConsommable) ON DUPLICATE KEY UPDATE aliases=JSON_MERGE_PATCH(VALUES(aliases),:aliases)');
+                                $stmt->execute([':path' => "tid/$category/$name", ':aliases' => json_encode($sm['txts']), ':isConsommable' => (int)(($sm['amount']??null) != null)]);
+
+                                if (file_exists("$dirCategory/$name")) continue;
+                                $img = curl_fetch($sm['src'])['res'];
+                                file_put_contents("$dirCategory/$name",$img);
+                            }
+                        }
+
+                        $forUserId = $args['forUserId']??null;
+                        if ($forUserId == null) return;
+                        foreach ($userData as $d) if ($d['amount'] != null) {
+                            $stmt = $conn->prepare('INSERT INTO users_emojis(user_id,emoji_path,amount) VALUES(:userId,:path,:amount) ON DUPLICATE KEY UPDATE amount=:amount');
+                            $stmt->execute([':userId' => $forUserId, ':path' => $d['path'], ':amount' => $d['amount']]);
+                        }
                     }
                 ]
             ]
