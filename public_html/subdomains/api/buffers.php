@@ -19,6 +19,7 @@ use function LDLib\Database\get_tracked_pdo;
 enum DataType {
     case User;
     case Notification;
+    case Emoji;
     case ForumThread;
     case ForumComment;
     case ForumTidThread;
@@ -40,7 +41,9 @@ class BufferManager {
             'tid_comments' => [],
             'tid_commentsM' => []
         ],
-        'notificationsM' => []
+        'notificationsM' => [],
+        'emojis' => [],
+        'emojisM' => []
     ];
 
     private static ?LDPDO $conn = null;
@@ -106,7 +109,8 @@ class BufferManager {
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
-                    case DataType::Notification: UsersBuffer::exec(self::$conn); break;
+                    case DataType::Notification:
+                    case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$reqGroup->count()) throw new \Error("ReqGroup error. ({$a[0]->name})");
@@ -309,12 +313,20 @@ class UsersBuffer {
         return BufferManager::requestGroup(DataType::Notification,[$userId,$pag]);
     }
 
+    public static function requestUserEmojis(int $userId, PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::Emoji,[$userId,$pag]);
+    }
+
     public static function getFromId(int $id):?array {
         return BufferManager::get(['users',$id]);
     }
 
     public static function getUserNotifications(int $userId, PaginationVals $pag) {
         return BufferManager::get(['notificationsM',$userId,$pag->getString()]);
+    }
+
+    public static function getUserEmojis(int $userId, PaginationVals $pag) {
+        return BufferManager::get(['emojisM',$userId,$pag->getString()]);
     }
 
     public static function exec(LDPDO $conn) {
@@ -326,24 +338,39 @@ class UsersBuffer {
 
         $toRemove = [];
 
-        foreach ($rg->getIterator() as $v) if ($v[0] === DataType::Notification) {
-            $userId = $v[1][0];
-            $pag = $v[1][1];
-            BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag,'id',
-                fn($row) => base64_encode($row['id']),
-                fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? intval($m[0]) : 1,
-                function($row) use(&$bufRes,&$req,&$fet,&$userId) {
-                    $bufRes['notifications'][$userId][$row['data']['id']] = $row;
-                    $req->remove([DataType::Notification,[$userId,$row['data']['id']]]);
-                    $fet->add([DataType::Notification,[$userId,$row['data']['id']]]);
-                },
-                function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['notificationsM'][$userId][$pag->getString()] = $rows; },
-                '*',
-                [':userId' => $userId]
-            );
-
-            array_push($toRemove,$v);
-            break;
+        foreach ($rg->getIterator() as $v) switch($v[0]) {
+            case DataType::Notification:
+                $userId = $v[1][0];
+                $pag = $v[1][1];
+                BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag,'id',
+                    fn($row) => base64_encode($row['id']),
+                    fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? intval($m[0]) : 1,
+                    function($row) use(&$bufRes,&$req,&$fet,&$userId) {
+                        $bufRes['notifications'][$userId][$row['data']['id']] = $row;
+                        $req->remove([DataType::Notification,[$userId,$row['data']['id']]]);
+                        $fet->add([DataType::Notification,[$userId,$row['data']['id']]]);
+                    },
+                    function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['notificationsM'][$userId][$pag->getString()] = $rows; },
+                    '*',
+                    [':userId' => $userId]
+                );
+                array_push($toRemove,$v);
+                break;
+            case DataType::Emoji:
+                $userId = $v[1][0];
+                $pag = $v[1][1];
+                BufferManager::pagRequest($conn, 'emojis', 'consommable=0', $pag, 'id',
+                    fn($row) => base64_encode($row['id']),
+                    fn($s) => preg_match('/^[\w\/\.]+$/',base64_decode($s),$m) > 0 ? $m[0] : '',
+                    function($row) use(&$bufRes,&$req,&$fet) {
+                        $bufRes['emojis'][$row['data']['id']] = $row;
+                        $req->remove([DataType::Emoji,$row['data']['id']]);
+                        $fet->add([DataType::Emoji,$row['data']['id']]);
+                    },
+                    function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['emojisM'][$userId][$pag->getString()] = $rows; }
+                );
+                array_push($toRemove,$v);
+                break;
         }
         foreach ($toRemove as $v) {
             $rg->remove($v);
