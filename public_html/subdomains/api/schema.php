@@ -585,6 +585,26 @@ class RegisteredUserType extends ObjectType {
                             return $row;
                         });
                     })
+                ],
+                'emojis' => [
+                    'type' => fn() => Type::nonNull(Types::getConnectionObjectType('Emoji')),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                    ],
+                    'resolve' => fn($o,$args) => self::process($o, function($o) use(&$args) {
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $userId = (int)$o['data']['id'];
+                        UsersBuffer::requestUserEmojis($userId,$pag);
+                        return quickReactPromise(function() use(&$userId,&$pag) {
+                            $row = UsersBuffer::getUserEmojis($userId,$pag);
+                            if ($row == null) return null;
+                            return $row;
+                        });
+                    })
                 ]
             ]
         ];
@@ -931,6 +951,36 @@ class CommentType extends ObjectType {
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['content'])
                 ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class EmojiType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'dbId' => [
+                    'type' => fn() => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o['edge']['data']['id']
+                ],
+                'srcPath' => [
+                    'type' => fn() => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => get_root_link('res')."/emojis/".$o['edge']['data']['id']
+                ],
+                'aliases' => [
+                    'type' => fn() => Type::nonNull(Type::listOf(Type::string())),
+                    'resolve' =>  fn($o) => json_decode($o['edge']['data']['aliases'])
+                ],
+                'consommable' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' =>  fn($o) => (bool)$o['edge']['data']['consommable']
+                ],
+                'amount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn() => null
+                ],
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -1312,6 +1362,10 @@ class Types {
 
     public static function ForumSearchItem():ForumSearchItemType {
         return self::$types['ForumSearchItem'] ??= new ForumSearchItemType();
+    }
+
+    public static function Emoji():EmojiType {
+        return self::$types['Emoji'] ??= new EmojiType();
     }
 
     /***** Notifications *****/
