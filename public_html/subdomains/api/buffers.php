@@ -43,7 +43,8 @@ class BufferManager {
         ],
         'notificationsM' => [],
         'emojis' => [],
-        'emojisM' => []
+        'emojisM' => [],
+        'usersEmojis' => []
     ];
 
     private static ?LDPDO $conn = null;
@@ -123,7 +124,8 @@ class BufferManager {
                     case DataType::ForumTidThread:
                     case DataType::ForumComment:
                     case DataType::ForumTidComment: ForumBuffer::exec(self::$conn); break;
-                    case DataType::User: UsersBuffer::exec(self::$conn); break;
+                    case DataType::User:
+                    case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
@@ -313,6 +315,10 @@ class UsersBuffer {
         return BufferManager::requestGroup(DataType::Notification,[$userId,$pag]);
     }
 
+    public static function requestEmoji(string $s, int $userId=0):bool {
+        return BufferManager::request(DataType::Emoji,[$s,$userId]) == 0;
+    }
+
     public static function requestUserEmojis(int $userId, PaginationVals $pag) {
         return BufferManager::requestGroup(DataType::Emoji,[$userId,$pag]);
     }
@@ -325,6 +331,10 @@ class UsersBuffer {
         return BufferManager::get(['notificationsM',$userId,$pag->getString()]);
     }
 
+    public static function getEmoji(string $s, int $userId=0) {
+        return $userId <= 0 ? BufferManager::get(['emojis',$s]) : BufferManager::get(['usersEmojis',$userId,$s]);
+    }
+
     public static function getUserEmojis(int $userId, PaginationVals $pag) {
         return BufferManager::get(['emojisM',$userId,$pag->getString()]);
     }
@@ -335,6 +345,7 @@ class UsersBuffer {
         $fet =& BufferManager::$fet;
         $rg =& BufferManager::$reqGroup;
         $fg =& BufferManager::$fetGroup;
+        $mandatoryEmojis = ['tid/Twinoid v1/','tid/Twinoid v2/','tid/Twinoid v3/'];
 
         $toRemove = [];
 
@@ -359,13 +370,28 @@ class UsersBuffer {
             case DataType::Emoji:
                 $userId = $v[1][0];
                 $pag = $v[1][1];
-                BufferManager::pagRequest($conn, 'emojis', 'consommable=0', $pag, 'id',
+
+                if ($userId > 0) {
+                    if (!isset($bufRes['userEmojis'][$userId])) $bufRes['userEmojis'][$userId] = $conn->query("SELECT * FROM users_emojis WHERE user_id=$userId")->fetchAll();
+                    $userEmojis =& $bufRes['userEmojis'][$userId];
+                } else $userEmojis = [];
+
+                $sqlWhere = "";
+                foreach ($mandatoryEmojis as $s) {
+                    if ($sqlWhere != '') $sqlWhere .= ' OR';
+                    $sqlWhere .= " id LIKE '{$s}%'";
+                }
+                foreach ($userEmojis as $d) $sqlWhere .= " OR id='{$d['emoji_id']}'";
+
+                BufferManager::pagRequest($conn, 'emojis', $sqlWhere, $pag, 'id',
                     fn($row) => base64_encode($row['id']),
                     fn($s) => preg_match('/^[\w\/\.]+$/',base64_decode($s),$m) > 0 ? $m[0] : '',
-                    function($row) use(&$bufRes,&$req,&$fet) {
-                        $bufRes['emojis'][$row['data']['id']] = $row;
-                        $req->remove([DataType::Emoji,$row['data']['id']]);
-                        $fet->add([DataType::Emoji,$row['data']['id']]);
+                    function($row) use(&$bufRes,&$req,&$fet,&$userId) {
+                        $aliases = json_decode($row['data']['aliases']);
+                        $bufRes['emojis'][$aliases[0]] = $row;
+                        if ($userId > 0) foreach ($aliases as $alias) $bufRes['usersEmojis'][$userId][$alias] =& $row;
+                        $req->remove([DataType::Emoji,[$userId,$aliases[0]]]);
+                        $fet->add([DataType::Emoji,[$userId,$aliases[0]]]);
                     },
                     function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['emojisM'][$userId][$pag->getString()] = $rows; }
                 );
@@ -376,16 +402,42 @@ class UsersBuffer {
             $rg->remove($v);
             $fg->add($v);
         }
-        foreach ($req->getIterator() as $v) if ($v[0] === DataType::User) {
-            $userId = $v[1];
+        foreach ($req->getIterator() as $v) switch ($v[0]) {
+            case DataType::User:
+                $userId = $v[1];
 
-            $stmt = $conn->prepare("SELECT * FROM users WHERE id=?");
-            $stmt->execute([$userId]);
-            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $stmt = $conn->prepare("SELECT * FROM users WHERE id=?");
+                $stmt->execute([$userId]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-            $bufRes['users'][$userId] = $row === false ? null : ['data' => $row, 'metadata' => null];
-            array_push($toRemove,$v);
-            break;
+                $bufRes['users'][$userId] = $row === false ? null : ['data' => $row, 'metadata' => null];
+                array_push($toRemove,$v);
+                break;
+            case DataType::Emoji:
+                $alias = $v[1][0];
+                $userId = $v[1][1];
+
+                $row = $conn->query("SELECT * FROM emojis WHERE JSON_CONTAINS(aliases,'\"$alias\"') LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+                if ($row === false || !isset(json_decode($row['aliases'])[0])) {
+                    $bufRes['emojis'][$alias] = null;
+                    $bufRes['usersEmojis'][$userId][$alias] = null;
+                    break;
+                }
+                $aliases = json_decode($row['aliases']);
+                $bufRes['emojis'][$aliases[0]] = ['data' => $row, 'metadata' => null];
+
+                $authorized = false;
+                foreach ($mandatoryEmojis as $s) if (str_starts_with($row['id'], $s)) { $authorized = true; break; }
+                if (!$authorized) {
+                    $row2 = $conn->query("SELECT * FROM users_emojis WHERE user_id=$userId AND emoji_id='{$row['id']}'")->fetch(\PDO::FETCH_ASSOC);
+                    if ($row2 != false) $authorized = true;
+                }
+
+                if (!$authorized) $bufRes['usersEmojis'][$userId][$alias] = null;
+                else foreach ($aliases as $al) $bufRes['usersEmojis'][$userId][$al] =& $bufRes['emojis'][$aliases[0]];
+                
+                array_push($toRemove,$v);
+                break;
         }
         foreach ($toRemove as $v) {
             $req->remove($v);

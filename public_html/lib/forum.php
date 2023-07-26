@@ -153,7 +153,7 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date) VALUES (?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($msg),$sNow]);
+    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg),$sNow]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
@@ -176,7 +176,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     $n = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0] + 1;
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date) VALUES (?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadId,$n,$user->id,textToHTML($msg),$sNow]);
+    $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
@@ -205,7 +205,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     if (!(($maxN === $oldCommRow['number'] && $minutes < 10) || $minutes < 1.5)) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
     $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=? WHERE thread_id=? AND number=? LIMIT 1");
-    $stmt->execute([textToHTML($msg),$sNow,$threadId,$commNumber]);
+    $stmt->execute([textToHTML($user->id, $msg),$sNow,$threadId,$commNumber]);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");

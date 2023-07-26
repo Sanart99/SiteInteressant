@@ -83,7 +83,11 @@ class QueryType extends ObjectType {
                     'args' => [
                         'text' => Type::nonNull(Type::string())
                     ],
-                    'resolve' => fn($o, $args) => Context::getAuthenticatedUser() == null ? null : textToHTML($args['text'])
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return null;
+                        return textToHTML($user->id, $args['text']);
+                    }
                 ],
                 'search' => [
                     'type' => fn() => Types::getConnectionObjectType('ForumSearchItem'),
@@ -303,6 +307,7 @@ class MutationType extends ObjectType {
                         $json = json_decode(file_get_contents($_FILES['smileysJSON']['tmp_name']),true);
                         $tidDir = realpath(__DIR__.'/../res/emojis/tid');
                         $conn = DBManager::getConnection();
+                        $mandatoryEmojis = ['tid/Twinoid v1/','tid/Twinoid v2/','tid/Twinoid v3/'];
 
                         set_time_limit(300);
                         $userData = ($args['forUserId']??null) == null ? null : [];
@@ -313,10 +318,15 @@ class MutationType extends ObjectType {
                             foreach ($smData as $sm) {
                                 if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0) continue;
                                 $name = $m[1];
+                                $id = "tid/$category/$name";
 
-                                if (is_array($userData) && ($sm['amount']??null) != null) $userData[] = ['path' => "tid/$category/$name", 'amount' => $sm['amount'] ];
-                                $stmt = $conn->prepare('INSERT INTO emojis(id,aliases,consommable) VALUES (:path,:aliases,:isConsommable) ON DUPLICATE KEY UPDATE aliases=JSON_MERGE_PATCH(VALUES(aliases),:aliases)');
-                                $stmt->execute([':path' => "tid/$category/$name", ':aliases' => json_encode($sm['txts']), ':isConsommable' => (int)(($sm['amount']??null) != null)]);
+                                if (is_array($userData)) {
+                                    $skip = false;
+                                    foreach ($mandatoryEmojis as $s) if (str_starts_with($id,$s)) { $skip = true; break; }
+                                    if (!$skip) $userData[] = ['emoji_id' => $id, 'amount' => $sm['amount']??null];
+                                }
+                                $stmt = $conn->prepare('INSERT INTO emojis(id,aliases,consommable) VALUES (:id,:aliases,:isConsommable) ON DUPLICATE KEY UPDATE aliases=JSON_MERGE_PATCH(VALUES(aliases),:aliases)');
+                                $stmt->execute([':id' => $id, ':aliases' => json_encode($sm['txts']), ':isConsommable' => (int)(($sm['amount']??null) != null)]);
 
                                 if (file_exists("$dirCategory/$name")) continue;
                                 $img = curl_fetch($sm['src'])['res'];
@@ -324,11 +334,9 @@ class MutationType extends ObjectType {
                             }
                         }
 
-                        $forUserId = $args['forUserId']??null;
-                        if ($forUserId == null) return;
-                        foreach ($userData as $d) if ($d['amount'] != null) {
-                            $stmt = $conn->prepare('INSERT INTO users_emojis(user_id,emoji_path,amount) VALUES(:userId,:path,:amount) ON DUPLICATE KEY UPDATE amount=:amount');
-                            $stmt->execute([':userId' => $forUserId, ':path' => $d['path'], ':amount' => $d['amount']]);
+                        if (is_array($userData)) foreach ($userData as $d) {
+                            $stmt = $conn->prepare('INSERT INTO users_emojis(user_id,emoji_id,amount) VALUES(:userId,:id,:amount) ON DUPLICATE KEY UPDATE amount=:amount');
+                            $stmt->execute([':userId' => $args['forUserId'], ':id' => $d['emoji_id'], ':amount' => $d['amount']??null]);
                         }
                     }
                 ]

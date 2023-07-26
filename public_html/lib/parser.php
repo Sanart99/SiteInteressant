@@ -2,6 +2,7 @@
 namespace LDLib\Parser;
 
 use Ds\Set;
+use Schema\UsersBuffer;
 
 $urlRegex = '/(^(https?|ftp):\/\/(\S*?\.\S*?))([\s)\[\]{},;"\':<]|\.\s|$)/i';
 
@@ -81,9 +82,13 @@ class DoubleMarker {
     }
 }
 
-function textToHTML(string $text) {
+function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
+    if (!$useBufferManager) return '';
+
     $chars = preg_split("//u", $text, -1, PREG_SPLIT_NO_EMPTY);
     $result = '';
+
+    $sEmoji = '';
 
     $sMarkerMode = false;
 
@@ -217,6 +222,29 @@ function textToHTML(string $text) {
             }
         }
 
+        if ($sEmoji != null) {
+            if (preg_match('/^[\w\?\!]$/',$char) == 0) {
+                if ($char == ':') {
+                    $sEmoji .= $char;
+                    if ($useBufferManager) {
+                        UsersBuffer::requestEmoji($sEmoji, $userId);
+                        $rowEmoji = UsersBuffer::getEmoji($sEmoji, $userId);
+                        if ($rowEmoji == null) $result .= $sEmoji;
+                        else {
+                            $link = get_root_link('res').'/emojis/'.$rowEmoji['data']['id'];
+                            $result .= <<<HTML
+                            <img src="$link" alt="$sEmoji"/>
+                            HTML;
+                        }
+                    }
+                }
+                $sEmoji = null;
+                continue;
+            } 
+            $sEmoji .= $char;
+            continue;
+        }
+
         switch (true) {
             case ($char == '\\'):
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
@@ -226,6 +254,10 @@ function textToHTML(string $text) {
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
                 $sSpec = $char;
                 $sMarkerMode = true;
+                break;
+            case ($char == ':'):
+                if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
+                $sEmoji = ':';
                 break;
             case (preg_match('/^\[$/',$char) > 0):
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
@@ -248,6 +280,7 @@ function textToHTML(string $text) {
     }
 
     if ($sMarkerMode) $result .= $sSpec;
+    if ($sEmoji != null) $result .= $sEmoji;
 
     return $result;
 }
