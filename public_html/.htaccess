@@ -21,6 +21,7 @@ RewriteEngine on
 RewriteCond %{REQUEST_URI} ^/$ [NC]
 RewriteRule .* home
 
+RewriteCond %{HTTP_HOST} !^res\. [NC]
 RewriteRule ^((.*\/|)[^.]+)$ $1.php [NC,DPI]
 
 RewriteCond %{HTTP_HOST} !(?:^(api\.|res\.)) [NC]
