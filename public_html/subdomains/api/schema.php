@@ -417,7 +417,7 @@ class NotificationType extends InterfaceType {
                 ],
                 'notificationGroup' => [
                     'type' => fn() => Types::NotificationGroup(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => NotificationGroup::from($o['data']['group']))
+                    'resolve' => fn($o) => self::process($o,fn($o) => NotificationGroup::from($o['data']['action_group']))
                 ],
                 'actionName' => [
                     'type' => fn() => Type::string(),
