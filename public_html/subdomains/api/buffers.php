@@ -353,9 +353,22 @@ class UsersBuffer {
             case DataType::Notification:
                 $userId = $v[1][0];
                 $pag = $v[1][1];
-                BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag,'id',
-                    fn($row) => base64_encode($row['id']),
-                    fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? intval($m[0]) : 1,
+
+                $cursF = function($vCurs,$i) {
+                    switch ($i) {
+                        case 1: return "date<'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<{$vCurs[1]})";
+                        case 2: return "date>'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>{$vCurs[1]})";
+                        case 3: return "date DESC,id DESC";
+                        case 4: return "date,id";
+                        case 5: return "date>='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>={$vCurs[1]})";
+                        case 6: return "date<='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<={$vCurs[1]})";
+                        default: throw new \Schema\SafeBufferException("cursorF ??");
+                    }
+                };
+
+                BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag, $cursF,
+                    fn($row) => base64_encode("{$row['date']}!{$row['id']}"),
+                    fn($s) =>  (preg_match('/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)!(\d+)$/',base64_decode($s),$m) === 0) ? ['2000-01-01 00:00:00',1] : [$m[1],(int)$m[2]],
                     function($row) use(&$bufRes,&$req,&$fet,&$userId) {
                         $bufRes['notifications'][$userId][$row['data']['id']] = $row;
                         $req->remove([DataType::Notification,[$userId,$row['data']['id']]]);
