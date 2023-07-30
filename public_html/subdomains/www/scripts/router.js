@@ -6,7 +6,8 @@ $root = get_root_link();
 echo <<<JAVASCRIPT
 let _routerElement = null;
 let _urlFormatter = null;
-let _lastLoadedPage = "";
+let _lastLoadedPage = {url:'', displayedURL:''};
+let _loadPageMidProcesses = [];
 
 const StateAction = {
     None:-1,
@@ -41,21 +42,22 @@ function configRouter(rootElem, urlFormatter = null) {
     setUrlFormatter(urlFormatter);
 }
 
-function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseHandler = null) {
-    fetch(url, {cache: "no-cache"}).then((response) => {
+async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseHandler = null) {
+    return fetch(url, {cache: "no-cache"}).then((response) => {
         if (!response.ok) {
             if (nonOkResponseHandler == null) throw `Failed to load '\${url}'.`;
             else nonOkResponseHandler(url, stateAction);
         }
         return response.text();
     }).then((text) => {
-        if (_lastLoadedPage == url) return url;
+        if (_lastLoadedPage.url == url) return url;
         if (__debug) console.log("loading page at: "+url);
 
-        _lastLoadedPage = url;
-        _routerElement.innerHTML = "";
         displayedURL = urlFormatter == null ? _urlFormatter(url) : urlFormatter(url);
+        _lastLoadedPage = {url:url, displayedURL:displayedURL};
+        for (const f of _loadPageMidProcesses) if (f(url,displayedURL,stateAction) == true) return;
 
+        _routerElement.innerHTML = "";
         const template = document.createElement("template");
         template.innerHTML = text.trim();
         template.content.childNodes.forEach(cNode => {
