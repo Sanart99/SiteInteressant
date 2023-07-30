@@ -181,7 +181,10 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
 
-    $followingIds = $conn->query("SELECT following_ids FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_NUM)[0];
+    $rowThread = $conn->query("SELECT * FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    $followingIds = new \Ds\Set(json_decode($rowThread['following_ids']));
+    $followingIds->remove($user->id);
+    $followingIds = json_encode($followingIds->toArray());
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date,notified_ids) VALUES (?,?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','addComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$followingIds]);
 
