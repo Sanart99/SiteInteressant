@@ -35,7 +35,7 @@ $scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/p
     <body>
         <?= getIndexElems()['html']; ?>
         <?= getPopupDiv()['html']; ?>
-        <div id="bodyDiv" style="height: 100%;">
+        <div id="bodyDiv" style="min-height: 100vh;">
             <p>Index.php</p>
         </div>
     </body>
@@ -44,7 +44,7 @@ $scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/p
         const elem = document.querySelector('#bodyDiv');
         configRouter(elem);
         
-        loadPage("<?php echo $loadPageURL; ?>");
+        loadPage("<?php echo $loadPageURL; ?>",StateAction.ReplaceState);
         addEventListener("popstate", (event) => {
             let url = history.state.pageUrl;
             loadPage(url);

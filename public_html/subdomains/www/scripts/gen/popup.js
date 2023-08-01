@@ -68,6 +68,13 @@ function getPopupDiv() {
     .popupContainer input[type="submit"]:hover, .popupContainer input[type="button"]:hover {
         border: 1px solid white;
     }
+    @media screen and (max-width: 425px) { 
+        #popupDiv > form, #popupDiv > div {
+            color: black;
+            width: 90%;
+        }
+    }
+    
     CSS];
 }
 $getPopupDiv = getPopupDiv()['html'];
@@ -128,7 +135,6 @@ function getConnexionForm() {
     const connect = connexionForm.querySelector('#connexionForm_connect');
     const register = connexionForm.querySelector('#connexionForm_register');
     const invite = connexionForm.querySelector('#connexionForm_invite');
-    console.log();
     connect.querySelector('#connexionForm_connect_link_invite').addEventListener('click', () => {
         if (getCookie('invite_sid') != null) connexionForm.openTo('#connexionForm_register');
         else connexionForm.openTo('#connexionForm_invite');
@@ -203,7 +209,6 @@ function getConnexionForm() {
         event.preventDefault();
         const submit = register.querySelector('input[type="submit"]');
         const submitOldValue = submit.value;
-        console.log(submitOldValue);
         submit.value = "•••";
         submit.disabled = true;
 
@@ -220,7 +225,6 @@ function getConnexionForm() {
             if (!res.ok) basicQueryError();
             else return res.json();
         }).then((json) => {
-            console.log(json);
             if (json?.data?.registerUser?.success == null) basicQueryError();
             
             submit.value = submitOldValue;
@@ -318,6 +322,49 @@ function getDisconnectElem() {
     CSS];
 }
 $getDisconnectElem = getDisconnectElem()['html'];
+
+function getEditAvatar() {
+    return ['html' => <<<HTML
+    <form id="editAvatar" class="popupContainer">
+        <input type="file" name="imgAvatar" accept="image/png, image/jpeg, image/gif" required="true" />
+        <input type="submit" value="Changer d'avatar" />
+        <input id="editAvatar_cancel" type="button" value="Retour"/>
+    </form>
+
+    HTML,
+    'js' => <<<JAVASCRIPT
+    const form = document.querySelector('#editAvatar');
+    document.querySelector('#editAvatar_cancel').addEventListener('click', popupDiv.close);
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        fd.append('gqlQuery',`{"query":"mutation UploadAvatar { uploadAvatar { __typename success resultCode resultMessage registeredUser { __typename id name } } }","operationName":"UploadAvatar"}`);
+        
+        let options = {
+            method: 'POST',
+            headers: { 'Cache-Control':'no-cache' },
+            body: fd,
+            credentials: 'include'
+        }
+        fetch("{$_SERVER['LD_LINK_GRAPHQL']}",options).then((res) => {
+            if (!res.ok) basicQueryError();
+            else return res.json();
+        }).then((json) => {
+            if (json?.data?.uploadAvatar?.success == null) basicQueryError();
+            if (json.data.uploadAvatar.success == true) location.reload();
+        });
+    })
+
+    JAVASCRIPT,
+    'css' => <<<CSS
+    #editAvatar {
+        padding: 1rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    CSS];
+}
 
 echo <<<JAVASCRIPT
 function getPopupDiv() {

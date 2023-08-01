@@ -7,7 +7,7 @@ echo <<<JAVASCRIPT
 let _routerElement = null;
 let _urlFormatter = null;
 let _lastLoadedPage = {url:'', displayedURL:''};
-let _loadPageMidProcesses = [];
+let _loadPageMidProcesses = {};
 
 const StateAction = {
     None:-1,
@@ -55,7 +55,7 @@ async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseH
 
         displayedURL = urlFormatter == null ? _urlFormatter(url) : urlFormatter(url);
         _lastLoadedPage = {url:url, displayedURL:displayedURL};
-        for (const f of _loadPageMidProcesses) if (f(url,displayedURL,stateAction) == true) return;
+        for (const k in _loadPageMidProcesses) if (_loadPageMidProcesses[k](url,displayedURL,stateAction) == true) return;
 
         _routerElement.innerHTML = "";
         const template = document.createElement("template");

@@ -20,6 +20,7 @@ echo <<<CSS
 }
 body {
     position: absolute;
+    overflow: auto;
 }
 a {
     color: var(--color-orange-text-1);
@@ -32,6 +33,11 @@ echo getPopupDiv()['css'];
 
 echo getConnexionForm()['css'];
 echo getDisconnectElem()['css'];
+echo getEditAvatar()['css'];
 
 echo getHomeMainDiv()['css'];
+
+echo getForumMainElem()['css'];
+
+echo getVersionHistoryElem()['css'];
 ?>
