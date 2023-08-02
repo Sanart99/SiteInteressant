@@ -720,7 +720,7 @@ function getForumMainElem() {
             const actionsCont = document.querySelectorAll('#forumR .actions');
             for (const cont of actionsCont) {
                 cont.innerHTML = '';
-                const back = stringToNodes('<button class="button1 back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+                const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
                 cont.insertAdjacentElement('beforeend',back);
                 back.addEventListener('click', () => {
                     if (!mobileMode) return;
@@ -862,6 +862,9 @@ function getForumMainElem() {
         const e = stringToNodes(`
         <div class="forum_mainBar">
             <div class="forum_mainBar_sub1"><p>Nouveau topic</p></div>
+            <div class="forum_mainBar_sub2">
+                <div class="actions"></div>
+            </div>
         </div>
         <div class="replyFormDiv">
             <a class="previewToggler" href="#" onclick="return false;">Masquer / afficher l'aperçu de votre message</a>
@@ -881,10 +884,25 @@ function getForumMainElem() {
                     --><button class="button1 spoil" type="button">Spoil</button>
                 </div>
                 <textarea name="msg"></textarea>
+                <div class="emojisDiv">
+                    <div class="emojisButtons"></div>
+                    <div class="emojis"></div>
+                </div>
                 <input class="button2" type="submit" value="Envoyer"/>
             </form>
         </div>`.trim());
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+        if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
+
+        const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+        forumR.querySelector('.forum_mainBar_sub2 .actions').insertAdjacentElement('beforeend',back);
+        back.addEventListener('click', () => {
+            if (!mobileMode) return;
+            forumR.style.display = 'none';
+            forumL.style.display = '';
+        });
+        back.style.display = mobileMode ? '' : 'none';
+
         setupReplyForm(forumR.querySelector('.replyFormDiv'),(e) => {
             e.preventDefault();
             const data = new FormData(e.target);
@@ -1216,11 +1234,11 @@ function getForumMainElem() {
         if (mql.matches && !mobileMode) {
             if (forumR.innerHTML == '') forumL.style.display = 'none';
             else forumR.style.display = 'none';
-            for (const e of forumR.querySelectorAll('.actions .back')) e.style.display = '';
+            for (const e of forumR.querySelectorAll('.mobile.back')) e.style.display = '';
             mobileMode = true;
         } else {
             forumL.style.display = forumR.style.display = '';
-            for (const e of forumR.querySelectorAll('.actions .back')) e.style.display = 'none';
+            for (const e of forumR.querySelectorAll('.mobile.back')) e.style.display = 'none';
             mobileMode = false;
         }
     };
