@@ -86,7 +86,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     if (!$useBufferManager) return '';
 
     $chars = preg_split("//u", $text, -1, PREG_SPLIT_NO_EMPTY);
-    $result = '';
+    $result = '<p>';
 
     $sEmoji = '';
 
@@ -271,10 +271,6 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
                 $result .= '<br/>';
                 break;
-            case ($char == ' '):
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
-                $result .= '&nbsp';
-                break;
             default:
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
                 $result .= htmlspecialchars($char);
@@ -284,6 +280,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
 
     if ($sMarkerMode) $result .= $sSpec;
     if ($sEmoji != null) $result .= $sEmoji;
+    $result .= '</p>';
 
     return $result;
 }
