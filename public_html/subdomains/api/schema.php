@@ -659,13 +659,15 @@ class ForumType extends ObjectType {
                         'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
-                        if (Context::getAuthenticatedUser() == null) return null;
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return null;
+
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                         $pag->sortBy = $args['sortBy']??'';
                         $pag->skipPages = $args['skipPages'];
-                        ForumBuffer::requestThreads($pag);
-                        return quickReactPromise(function() use($o,$args,$pag,$ri) {
-                            return ForumBuffer::getThreads($pag);
+                        ForumBuffer::requestThreads($pag,$user->id);
+                        return quickReactPromise(function() use($o,$args,$pag,$ri,&$user) {
+                            return ForumBuffer::getThreads($pag,$user->id);
                         });
                     }
                 ]

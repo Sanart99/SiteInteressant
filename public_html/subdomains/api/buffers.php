@@ -13,6 +13,7 @@ use LDLib\General\ {
     PageInfo,
     PaginationVals
 };
+use LDLib\User\RegisteredUser;
 
 use function LDLib\Database\get_tracked_pdo;
 
@@ -500,8 +501,10 @@ class ForumBuffer {
         throw new SafeBufferException("requestTidComment: invalid id '$id'");
     }
 
-    public static function requestThreads(PaginationVals $pag) {
-        return BufferManager::requestGroup(DataType::ForumThread,$pag);
+    public static function requestThreads(PaginationVals $pag, ?int $userId = null) {
+        $userId = (!is_int($userId) || $userId < 1) ? 0 : $userId;
+        if ($userId != 0) UsersBuffer::requestFromId($userId);
+        return BufferManager::requestGroup(DataType::ForumThread,[$pag,$userId]);
     }
 
     public static function requestComments(int $threadId, PaginationVals $pag) {
@@ -528,8 +531,9 @@ class ForumBuffer {
         throw new SafeBufferException("getTidThread: invalid id '$id'");
     }
 
-    public static function getThreads(PaginationVals $pag) {
-        return BufferManager::get(['forum','threadsM',$pag->getString()]);
+    public static function getThreads(PaginationVals $pag, ?int $userId = null) {
+        $userId = (!is_int($userId) || $userId < 1) ? 0 : $userId;
+        return BufferManager::get(['forum','threadsM',$userId,$pag->getString()]);
     }
 
     public static function getComment(string $id) {
@@ -560,11 +564,19 @@ class ForumBuffer {
         $fg =& BufferManager::$fetGroup;
         $req =& BufferManager::$req;
         $fet =& BufferManager::$fet;
+        UsersBuffer::exec($conn);
 
         $toRemove = [];
         foreach ($rg->getIterator() as $v) switch ($v[0]) {
             case DataType::ForumThread:
-                $pag = $v[1];
+                $pag = $v[1][0];
+                $userId = $v[1][1];
+                
+                $rowUser = UsersBuffer::getFromId($userId);
+                if ($rowUser != null && $rowUser['data'] != null) {
+                    $user = RegisteredUser::initFromRow($rowUser);
+                }
+                $whereCond = is_null($user) ?  '' : "creation_date>='{$user->registrationDate->format('Y-m-d H:i:s')}'";
 
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
@@ -580,7 +592,7 @@ class ForumBuffer {
                         }
                     };
 
-                    BufferManager::pagRequest($conn, 'threads', '', $pag, $cursF,
+                    BufferManager::pagRequest($conn, 'threads', $whereCond, $pag, $cursF,
                         fn($row) => base64_encode("{$row['last_update_date']}!{$row['id']}"),
                         fn($s) => (preg_match('/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)!(\d+)$/',base64_decode($s),$m) === 0) ? ['2000-01-01 00:00:00',1] : [$m[1],(int)$m[2]],
                         function ($row) use(&$bufRes,&$req,&$fet) {
@@ -588,11 +600,10 @@ class ForumBuffer {
                             $req->remove([DataType::ForumThread,$row['data']['id']]);
                             $fet->add([DataType::ForumThread,$row['data']['id']]);
                         },
-                        function($rows) use(&$bufRes,&$pag) { $bufRes['forum']['threadsM'][$pag->getString()] = $rows; },
-                        
+                        function($rows) use(&$bufRes,&$pag,&$user) { $bufRes['forum']['threadsM'][$user->id][$pag->getString()] = $rows; }
                     );
                 } else {
-                    BufferManager::pagRequest($conn, 'threads', '', $pag, 'id',
+                    BufferManager::pagRequest($conn, 'threads', $whereCond, $pag, 'id',
                         fn($row) => base64_encode($row['id']),
                         fn($s) => (preg_match('/^\d+$/',base64_decode($s),$m) === 0) ? 1 : (int)$m[0],
                         function ($row) use(&$bufRes,&$req,&$fet) {
