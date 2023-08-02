@@ -523,12 +523,14 @@ function getForumMainElem() {
             let lastDelimiter = '';
             for (const edge of threads.edges) {
                 const comment = edge.node.comments.edges[0].node;
-                const date = new Date(edge.node.lastUpdateDate);
+                const date = new Date(edge.node.lastUpdateDate+'Z');
                 if (!isNaN(date.getTime())) {
                     const sDate = getDateAsString(date).join(' ');
-                    if (date.toISOString().substr(0,10) == now.toISOString().substr(0,10) && lastDelimiter != "Aujourd'hui") {
-                        tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Aujourd'hui</td></tr>`);
-                        lastDelimiter = "Aujourd'hui";
+                    if (date.toISOString().substr(0,10) == now.toISOString().substr(0,10)) {
+                        if (lastDelimiter != "Aujourd'hui") {
+                            tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Aujourd'hui</td></tr>`);
+                            lastDelimiter = "Aujourd'hui";
+                        }
                     } else if (lastDelimiter != sDate) {
                         tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">\${sDate}</td></tr>`);
                         lastDelimiter = sDate;
