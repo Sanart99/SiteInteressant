@@ -543,10 +543,10 @@ class RegisteredUserType extends ObjectType {
         if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
 
         UsersBuffer::requestFromId($o);
-        return quickReactPromise(function() use($o,$f,&$authUser) {
+        return quickReactPromise(function() use($o,$f) {
             $row = UsersBuffer::getFromId($o);
             if ($row == null) return null;
-            return ($authUser->titles->contains('Administrator') || $authUser->id == $row['data']['id']) ? $f($row) : null;
+            return $f($row);
         });
     }
 
@@ -771,7 +771,7 @@ class ThreadType extends ObjectType {
         return quickReactPromise(function() use(&$o,&$f,&$authUser) {
             $row = ForumBuffer::getThread($o);
             if ($row == null || $row['data'] == null) return null;
-            return ($authUser->titles->contains('oldInteressant') || $authUser->registrationDate >= new \DateTimeImmutable($row['data']['created_at'])) ? $f($row) : null;
+            return ($authUser->titles->contains('oldInteressant') || $authUser->registrationDate <= new \DateTimeImmutable($row['data']['creation_date'])) ? $f($row) : null;
         });
     }
 
@@ -921,7 +921,7 @@ class CommentType extends ObjectType {
             ForumBuffer::requestThread($comment->threadId);
             return quickReactPromise(function() use(&$comment,&$authUser,&$f,&$row) {
                 $threadRow = ForumBuffer::getThread($comment->threadId);
-                if ($authUser->registrationDate < new \DateTimeImmutable($threadRow['data']['creation_date'])) return null;
+                if ($authUser->registrationDate > new \DateTimeImmutable($threadRow['data']['creation_date'])) return null;
                 return $f($row);
             });
         });
