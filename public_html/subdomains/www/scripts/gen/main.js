@@ -20,14 +20,14 @@ function getIndexElems() {
                 <div id="topBar_r_recentEvents" style="display:none;">
                 
                 </div> 
-                <p class="username">Sanart</p>
+                <p class="username"></p>
                 <img class="avatar" src="$res/avatars/empty.jpg" />
             </a>
         </div>
     </div>
     <div id="rightBar" style="display:none">
         <div id="rightBar_titleDiv">
-            <p>Sanart</p>
+            <p></p>
         </div>
         <div id="rightBar_optionsDiv">
             <a id="rightBar_optionsDiv_editAvatar" href="#" onclick="return false;"><p>Changer d'avatar</p></a>
@@ -233,11 +233,12 @@ function getIndexElems() {
     if ($isAuth === 1) {
         topBar.style.display = rightBar.style.display = '';
 
-        sendQuery(`query { viewer { avatarURL } }`).then((res) => {
+        sendQuery(`query { viewer { name avatarURL } }`).then((res) => {
             if (!res.ok) basicQueryError();
             return res.json();
         }).then((json) => {
-            if (json?.data?.viewer?.avatarURL == null) basicQueryError();
+            if (json?.data?.viewer?.name == null) basicQueryError();
+            document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
 
