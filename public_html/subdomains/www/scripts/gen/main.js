@@ -1338,8 +1338,9 @@ function getForumMainElem() {
         border-top: 1px solid rgba(0,0,0, 0.4);
         box-shadow: 0px 2px 2px rgb(0 0 0 / 15%);
         font-size: 0.8rem;
-        padding: 0.6rem 0px 0px 6rem;
+        padding: 0.6rem 0.6rem 0.6rem 5.9rem;
         margin: 0px 0px 1rem 0px;
+        white-space: pre-wrap;
     }
     #mainDiv_forum .replyFormDiv .preview blockquote {
         padding: 0.3rem 0px 0.3rem 0.3rem;
@@ -1380,7 +1381,7 @@ function getForumMainElem() {
         padding: 0px 0px 0.4rem 1rem;
     }
     #mainDiv_forum .replyFormDiv .replyForm div.title label {
-        width: 8%;
+        min-width: 8%;
         font-size: 0.9rem;
         padding: 0.1rem 0.3rem 0px 0px;
         font-weight: bold;
@@ -1416,10 +1417,12 @@ function getForumMainElem() {
         margin: 0.1em;
     }
     #forumL {
-        flex: 1 1 35%;
+        flex: 1 0 35%;
+        max-width: 35%;
     }
     #forumR {
-        flex: 1 1 65%;
+        flex: 1 0 65%;
+        max-width: 65%;
     }
     #forum_content {
         display: flex;
@@ -1432,13 +1435,14 @@ function getForumMainElem() {
     #forum_threads {
         margin: 0px 0px 1rem 0px;
         width: 100%;
+        word-break: break-word;
     }
     #forum_threads a {
         text-decoration: none;
         color: black;
         display: inline-block;
         width: 100%;
-        height: 100%;
+        min-height: 100%;
     }
     #forum_threads thead {
         font-size: 0.6rem;
@@ -1545,14 +1549,16 @@ function getForumMainElem() {
     }
     #forum_comments .avatar {
         max-width: 80px;
+        max-height: 80px;
     }
     #forum_comments .body {
         background-color: white;
-        height: 100px;
+        min-height: 100px;
         margin: 0px 0.2rem 2.3rem 0.3rem;
         box-shadow: 0px 0px min(3px,0.2rem) 0px #00000088;
-        padding: 0.6rem 0px 0px 5.9rem;
+        padding: 0.6rem 0.6rem 0.6rem 5.9rem;
         font-size: 0.9rem;
+        white-space: pre-wrap;
     }
     #searchForm {
         padding: 10px;
@@ -1665,6 +1671,11 @@ function getForumMainElem() {
         text-align: center;
         border: 0;
         box-shadow: inset 0px 2px 3px 0px black;
+    }
+    @media screen and (max-width: 600px) {
+        #forumR, #forumL{
+            max-width: 95%;
+        }
     }
     CSS];
 }
