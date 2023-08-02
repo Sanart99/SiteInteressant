@@ -1488,6 +1488,11 @@ function getForumMainElem() {
         text-align: end;
         padding: 0.2rem 0px 0px 0px;
     }
+    #forum_threads .quickDetails a {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
     #forum_threads .quickDetails .nAnswers {
         font-weight: bold;
         font-size: 1.1rem;
