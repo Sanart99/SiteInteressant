@@ -425,7 +425,11 @@ class NotificationType extends InterfaceType {
                 ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
-                    'resolve' => fn($o) => self::process($o,fn($o) => in_array(1,json_decode($o['data']['readnotifs_ids'],null,512,JSON_OBJECT_AS_ARRAY)))
+                    'resolve' => fn($o) => self::process($o,function($o) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return false;
+                        return in_array($user->id,json_decode($o['data']['readnotifs_ids'],null,512,JSON_OBJECT_AS_ARRAY));
+                    })
                 ],
                 'associatedUser' => [
                     'type' => fn() => Types::RegisteredUser(),
