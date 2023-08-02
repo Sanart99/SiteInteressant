@@ -649,9 +649,7 @@ function getForumMainElem() {
                         <p class="name">\${comment.node.author.name}</p>
                         <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
                     </div>
-                    <div class="body">
-                        \${comment.node.content}
-                    </div>
+                    <div class="body">\${comment.node.content}</div>
                 </div>`);
             }
 
