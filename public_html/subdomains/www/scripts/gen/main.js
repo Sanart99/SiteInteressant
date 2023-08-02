@@ -937,6 +937,12 @@ function getForumMainElem() {
     function loadSearchForm() {
         forumR.innerHTML = '';
         const e = stringToNodes(`
+        <div class="forum_mainBar">
+            <div class="forum_mainBar_sub1"><p>Recherche</p></div>
+            <div class="forum_mainBar_sub2">
+                <div class="actions"></div>
+            </div>
+        </div>
         <form id="searchForm">
             <div class="parameters">
                 <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords"/>
@@ -958,6 +964,17 @@ function getForumMainElem() {
         <div class="pagDivDiv" style="display:none;"></div>
         `.trim());
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+        if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
+        for (const cont of forumR.querySelectorAll('.actions')) {
+            const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+            cont.insertAdjacentElement('beforeend',back);
+            back.addEventListener('click', () => {
+                if (!mobileMode) return;
+                forumR.style.display = 'none';
+                forumL.style.display = '';
+            });
+            back.style.display = mobileMode ? '' : 'none';
+        }
 
         const pagDivs = forumR.querySelectorAll('.pagDivDiv');
         for (const node of pagDivs) {
