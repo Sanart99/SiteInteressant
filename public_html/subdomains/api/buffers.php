@@ -268,8 +268,10 @@ class BufferManager {
             if ($executeValsWhereOnly != null) {
                 $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
                 $stmt->execute($executeValsWhereOnly);
-                $pageCount = (int)($stmt->fetch(\PDO::FETCH_NUM)[0] / $n)+1;
-            } else $pageCount = (int)($conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / $n)+1;
+                $v = $stmt->fetch(\PDO::FETCH_NUM)[0] / $n;
+            } else $v = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / $n;
+            $pageCount = (int)((fmod($v,1) > 0) ? $v+1 : $v);
+            if ($pageCount < 1) $pageCount = 1;
             
             if ($nResults == 0) $currPage = null; 
             else if ($after == null && $before == null) $currPage = $first != null ? 1 : $pageCount;
