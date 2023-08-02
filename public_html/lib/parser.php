@@ -236,8 +236,11 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                             <img src="$link" alt="$sEmoji"/>
                             HTML;
                         }
+                        $sEmoji = null;
+                        continue;
                     }
                 }
+                $result .= $sEmoji.$char;
                 $sEmoji = null;
                 continue;
             } 
