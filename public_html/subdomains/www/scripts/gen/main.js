@@ -733,6 +733,7 @@ function getForumMainElem() {
                 reply.addEventListener('click', () => {
                     if (replyFormDiv.classList.contains('hide')) replyFormDiv.classList.remove('hide')
                     else replyFormDiv.classList.add('hide');
+                    replyFormDiv.querySelector('textarea').focus();
                 });
             }
             function getFollowButton() {
@@ -931,6 +932,7 @@ function getForumMainElem() {
                 loadThreads(10);
             });
         });
+        forumR.querySelector('.replyForm textarea').focus();
     }
     function loadSearchForm() {
         forumR.innerHTML = '';
