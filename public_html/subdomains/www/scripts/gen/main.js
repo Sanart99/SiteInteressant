@@ -873,7 +873,7 @@ function getForumMainElem() {
             </div>
             <form class="replyForm">
                 <div class="title">
-                    <label for="newThread_title">Titre : </label><input id="newThread_title" class="inputText1" type="text" name="title"/>
+                    <label for="newThread_title">Titre : </label><input id="newThread_title" class="inputText1" type="text" name="title" tabindex="1"/>
                 </div>
                 <div class="buttonBar">
                     <button class="button1 bold" type="button">G</button><!--
@@ -883,7 +883,7 @@ function getForumMainElem() {
                     --><button class="button1 cite" type="button">Citer</button><!--
                     --><button class="button1 spoil" type="button">Spoil</button>
                 </div>
-                <textarea name="msg"></textarea>
+                <textarea name="msg" tabindex="2"></textarea>
                 <div class="emojisDiv">
                     <div class="emojisButtons"></div>
                     <div class="emojis"></div>
