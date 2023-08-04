@@ -156,6 +156,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     }
                     $sSpec = '';
                     $activeMarker = null;
+                    $dMarkerMode = false;
                     continue;
                 }
                 $activeMarker = null;
@@ -216,7 +217,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                 // if ($sSpecLength == strlen($sSpec)) $dMarkersToRemove[] = $m;
             }
             if ($sSpecLength == strlen($sSpec)) {
-                $result .= htmlspecialchars($sSpec);
+                $result .= '['.htmlspecialchars($sSpec);
                 $sSpec = '';
                 $dMarkerMode = false;
             }
@@ -279,6 +280,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     }
 
     if ($sMarkerMode) $result .= $sSpec;
+    else if ($dMarkerMode) $result .= $dMarkerArg !== null ? "[$sSpec=$dMarkerArg" : "[$sSpec";
     if ($sEmoji != null) $result .= $sEmoji;
     $result .= '</p>';
 
