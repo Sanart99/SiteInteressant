@@ -12,6 +12,13 @@
             "type": "chrome",
             "url": "http://local_siteinteressant.net:80",
             "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Launch Firefox",
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "url": "http://local_siteinteressant.net:80"
         }
     ]
 }
