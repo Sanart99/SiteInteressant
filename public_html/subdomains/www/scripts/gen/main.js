@@ -818,13 +818,16 @@ function getForumMainElem() {
         }
 
         const pagDetails = eCont.querySelector('.pagination_details');
+        function getCurrPage() { return parseInt(pagDetails.querySelector('.nPage').innerHTML); }
+        function getMaxPages() { return parseInt(pagDetails.querySelector('.nMaxPages').innerHTML); }
+
         const first = eCont.querySelector('.first');
         const left = eCont.querySelector('.left');
         const right = eCont.querySelector('.right');
         const last = eCont.querySelector('.last');
         first.addEventListener('click',firstPage);
-        left.addEventListener('click',() => before(10,left.dataset.cursor,0));
-        right.addEventListener('click',() => after(10,right.dataset.cursor,0));
+        left.addEventListener('click',() => (getCurrPage() == 1 ? firstPage() : before(10,left.dataset.cursor,0)));
+        right.addEventListener('click',() => (getCurrPage() == getMaxPages() ? lastPage() : after(10,right.dataset.cursor,0)));
         last.addEventListener('click',lastPage);
         let pagDetailsInput = null;
         pagDetails.addEventListener('click',() => {
@@ -840,14 +843,16 @@ function getForumMainElem() {
                 if (b) return;
                 b = true;
                 const v = parseInt(pagDetailsInput.value);
+                const currPage = getCurrPage();
+                const nMaxPages = getMaxPages();
+
                 pagDetailsInput.remove();
                 eNPage.style.display = '';
                 pagDetailsInput = null;
                 if (isNaN(v)) { b = false; return; }
                 if (v <= 1) { firstPage(); b = false; return; }
-                if (v >= parseInt(pagDetails.querySelector('.nMaxPages').innerHTML)) { lastPage(); b = false; return; }
+                if (v >= nMaxPages) { lastPage(); b = false; return; }
 
-                const currPage = parseInt(eNPage.innerText);
                 if (v >= currPage) after(10,right.dataset.cursor,v-currPage-1); 
                 else if (v < currPage) before(10,left.dataset.cursor,currPage-v-1);
                 b = false;
