@@ -1722,49 +1722,108 @@ function getVersionHistoryElem() {
     global $isAuth;
     return ['html' => <<<HTML
     <div id="mainDiv_versionHistory" class="authPadded" data-is-auth="$isAuth">
-        <div class="versions">
-            <button selected="true">0.1</button>
+        <div id="versions">
+            <button>0.1</button><!--
+            --><button>0.1b</button>
         </div>
-        <div class="versionDescription">
-            <h2>Mise à jour 0.1 <span>Sortie : 1 Août 2023</span></h2>
-            <p class="subheader">— La première version. Recréation partielle du système de forum Twinoid et autres fonctionnalités basiques pour commencer. Incomplet, pas bien testé et un peu moche, mais c'est un bon début.</p>
-            <div class="main">
-                <section>
-                    <h3>Forum</h3>
-                    <section>
-                        <h4>Récapitulatif des fonctionnalités</h4>
-                        <ul>
-                            <li>Création de topics et commentaires</li>
-                            <li>Stylisations/fonctionnalités des posts: Gras, Italique, Barré, Insertions de liens, Citations, Spoil</li>
-                            <li>Suivis de topics et réceptions de notifications</li>
-                            <li>Émoticônes Twinoid disponibles en fonction de l'utilisateur (voir <a href="https://twinoid.com/tid/forum#!view/161558%7Cthread/66116573" target="_blank">ce topic</a> pour importer vos émojis)</li>
-                            <li>Fonction recherche trèèès basique (uniquement pour les topics sauvegardés de Twinoid pour l'instant et pas formaté)</li>
-                        </ul>
-                    </section>
-                </section>
-                <section>
-                    <h3>Comptes utilisateurs</h3>
-                    <section>
-                        <h4>Récapitulatif des fonctionnalités</h4>
-                        <ul>
-                            <li>Créations de comptes via codes d'invitations</li>
-                            <li>Changements d'avatars (pour l'instant seulement les fichiers gif, png et jpg sont autorisés)</li>
-                            <li>2 titres disponibles : Créateur, Ancien Intéressant</li>
-                        </ul>
-                    </section>
-                    <section>
-                        <h4>Titres d'utilisateur</h4>
-                        <p>Les titres donnent(ou retirent) des pouvoirs aux utilisateurs.</p>
-                        <ul>
-                            <li><b>Créateur : </b> Pleins pouvoirs.</li>
-                            <li><b>Ancien Intéressant : </b> Accès aux topics Twinoid.</li>
-                        </ul>
-                    </section>
-                </section>
-            </div>
-        </div>
+        <div id="versionDescription"></div>
     </div>
-    HTML,
+
+    HTML, 'js' => <<<JAVASCRIPT
+    const buttons = document.querySelectorAll('#versions button');
+    const div = document.querySelector('#versionDescription');
+    for (const b of buttons) b.addEventListener('click', () => {
+        for (const bb of buttons) bb.setAttribute('selected','0');
+        b.setAttribute('selected',1);
+        loadDesc(b.innerText);
+    });   
+    function loadDesc(s) {
+        switch (s) {
+            case '0.1':
+                div.innerHTML = `
+                    <h2>Version 0.1 <span>Sortie : 1 Août 2023</span></h2>
+                    <p class="subheader">— La première version. Recréation partielle du système de forum Twinoid et autres fonctionnalités basiques pour commencer. Incomplet, pas bien testé et un peu moche, mais c'est un bon début.</p>
+                    <div class="main">
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Récapitulatif des fonctionnalités</h4>
+                                <ul>
+                                    <li>Création de topics et commentaires.</li>
+                                    <li>Stylisations/fonctionnalités des posts: Gras, Italique, Barré, Insertions de liens, Citations, Spoil.</li>
+                                    <li>Suivis de topics et réceptions de notifications.</li>
+                                    <li>Émoticônes Twinoid disponibles en fonction de l'utilisateur (voir <a href="https://twinoid.com/tid/forum#!view/161558%7Cthread/66116573" target="_blank">ce topic</a> pour importer vos émojis).</li>
+                                    <li>Fonction recherche trèèès basique (uniquement pour les topics sauvegardés de Twinoid pour l'instant et pas formaté).</li>
+                                    <li>API publique GraphQL disponible via l'url https://api.siteinteressant.fr/graphql</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Comptes utilisateurs</h3>
+                            <section>
+                                <h4>Récapitulatif des fonctionnalités</h4>
+                                <ul>
+                                    <li>Créations de comptes via codes d'invitations</li>
+                                    <li>Changements d'avatars (pour l'instant seulement les fichiers gif, png et jpg sont autorisés)</li>
+                                    <li>2 titres disponibles : Créateur, Ancien Intéressant</li>
+                                </ul>
+                            </section>
+                            <section>
+                                <h4>Titres d'utilisateur</h4>
+                                <p>Les titres donnent(ou retirent) des pouvoirs aux utilisateurs.</p>
+                                <ul>
+                                    <li><b>Créateur : </b> Pleins pouvoirs.</li>
+                                    <li><b>Ancien Intéressant : </b> Accès aux topics Twinoid.</li>
+                                </ul>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
+            case '0.1b':
+                div.innerHTML = `
+                    <h2>Version 0.1b <span>Sortie : 2 Août 2023 — 5 Août 2023</span></h2>
+                    <p class="subheader">— La deuxième version, qui est la version utilisable et plus ergonomique de la première version.</p>
+                    <div class="main">
+                        <section>
+                            <h3>Bugfixs</h3>
+                            <section>
+                                <h4>Récapitulatif</h4>
+                                <ul>
+                                    <li>Utilisable sous Firefox.</li>
+                                    <li>Les topics et le nombre de pages disponibles apparaissent correctement.</li>
+                                    <li>La création et recherche de topics est faisable sur les petits écrans.</li>
+                                    <li>Les notifications se mettent en "lu" et disparaissent correctement.</li>
+                                    <li>Les stylisations s'affichent correctement dans les messages postés.</li>
+                                    <li>La limite de taille d'un avatar passe de 20kb à 20mb.</li>
+                                    <li>La pagination n'est plus buggée si vous tentez d'aller à des pages inexistantes.</li>
+                                    <li>La balise [cite] peut prendre un argument comme dans Twinoid. (Rétroactif, les messages postés avec un argument avant cette version s'afficheront correctement.)</li>
+                                    <li>L'aperçu de message se mets à jour correctement.</li>
+                                    <li>Meilleure apparence sur les petits écrans.</li>
+                                    <li>L'édition de message permet plus de façons d'écrire un message.</li>
+                                    <li>Le bouton retour apparait dans plus de situations.</li>
+                                    <li>Votre pseudo est affiché dans la barre, au lieu de juste "Sanart".</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Autres améliorations</h3>
+                            <section>
+                                <h4>Récapitulatif</h4>
+                                <ul>
+                                    <li>Possibilité d'utiliser Tab/Shift+Tab pour créer des topics plus rapidement.</li>
+                                    <li>Quand vous créez un topic ou un commentaire le champ sera sélectionné automatiquement.</li>
+                                    <li>La barre de droite se ferme automatiquement plus tôt.</li>
+                                    <li>Et autres ajustements visuels</li>
+                                </ul>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
+        }
+    }
+    buttons[buttons.length-1].click();
+
+    JAVASCRIPT,
     'css' => <<<CSS
     #mainDiv_versionHistory {
         background: var(--bg-gradient-1);
@@ -1783,15 +1842,16 @@ function getVersionHistoryElem() {
         margin: 0.3em 0px 0.3em 2em;
         line-height: 1.2em;
     }
-    #mainDiv_versionHistory .versions {
+    #versions {
         display: flex;
         justify-content: center;
         margin: 1.5rem 0px;
         padding: 0.3rem 0px;
         border-top: 1px dashed black;
         border-bottom: 1px dashed black;
+        gap: 0.5rem;
     }
-    #mainDiv_versionHistory .versions button {
+    #versions button {
         background-color: var(--color-black-2);
         border: 0;
         border-radius: 0.2em;
@@ -1799,35 +1859,35 @@ function getVersionHistoryElem() {
         color: white;
         font-weight: bold;
     }
-    #mainDiv_versionHistory .versions button[selected="true"] {
+    #versions button[selected="1"] {
         background-color: var(--color-orange-2);
     }
-    #mainDiv_versionHistory .versionDescription {
+    #versionDescription {
         margin: 2rem 8%;
     }
-    #mainDiv_versionHistory .versionDescription .main {
+    #versionDescription .main {
         margin: 1rem 0px 0px 0px;
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
-    #mainDiv_versionHistory .versionDescription h2 {
+    #versionDescription h2 {
         color: var(--color-orange-text-1);
         font-weight: bold;
         font-size: 1.8rem;
     }
-    #mainDiv_versionHistory .versionDescription h2 span {
+    #versionDescription h2 span {
         color: grey;
         font-size: 0.6em;
     }
-    #mainDiv_versionHistory .versionDescription h3 {
+    #versionDescription h3 {
         color: var(--color-black-2);
         font-size: 1.6rem;
         border-bottom: 1px solid black;
         margin: 0px 0px 0.7em 0px;
         padding: 0px 0px 0.1em 0px;
     }
-    #mainDiv_versionHistory .versionDescription h4 {
+    #versionDescription h4 {
         font-size: 1.25rem;
         margin: 1em 0px 0.3em 0px;
     }

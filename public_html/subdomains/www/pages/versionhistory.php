@@ -13,3 +13,7 @@ header('Content-Type: text/html');
 ?>
 
 <?= getVersionHistoryElem()['html']; ?>
+
+<script>
+<?= getVersionHistoryElem()['js']; ?>
+</script>
