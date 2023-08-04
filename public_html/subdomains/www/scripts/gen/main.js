@@ -1377,7 +1377,11 @@ function getForumMainElem() {
         border-bottom: 1px dashed rgba(0,0,0, 0.6);
         font-style: italic;
         opacity: 0.7;
-        margin: 0.3rem 0.3rem 0.5rem 0.3rem;
+        margin: 0.2rem 0.3rem 0.5rem 0.3rem;
+    }
+    #mainDiv_forum .replyFormDiv .preview .preQuote, #mainDiv_forum .comment .body .preQuote {
+        font-size: 80%;
+        font-weight: bold;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil, #mainDiv_forum .comment .body .spoil {
         cursor: help;
