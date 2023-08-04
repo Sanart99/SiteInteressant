@@ -1361,7 +1361,7 @@ function getForumMainElem() {
         margin: 0px 0px 1rem 0px;
         white-space: pre-wrap;
     }
-    #mainDiv_forum .replyFormDiv .preview blockquote {
+    #mainDiv_forum .replyFormDiv .preview blockquote, #mainDiv_forum .comment .body blockquote {
         padding: 0.3rem 0px 0.3rem 0.3rem;
         border-left: 1px dashed rgba(0,0,0, 0.6);
         border-bottom: 1px dashed rgba(0,0,0, 0.6);
@@ -1369,17 +1369,17 @@ function getForumMainElem() {
         opacity: 0.7;
         margin: 0.3rem 0.3rem 0.5rem 0.3rem;
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil {
+    #mainDiv_forum .replyFormDiv .preview .spoil, #mainDiv_forum .comment .body .spoil {
         cursor: help;
         background-image: url(https://data.twinoid.com/img/design/spoiler.png);
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt {
+    #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt, #mainDiv_forum .comment .body .spoil .spoilTxt {
         opacity:0;
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil:hover {
+    #mainDiv_forum .replyFormDiv .preview .spoil:hover, #mainDiv_forum .comment .body .spoil:hover {
         background-image: url(https://data.twinoid.com/img/design/spoiler_hover.png);
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt {
+    #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt, #mainDiv_forum .comment .body .spoil:hover .spoilTxt {
         opacity:unset;
     }
     #mainDiv_forum .replyFormDiv .replyForm {
