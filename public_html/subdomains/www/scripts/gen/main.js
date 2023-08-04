@@ -1112,19 +1112,24 @@ function getForumMainElem() {
     function setupReplyForm(replyFormDiv, onSubmit) {
         const replyForm = replyFormDiv.querySelector('.replyForm');
         const replyFormTA = replyFormDiv.querySelector('textarea');
-        let bReplyForm = false;
+        let acReplyForm = null;
+        let toReplyForm = null;
         replyForm.addEventListener('input',() => {
-            if (bReplyForm) return; bReplyForm = true;
-            sendQuery(`query ParseText(\$msg:String!) {
-                parseText(text:\$msg)
-            }`,{msg:replyFormTA.value},null,'ParseText').then((res) => {
-                bReplyForm = false;
-                if (!res.ok) basicQueryError();
-                return res.json();
-            }).then((json) => {
-                if (json?.data?.parseText == null) basicQueryError();
-                replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
-            });
+            if (toReplyForm != null) clearTimeout(toReplyForm);
+            toReplyForm = setTimeout(() => {
+                if (acReplyForm != null) acReplyForm.abort();
+                acReplyForm = new AbortController();
+                sendQuery(`query ParseText(\$msg:String!) {
+                    parseText(text:\$msg)
+                }`,{msg:replyFormTA.value},null,'ParseText',{signal:acReplyForm.signal}).then((res) => {
+                    acReplyForm = null;
+                    if (!res.ok) basicQueryError();
+                    return res.json();
+                }).then((json) => {
+                    if (json?.data?.parseText == null) basicQueryError();
+                    replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
+                });
+            },100);
         });
         replyForm.addEventListener('submit',(e) => onSubmit(e));
 
