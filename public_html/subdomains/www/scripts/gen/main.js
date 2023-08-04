@@ -1673,7 +1673,6 @@ function getForumMainElem() {
     .forum_footer, .pagDivDiv {
         display: flex;
         justify-content: space-between;
-        align-items: center;
         background-color: var(--color-black-2);
         padding: 0.4rem;
     }
@@ -1713,6 +1712,16 @@ function getForumMainElem() {
     @media screen and (max-width: 800px) {
         #forumR, #forumL{
             max-width: 95%;
+        }
+        .forum_footer, .forum_mainBar_sub2 {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .forum_footer .actions + .paginationDiv, .forum_mainBar .paginationDiv {
+            padding: 0;
+            border: 0;
+            padding-top: 1.5%;
+            border-top: 1px dashed black;
         }
     }
     CSS];
