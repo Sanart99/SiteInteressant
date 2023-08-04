@@ -3,6 +3,7 @@ $libDir = __DIR__.'/../../../lib';
 require_once $libDir.'/utils/utils.php';
 $root = get_root_link();
 
+header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 let _routerElement = null;
 let _urlFormatter = null;

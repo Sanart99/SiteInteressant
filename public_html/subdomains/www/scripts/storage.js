@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 let testedTypes = [];
 function storageAvailable(sType) {

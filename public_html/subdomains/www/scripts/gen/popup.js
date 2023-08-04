@@ -366,6 +366,7 @@ function getEditAvatar() {
     CSS];
 }
 
+header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 function getPopupDiv() {
     return `$getPopupDiv`;

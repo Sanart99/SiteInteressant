@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 function _(s) { return document.querySelector(s); }
 function _all(s) { return document.querySelectorAll(s); }

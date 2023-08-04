@@ -1,10 +1,9 @@
 <?php
-header('Content-Type: text/css');
 ob_start();
 require_once __DIR__.'/scripts/gen/main.js';
 require_once __DIR__.'/scripts/gen/popup.js';
 ob_end_clean();
-
+header('Content-Type: text/css');
 echo <<<CSS
 :root {
     --color-black-1: #1D2028;

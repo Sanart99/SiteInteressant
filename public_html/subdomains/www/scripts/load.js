@@ -5,6 +5,7 @@ dotenv();
 
 $graphql = $_SERVER['LD_LINK_GRAPHQL'];
 
+header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 var map = new Map();
 const dynMap = new Map();

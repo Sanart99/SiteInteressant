@@ -1,6 +1,5 @@
 <?php
 header('Content-Type: text/css');
-
 echo <<<CSS
 :where(article, aside, details, figcaption, figure, 
 footer, header, hgroup, menu, nav, section) {

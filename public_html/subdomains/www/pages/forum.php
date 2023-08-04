@@ -9,6 +9,7 @@ $scriptsLib = '../scripts';
 require_once $scriptsLib.'/gen/main.js';
 ob_end_clean();
 
+header('Content-Type: text/html');
 ?>
 
 <?= getForumMainElem()['html']; ?>
