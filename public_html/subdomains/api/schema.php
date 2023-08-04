@@ -280,7 +280,7 @@ class MutationType extends ObjectType {
                         if ($user == null) return ErrorType::USER_INVALID;
                         if (!isset($_FILES['imgAvatar'])) return ErrorType::NOTFOUND;
                         $file = $_FILES['imgAvatar'];
-                        if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK || $file['size'] > 20000) return ErrorType::INVALID;
+                        if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK || $file['size'] > 20000000) return ErrorType::INVALID;
                         $ext = array_search(mime_content_type($file['tmp_name']),[
                             'jpg' => 'image/jpeg',
                             'gif' => 'image/gif',
