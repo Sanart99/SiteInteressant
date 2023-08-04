@@ -211,7 +211,7 @@ function getIndexElems() {
     topBarRSlideArea.addEventListener('mouseleave',() => { if (tbrTimeout != null) clearTimeout(tbrTimeout); });
     let rbTimeout = null;
     rightBar.addEventListener('mouseenter',() => { if (rbTimeout != null) clearTimeout(rbTimeout); });
-    rightBar.addEventListener('mouseleave',() => { rbTimeout = setTimeout(closeRightBar, 300); });
+    rightBar.addEventListener('mouseleave',() => { rbTimeout = setTimeout(closeRightBar, 150); });
 
     document.querySelector('#rightBar_optionsDiv_editAvatar').addEventListener('click',(e) => {
         e.preventDefault();
