@@ -69,7 +69,7 @@ class DoubleMarker {
         $iA = $v[0];
         $arg = $v[1];
         $to = call_user_func($this->{'to'},$arg);
-        $lenBefore1 = strlen($arg == null ? "[$from]" : "[{$from}={$arg}]");
+        $lenBefore1 = strlen($arg === null ? "[$from]" : "[{$from}={$arg}]");
 
         $before = substr($result,0,$iA);
         $insert1 = $to[0];
