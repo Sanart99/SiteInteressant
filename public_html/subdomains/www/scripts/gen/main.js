@@ -1258,7 +1258,7 @@ function getForumMainElem() {
         return true;
     };
 
-    const mql = window.matchMedia("(max-width: 600px)");
+    const mql = window.matchMedia("(max-width: 800px)");
     const fmql = (mql) => {
         if (mql.matches && !mobileMode) {
             if (forumR.innerHTML == '') forumL.style.display = 'none';
@@ -1446,7 +1446,7 @@ function getForumMainElem() {
         margin: 0.1em;
     }
     #forumL {
-        flex: 1 0 35%;
+        flex: 1 1 35%;
         max-width: 35%;
     }
     #forumR {
@@ -1706,7 +1706,7 @@ function getForumMainElem() {
         border: 0;
         box-shadow: inset 0px 2px 3px 0px black;
     }
-    @media screen and (max-width: 600px) {
+    @media screen and (max-width: 800px) {
         #forumR, #forumL{
             max-width: 95%;
         }
