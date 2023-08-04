@@ -110,9 +110,8 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
             return ["<a href=\"$arg\">",'</a>'];
         }, $result),
         new DoubleMarker('cite',function($arg) use(&$skipIfNewLine) {
-            $arg = str_replace('"','\"',$arg);
             $skipIfNewLine = true;
-            return $arg == '' ? ['<blockquote>','</blockquote>'] : ["<blockquote data-cited=\"$arg\">",'</blockquote>'];
+            return $arg == '' ? ['</p><blockquote>','</blockquote><p>'] : ["</p><p class=\"preQuote\">$arg</p><blockquote>",'</blockquote><p>']; //["<blockquote data-cited=\"$arg\">",'</blockquote>'];
         }, $result),
         new DoubleMarker('spoil',function($arg) {
             $style = preg_match('/^block;?$/',$arg) > 0 ? ' style="display:block;"' : '';
