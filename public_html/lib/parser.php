@@ -37,11 +37,11 @@ class SymbolMarker  {
         $this->result = $before . $insert1 . $middle . $insert2 . $end;
         $this->iA = null;
         foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += strlen($insert1)-strlen($from); }
-        foreach (DoubleMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-strlen($from); }
+        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-strlen($from); }
     }
 }
 
-class DoubleMarker {
+class KeywordMarker {
     public static array $all = [];
     public string $from;
 
@@ -78,7 +78,7 @@ class DoubleMarker {
         $end = substr($result,$iB);
         $this->result = $before . $insert1 . $middle . $insert2 . $end;
         foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += strlen($insert1)-$lenBefore1; }
-        foreach (DoubleMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-$lenBefore1; }
+        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-$lenBefore1; }
     }
 }
 
@@ -92,74 +92,74 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
 
     $sMarkerMode = false;
 
-    $dMarkerMode = false;
+    $kwMarkerMode = false;
     $activeMarker = null;
-    $dMarkerArg = null;
+    $kwMarkerArg = null;
 
     $sSpec = '';
     $ignoreSpec = false;
     $skipIfNewLine = false;
 
     $sMarkers = new Set([new SymbolMarker('**','b',$result),new SymbolMarker('//','i',$result),new SymbolMarker('--','s',$result)]);
-    $dMarkers = new Set([
-        new DoubleMarker('link',function($arg) {
+    $kwMarkers = new Set([
+        new KeywordMarker('link',function($arg) {
             global $urlRegex;
             if ($arg == null) return ["[link]",'[/link]'];
             $arg = str_replace('"','\"',$arg);
             if ($arg == '' || preg_match($urlRegex, $arg) == 0) return ["[link=$arg]",'[/link]'];
             return ["<a href=\"$arg\">",'</a>'];
         }, $result),
-        new DoubleMarker('cite',function($arg) use(&$skipIfNewLine) {
+        new KeywordMarker('cite',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
             return $arg == '' ? ['</p><blockquote>','</blockquote><p>'] : ["</p><p class=\"preQuote\">$arg</p><blockquote>",'</blockquote><p>']; //["<blockquote data-cited=\"$arg\">",'</blockquote>'];
         }, $result),
-        new DoubleMarker('spoil',function($arg) {
+        new KeywordMarker('spoil',function($arg) {
             $style = preg_match('/^block;?$/',$arg) > 0 ? ' style="display:block;"' : '';
             return ["<span class=\"spoil\"$style><span class=\"spoilTxt\">",'</span></span>'];
         }, $result)
     ]);
-    $dMarkersToRemove = [];
+    $kwMarkersToRemove = [];
     
     foreach ($chars as $char) {
-        if ($dMarkerArg !== null) {
+        if ($kwMarkerArg !== null) {
             switch (true) {
                 case (preg_match('/^\]$/',$char) > 0):
                     if ($activeMarker == null) throw new \Exception('Parse error.'); // only needed cuz intelephense mark it otherwise
-                    $activeMarker->markA(strlen($result),$dMarkerArg);
-                    // print_r(PHP_EOL.'END, Argument: \''.$dMarkerArg."'".PHP_EOL);
-                    $result .= "[$sSpec=$dMarkerArg]";
+                    $activeMarker->markA(strlen($result),$kwMarkerArg);
+                    // print_r(PHP_EOL.'END, Argument: \''.$kwMarkerArg."'".PHP_EOL);
+                    $result .= "[$sSpec=$kwMarkerArg]";
                     $sSpec = '';
                     $activeMarker = null;
-                    $dMarkerArg = null;
-                    $dMarkerMode = false;
+                    $kwMarkerArg = null;
+                    $kwMarkerMode = false;
                     break;
                 default:
-                    $dMarkerArg .= $char;
+                    $kwMarkerArg .= $char;
                     break;
             }
             continue;
         }
 
         if ($activeMarker != null) {
-            if ($dMarkerMode) {
+            if ($kwMarkerMode) {
                 if ($char == '=' && $sSpec[0] != '/') {
-                    $dMarkerArg = '';
+                    $kwMarkerArg = '';
                     continue;
                 } else if ($char == ']') {
                     // print_r(PHP_EOL.'END, sSpec[0]:'.$sSpec[0].PHP_EOL);
                     if ($sSpec[0] == '/') $activeMarker->markB(strlen($result));
                     else {
-                        $dMarkerMode = false;
+                        $kwMarkerMode = false;
                         $activeMarker->markA(strlen($result));
                         $result .= "[$sSpec]";
                     }
                     $sSpec = '';
                     $activeMarker = null;
-                    $dMarkerMode = false;
+                    $kwMarkerMode = false;
                     continue;
                 }
                 $activeMarker = null;
-                $dMarkerMode = false;
+                $kwMarkerMode = false;
                 $result .= "[$sSpec";
                 $sSpec = '';
             }
@@ -192,7 +192,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
             }
         }
 
-        if ($dMarkerMode) {
+        if ($kwMarkerMode) {
             $sSpecLength = strlen($sSpec);
             // print_r(PHP_EOL.$char .'   '. $sSpec);
             if ($sSpecLength == 0 && $char == '/') {
@@ -203,8 +203,8 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
             $iFrom = $sSpecLength;
             if (isset($sSpec[0]) && $sSpec[0] == '/') $iFrom -= 1;
 
-            foreach ($dMarkersToRemove as $d) $dMarkers->remove($d);
-            foreach ($dMarkers as $m) {
+            foreach ($kwMarkersToRemove as $d) $kwMarkers->remove($d);
+            foreach ($kwMarkers as $m) {
                 $from = $m->from;
                 if (isset($from[$iFrom]) && $from[$iFrom] == $char) {
                     $sSpec .= $char;
@@ -213,12 +213,12 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     if (strlen($sSpec) == $finalLength) $activeMarker = $m;
                     continue 2;
                 }
-                // if ($sSpecLength == strlen($sSpec)) $dMarkersToRemove[] = $m;
+                // if ($sSpecLength == strlen($sSpec)) $kwMarkersToRemove[] = $m;
             }
             if ($sSpecLength == strlen($sSpec)) {
                 $result .= '['.htmlspecialchars($sSpec);
                 $sSpec = '';
-                $dMarkerMode = false;
+                $kwMarkerMode = false;
             }
         }
 
@@ -264,7 +264,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                 break;
             case (preg_match('/^\[$/',$char) > 0):
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
-                $dMarkerMode = true;
+                $kwMarkerMode = true;
                 break;
             case ($char == "\n"):
                 if ($skipIfNewLine) { $skipIfNewLine = false; break; }
@@ -279,7 +279,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     }
 
     if ($sMarkerMode) $result .= $sSpec;
-    else if ($dMarkerMode) $result .= $dMarkerArg !== null ? "[$sSpec=$dMarkerArg" : "[$sSpec";
+    else if ($kwMarkerMode) $result .= $kwMarkerArg !== null ? "[$sSpec=$kwMarkerArg" : "[$sSpec";
     if ($sEmoji != null) $result .= $sEmoji;
     $result .= '</p>';
 
