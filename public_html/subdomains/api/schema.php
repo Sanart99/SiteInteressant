@@ -304,21 +304,44 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null || !$user->titles->contains('Administrator')) return ErrorType::OPERATION_UNAUTHORIZED;
                         if (!isset($_FILES['smileysJSON'])) return ErrorType::NOTFOUND;
+
+                        $tidDir = __DIR__.'/../res/emojis/tid';
+                        if (!file_exists($tidDir)) if (!mkdir($tidDir)) return ErrorType::UNKNOWN;
+                        $tidDir = realpath($tidDir);
+
                         $json = json_decode(file_get_contents($_FILES['smileysJSON']['tmp_name']),true);
-                        $tidDir = realpath(__DIR__.'/../res/emojis/tid');
                         $conn = DBManager::getConnection();
                         $mandatoryEmojis = ['tid/Twinoid v1/','tid/Twinoid v2/','tid/Twinoid v3/'];
-
                         set_time_limit(300);
                         $userData = ($args['forUserId']??null) == null ? null : [];
                         foreach ($json as $category => $smData) {
                             $category = htmlspecialchars($category);
                             $dirCategory = "$tidDir/$category";
-                            if (!file_exists($dirCategory)) mkdir($dirCategory);
+                            if (!file_exists($dirCategory)) if (!mkdir($dirCategory)) return ErrorType::UNKNOWN;
                             foreach ($smData as $sm) {
                                 if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0) continue;
                                 $name = $m[1];
                                 $id = "tid/$category/$name";
+                                $img = null;
+                                if (preg_match('/\.[^\\\\\/]+$/',$name,$m) == 0) {
+                                    $img = curl_fetch($sm['src'])['res'];
+                                    $tempLoc = "$dirCategory/{$name}.temp";
+                                    file_put_contents($tempLoc,$img);
+                                    $fExt = array_search(mime_content_type($tempLoc),[
+                                        '.jpg' => 'image/jpeg',
+                                        '.gif' => 'image/gif',
+                                        '.png' => 'image/png',
+                                        '.ico' => 'image/vnd.microsoft.icon'
+                                    ], true);
+                                    if ($fExt == false) {
+                                        Context::addLog('uploadTidEmojis',"no accepted extension for '$id', mime_content_type:'".(string)mime_content_type($tempLoc)."'");
+                                        unlink($tempLoc);
+                                        continue;
+                                    }
+                                    $name .= $fExt;
+                                    $id .= $fExt;
+                                    rename($tempLoc,"$dirCategory/$name");
+                                };
 
                                 if (is_array($userData)) {
                                     $skip = false;
@@ -329,7 +352,7 @@ class MutationType extends ObjectType {
                                 $stmt->execute([':id' => $id, ':aliases' => json_encode($sm['txts']), ':isConsommable' => (int)(($sm['amount']??null) != null)]);
 
                                 if (file_exists("$dirCategory/$name")) continue;
-                                $img = curl_fetch($sm['src'])['res'];
+                                if ($img == null) $img = curl_fetch($sm['src'])['res'];
                                 file_put_contents("$dirCategory/$name",$img);
                             }
                         }
