@@ -31,13 +31,15 @@ class SymbolMarker  {
         
         $before = substr($result,0,$iA);
         $insert1 = "<$to>";
-        $middle = substr($result,$iA+strlen($from),$i);
+        $middle = substr($result,$iA+strlen($from),$i-($iA+strlen($from)));
         $insert2 = "</$to>";
         $end = substr($result,$i);
         $this->result = $before . $insert1 . $middle . $insert2 . $end;
         $this->iA = null;
-        foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += strlen($insert1)-strlen($from); }
-        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-strlen($from); }
+
+        $diff1 = strlen($insert1)-strlen($from);
+        foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += $diff1; }
+        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += $diff1; }
     }
 }
 
@@ -68,17 +70,20 @@ class KeywordMarker {
         if ($v === null) { $result .= "[/$from]"; return; }
         $iA = $v[0];
         $arg = $v[1];
-        $to = call_user_func($this->{'to'},$arg);
         $lenBefore1 = strlen($arg === null ? "[$from]" : "[{$from}={$arg}]");
+
+        $middle = substr($result,$iA+$lenBefore1,$iB-($iA+$lenBefore1));
+        $to = call_user_func($this->{'to'},$arg);
 
         $before = substr($result,0,$iA);
         $insert1 = $to[0];
-        $middle = substr($result,$iA+$lenBefore1,$iB);
         $insert2 = $to[1];
         $end = substr($result,$iB);
         $this->result = $before . $insert1 . $middle . $insert2 . $end;
-        foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += strlen($insert1)-$lenBefore1; }
-        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += strlen($insert1)-$lenBefore1; }
+
+        $diff1 = strlen($insert1)-$lenBefore1;
+        foreach (SymbolMarker::$all as $o) if ($o != $this && $o->iA != null && $o->iA > $iA) { $o->iA += $diff1; }
+        foreach (KeywordMarker::$all as $o) foreach ($o->arrA as &$a) if ($a[0] > $iA) { $a[0] += $diff1; }
     }
 }
 
@@ -111,14 +116,24 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
         }, $result),
         new KeywordMarker('cite',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
-            return $arg == '' ? ['</p><blockquote>','</blockquote><p>'] : ["</p><p class=\"preQuote\">$arg</p><blockquote>",'</blockquote><p>']; //["<blockquote data-cited=\"$arg\">",'</blockquote>'];
+            return $arg == '' ? ['</p><blockquote><p>','</p></blockquote><p>'] : ["</p><p class=\"preQuote\">$arg</p><blockquote><p>",'</p></blockquote><p>'];
         }, $result),
-        new KeywordMarker('spoil',function($arg) {
-            $style = preg_match('/^block;?$/',$arg) > 0 ? ' style="display:block;"' : '';
-            return ["<span class=\"spoil\"$style><span class=\"spoilTxt\">",'</span></span>'];
+        new KeywordMarker('spoil',function($arg) use(&$skipIfNewLine) {
+            $block = preg_match('/(?:^|;)\s*block\s*(?:$|;)/',$arg) > 0;
+            if ($block) $skipIfNewLine = true;
+            return $block == true ? ['</p><p class="spoil"><span class="spoilTxt">','</span></p><p>'] : ['<span class="spoil"><span class="spoilTxt">','</span></span>'];
+        }, $result),
+        new KeywordMarker('code',function($arg) use(&$skipIfNewLine) {
+            $skipIfNewLine = true;
+            return ['</p><pre><code>','</code></pre><p>'];
+        }, $result),
+        new KeywordMarker('rp',function($arg) use(&$skipIfNewLine) {
+            $skipIfNewLine = true;
+            $sArg = preg_match('/^[^<>]+$/',$arg,$m) > 0 ? "<p class=\"rpTextSpeaker\">{$m[0]}</p>" : '';
+            return ["</p>$sArg<p class=\"rpText\">",'</p><p>'];
         }, $result)
     ]);
-    $kwMarkersToRemove = [];
+    $kwMarkersToSkip = new Set();
     
     foreach ($chars as $char) {
         if ($kwMarkerArg !== null) {
@@ -132,9 +147,10 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     $activeMarker = null;
                     $kwMarkerArg = null;
                     $kwMarkerMode = false;
+                    $kwMarkersToSkip->clear();
                     break;
                 default:
-                    $kwMarkerArg .= $char;
+                    $kwMarkerArg .= htmlspecialchars($char);
                     break;
             }
             continue;
@@ -158,10 +174,6 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     $kwMarkerMode = false;
                     continue;
                 }
-                $activeMarker = null;
-                $kwMarkerMode = false;
-                $result .= "[$sSpec";
-                $sSpec = '';
             }
         }
 
@@ -203,8 +215,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
             $iFrom = $sSpecLength;
             if (isset($sSpec[0]) && $sSpec[0] == '/') $iFrom -= 1;
 
-            foreach ($kwMarkersToRemove as $d) $kwMarkers->remove($d);
-            foreach ($kwMarkers as $m) {
+            foreach ($kwMarkers as $m) if (!$kwMarkersToSkip->contains($m)) {
                 $from = $m->from;
                 if (isset($from[$iFrom]) && $from[$iFrom] == $char) {
                     $sSpec .= $char;
@@ -213,12 +224,14 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     if (strlen($sSpec) == $finalLength) $activeMarker = $m;
                     continue 2;
                 }
-                // if ($sSpecLength == strlen($sSpec)) $kwMarkersToRemove[] = $m;
+                if ($sSpecLength == strlen($sSpec)) $kwMarkersToSkip->add($m);
             }
             if ($sSpecLength == strlen($sSpec)) {
                 $result .= '['.htmlspecialchars($sSpec);
                 $sSpec = '';
+                $activeMarker = null;
                 $kwMarkerMode = false;
+                $kwMarkersToSkip->clear();
             }
         }
 
@@ -283,7 +296,55 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     if ($sEmoji != null) $result .= $sEmoji;
     $result .= '</p>';
 
-    return $result;
+    $correctedResult = '';
+    $tagActive = [];
+    preg_match_all('/((?:<.+?>)*?(?:<p(?: .*?)?>|<pre><code>))((?:.|\s)*?)((?:<\/p>|<\/code><\/pre>)(?:<\/.+?>)*)/',$result,$mParts,PREG_SET_ORDER);
+    foreach ($mParts as $part) {
+        $correctedResult .= $part[1] . implode($tagActive);
+        preg_match_all('/(?(DEFINE)(?P<chars>[^<>]|<br\/>))(?:(?<begin>(?P>chars)*)(?:(?<A1>(?:<(?!\/).*?>)+.*?)(?<B>(?:<\/.*?>)+)|(?<A2>(?:<\/.*?>)+)|(?<A3>(?:<(?!\/).*?>)+(?P>chars)*))?(?<end>(?P>chars)*))/',$part[2],$m,PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+        for ($iM=0; $iM<count($m); $iM++) {
+            $nextIsEmpty = isset($m[$iM+1]) && $m[$iM+1][0] == '';
+            $v = $m[$iM];
+            preg_match_all('/<\w+>/',$v[0],$mA);
+            preg_match_all('/<\/\w+>/',$v[0],$mB);
+            $mA = array_merge($tagActive,$mA[0]);
+            $mB = $mB[0];
+            $tagActive = [];
+
+            if (isset($v['begin'])) $correctedResult .= $v['begin'];
+            if (isset($v['A1'])) $correctedResult .= $v['A1'];
+            else if (isset($v['A3'])) { $correctedResult .= $v[0]; }
+            
+            for ($i=count($mA)-1; $i>=0; $i--) {                
+                $tagA = $mA[$i];
+                $tagB = str_replace('<','</',$tagA);
+                
+                $i2Start = count($mA)-1-$i;
+                $found = false;
+                for ($i2=$i2Start; $i2<count($mB); $i2++) if ($mB[$i2] == $tagB) {
+                    if ($i2 != $i2Start) {
+                        $temp = $mB[$i2];
+                        $mB[$i2] = $mB[$i2Start];
+                        $mB[$i2Start] = $temp;
+                    }
+                    $found = true;
+                    break;
+                }
+                
+                if (!$found) {
+                    array_splice($mB,$i2Start,0,$tagB);
+                    $tagActive[] = $tagA;
+                }
+            }
+            
+            $correctedResult .= implode('',$mB);
+            if (!isset($v['A3']) && !$nextIsEmpty) $correctedResult .= implode('',$tagActive);
+            $correctedResult .= $v['end'];
+            if ($nextIsEmpty) break;
+        }
+        $correctedResult .= $part[3];
+    }
+    return $correctedResult;
 }
 
 function textToHTML2(string $text) {
