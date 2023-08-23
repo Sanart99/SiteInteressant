@@ -319,7 +319,7 @@ class MutationType extends ObjectType {
                             $dirCategory = "$tidDir/$category";
                             if (!file_exists($dirCategory)) if (!mkdir($dirCategory)) return ErrorType::UNKNOWN;
                             foreach ($smData as $sm) {
-                                if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0) continue;
+                                if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0 || !is_array($sm['txts']) ) continue;
                                 $name = $m[1];
                                 $id = "tid/$category/$name";
                                 $img = null;
