@@ -38,7 +38,7 @@ $schema = new Schema([
     'query' => Types::Query(),
     'mutation' => Types::Mutation(),
     'typeLoader' => fn(string $name) => Types::$name(),
-    'types' => [Types::ForumNotification()]
+    'types' => [Types::BasicNotification(), Types::ForumNotification()]
 ]);
 $defaultResolver = function():mixed { return null; };
 $errorFormatter = function(Error $err) {

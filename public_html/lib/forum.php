@@ -152,8 +152,8 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value,"[$user->id]"]);
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date) VALUES (?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg),$sNow]);
+    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,readBy) VALUES (?,?,?,?,?,?) RETURNING *');
+    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
@@ -173,10 +173,12 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     $conn->query('START TRANSACTION');
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+    $actionGroup = 'forum';
+    $action  = 'addComment';
 
     $n = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0] + 1;
-    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date) VALUES (?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow]);
+    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,readBy) VALUES (?,?,?,?,?,?) RETURNING *');
+    $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
@@ -184,9 +186,16 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     $rowThread = $conn->query("SELECT * FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
     $followingIds = new \Ds\Set(json_decode($rowThread['following_ids']));
     $followingIds->remove($user->id);
-    $followingIds = json_encode($followingIds->toArray());
-    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date,notified_ids) VALUES (?,?,?,?,?,?)");
-    $stmt->execute([$user->id,'forum','addComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$followingIds]);
+    $followingIds = $followingIds->toArray();
+    $jsonFollowingIds = json_encode($followingIds);
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date,notified_ids) VALUES (?,?,?,?,?,?) RETURNING *");
+    $stmt->execute([$user->id,$actionGroup,$action,json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$jsonFollowingIds]);
+    $recRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+    $maxN = $conn->query("SELECT MAX(number) FROM notifications WHERE user_id={$user->id}")->fetch(\PDO::FETCH_NUM)[0];
+    if (!is_int($maxN)) $maxN = 0;
+    $stmt = $conn->prepare('INSERT INTO notifications (user_id,number,creation_date,action_group,action,record_id) VALUES (?,?,?,?,?,?)');
+    $stmt->execute([$user->id,$maxN+1,$sNow,$actionGroup,$action,$recRow['id']]);
 
     $conn->query('COMMIT');
     ForumBuffer::storeComment($commentRow);
@@ -207,8 +216,8 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($oldCommRow['creation_date']))->getTimestamp()) / 60;
     if (!(($maxN === $oldCommRow['number'] && $minutes < 10) || $minutes < 1.5)) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
-    $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=? WHERE thread_id=? AND number=? LIMIT 1");
-    $stmt->execute([textToHTML($user->id, $msg),$sNow,$threadId,$commNumber]);
+    $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=? readBy=? WHERE thread_id=? AND number=? LIMIT 1");
+    $stmt->execute([textToHTML($user->id, $msg),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");

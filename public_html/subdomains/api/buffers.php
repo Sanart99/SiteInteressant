@@ -18,6 +18,7 @@ use LDLib\User\RegisteredUser;
 use function LDLib\Database\get_tracked_pdo;
 
 enum DataType {
+    case Record;
     case User;
     case Notification;
     case Emoji;
@@ -31,6 +32,7 @@ enum DataType {
 class BufferManager {
     /** Contains all the fetched data, the other buffers references it. */
     public static array $result = [
+        'records' => [],
         'users' => [],
         'forum' => [
             'threads' => [],
@@ -127,6 +129,7 @@ class BufferManager {
                     case DataType::ForumTidComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
+                    case DataType::Record: RecordsBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
@@ -356,30 +359,17 @@ class UsersBuffer {
             case DataType::Notification:
                 $userId = $v[1][0];
                 $pag = $v[1][1];
-
-                $cursF = function($vCurs,$i) {
-                    switch ($i) {
-                        case 1: return "date<'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<{$vCurs[1]})";
-                        case 2: return "date>'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>{$vCurs[1]})";
-                        case 3: return "date DESC,id DESC";
-                        case 4: return "date,id";
-                        case 5: return "date>='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>={$vCurs[1]})";
-                        case 6: return "date<='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<={$vCurs[1]})";
-                        default: throw new \Schema\SafeBufferException("cursorF ??");
-                    }
-                };
-
-                BufferManager::pagRequest($conn, 'records', 'JSON_CONTAINS(notified_ids,:userId) = 1', $pag, $cursF,
-                    fn($row) => base64_encode("{$row['date']}!{$row['id']}"),
-                    fn($s) =>  (preg_match('/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)!(\d+)$/',base64_decode($s),$m) === 0) ? ['2000-01-01 00:00:00',1] : [$m[1],(int)$m[2]],
+                
+                BufferManager::pagRequest($conn, 'notifications', "user_id=$userId", $pag, 'number',
+                    fn($row) => base64_encode("{$row['number']}"),
+                    fn($s) =>  (preg_match('/^\d+$/',base64_decode($s),$m) === 0) ? 0 : intval($m[0]),
                     function($row) use(&$bufRes,&$req,&$fet,&$userId) {
-                        $bufRes['notifications'][$userId][$row['data']['id']] = $row;
-                        $req->remove([DataType::Notification,[$userId,$row['data']['id']]]);
-                        $fet->add([DataType::Notification,[$userId,$row['data']['id']]]);
+                        $bufRes['notifications'][$userId][$row['data']['number']] = $row;
+                        $req->remove([DataType::Notification,[$userId,$row['data']['number']]]);
+                        $fet->add([DataType::Notification,[$userId,$row['data']['number']]]);
                     },
                     function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['notificationsM'][$userId][$pag->getString()] = $rows; },
-                    '*',
-                    [':userId' => $userId]
+                    '*'
                 );
                 array_push($toRemove,$v);
                 break;
@@ -788,6 +778,40 @@ class ForumBuffer {
 
                 $bufRes['forum']['tid_comments'][\LDLib\Forum\TidComment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
                 array_push($toRemove, $v);
+                break;
+        }
+        foreach ($toRemove as $v) {
+            $req->remove($v);
+            $fet->add($v);
+        }
+    }
+}
+
+class RecordsBuffer {
+    public static function requestFromId(int $id):bool {
+        return BufferManager::request(DataType::Record, $id) == 0;
+    }
+
+    public static function getFromId(int $id):?array {
+        return BufferManager::get(['records',$id]);
+    }
+
+    public static function exec(LDPDO $conn) {
+        $bufRes =& BufferManager::$result;
+        $req =& BufferManager::$req;
+        $fet =& BufferManager::$fet;
+
+        $toRemove = [];
+        foreach ($req->getIterator() as $v) switch ($v[0]) {
+            case DataType::Record:
+                $recordId = $v[1];
+
+                $stmt = $conn->prepare("SELECT * FROM records WHERE id=?");
+                $stmt->execute([$recordId]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['records'][$recordId] = $row === false ? null : ['data' => $row, 'metadata' => null];
+                array_push($toRemove,$v);
                 break;
         }
         foreach ($toRemove as $v) {
