@@ -286,6 +286,18 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     return $comment;
 }
 
+function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
+    $comment = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($comment == false) return ErrorType::NOTFOUND;
+    $readBy = json_decode($comment['readBy']);
+    if (in_array($user->id,$readBy)) return true;
+    $readBy[] = $user->id;
+    
+    $stmt = $conn->prepare("UPDATE comments SET readBy=? WHERE thread_id=$threadId AND number=$commNumber LIMIT 1");
+    $stmt->execute([json_encode($readBy)]);
+    return true;
+}
+
 function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId) {
     $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
     $ids->add($user->id);
