@@ -1045,7 +1045,8 @@ class EmojiType extends ObjectType {
 class RecordType extends ObjectType {
     public static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
-        if (!is_int($o) || $authUser == null || !$authUser->isAdministrator()) return null;
+        if ($authUser == null || !$authUser->isAdministrator()) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
 
         RecordsBuffer::requestFromId($o);
         return quickReactPromise(function() use(&$o,&$f) {
