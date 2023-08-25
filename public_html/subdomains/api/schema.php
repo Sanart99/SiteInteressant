@@ -1162,6 +1162,13 @@ class ForumNotificationType extends BasicNotificationType {
                         $details = json_decode($recordRow['data']['details'],true);
                         return "forum_{$details['threadId']}-{$details['commentNumber']}";
                     })
+                ],
+                'associatedUsers' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Types::RegisteredUser())),
+                    'resolve' => fn($o) => self::process($o, function($notifRow,$recordRow) {
+                        $details = json_decode($notifRow['data']['details'],true);
+                        return $details['userIds'];
+                    })
                 ]
             ]
         ];
