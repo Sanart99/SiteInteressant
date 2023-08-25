@@ -74,6 +74,27 @@ class QueryType extends ObjectType {
                     ],
                     'resolve' => fn($_, $args) => $args['id']
                 ],
+                'records' => [
+                    'type' => fn() => Types::getConnectionObjectType('Record'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return null;
+
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
+                        RecordsBuffer::requestMultiple($pag);
+                        return quickReactPromise(function() use($pag) {
+                            return RecordsBuffer::getMultiple($pag);
+                        });
+                    }
+                ],
                 'forum' => [
                     'type' => fn() => Types::Forum(),
                     'resolve' => fn() => Data::Empty
