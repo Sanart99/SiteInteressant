@@ -359,8 +359,20 @@ class UsersBuffer {
             case DataType::Notification:
                 $userId = $v[1][0];
                 $pag = $v[1][1];
+
+                $cursF = function($vCurs,$i) {
+                    switch ($i) {
+                        case 1: return "last_update_date<'{$vCurs[0]}'";
+                        case 2: return "last_update_date>'{$vCurs[0]}'";
+                        case 3: return "last_update_date DESC";
+                        case 4: return "last_update_date";
+                        case 5: return "last_update_date>='{$vCurs[0]}'";
+                        case 6: return "last_update_date<='{$vCurs[0]}'";
+                        default: throw new \Schema\SafeBufferException("cursorF ??");
+                    }
+                };
                 
-                BufferManager::pagRequest($conn, 'notifications', "user_id=$userId", $pag, 'number',
+                BufferManager::pagRequest($conn, 'notifications', "user_id=$userId", $pag, $cursF,
                     fn($row) => base64_encode("{$row['number']}"),
                     fn($s) =>  (preg_match('/^\d+$/',base64_decode($s),$m) === 0) ? 0 : intval($m[0]),
                     function($row) use(&$bufRes,&$req,&$fet,&$userId) {
