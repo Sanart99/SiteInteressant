@@ -455,6 +455,10 @@ class NotificationType extends InterfaceType {
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['user_id'])
                 ],
+                'number' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['number'])
+                ],
                 'actionGroupName' => [
                     'type' => fn() => Types::ActionGroup(),
                     'resolve' => fn($o) => self::process($o,fn($o) => ActionGroup::from($o['data']['action_group']))
@@ -467,9 +471,21 @@ class NotificationType extends InterfaceType {
                     'type' => fn() => Types::DateTime(),
                     'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['creation_date'])
                 ],
+                'lastUpdateDate' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['last_update_date'])
+                ],
                 'readDate' => [
                     'type' => fn() => Types::DateTime(),
                     'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['read_date'])
+                ],
+                'details' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['details'])
+                ],
+                'n' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['n'])
                 ],
                 'record' => [
                     'type' => Types::Record(),
@@ -1098,10 +1114,14 @@ class BasicNotificationType extends ObjectType {
             'interfaces' => [Types::Notification()],
             'fields' => [
                 Types::Notification()->getField('userId'),
+                Types::Notification()->getField('number'),
                 Types::Notification()->getField('actionGroupName'),
                 Types::Notification()->getField('actionName'),
                 Types::Notification()->getField('creationDate'),
+                Types::Notification()->getField('lastUpdateDate'),
                 Types::Notification()->getField('readDate'),
+                Types::Notification()->getField('details'),
+                Types::Notification()->getField('n'),
                 Types::Notification()->getField('record')
             ]
         ];
