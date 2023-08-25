@@ -1101,6 +1101,14 @@ class RecordType extends ObjectType {
                 'notifiedIds' => [
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($o) => $o['data']['notified_ids'])
+                ],
+                'associatedThread' => [
+                    'type' => fn() => Types::Thread(),
+                    'resolve' => fn($o) => self::process($o,function($o) {
+                        $details = json_decode($o['data']['details'],true);
+                        if (!isset($details['threadId'])) return null;
+                        return $details['threadId'];
+                    })
                 ]
             ]
         ];
