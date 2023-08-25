@@ -1019,6 +1019,10 @@ class CommentType extends ObjectType {
                 'content' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['content'])
+                ],
+                'isRead' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['readBy'])))
                 ]
             ]
         ];
