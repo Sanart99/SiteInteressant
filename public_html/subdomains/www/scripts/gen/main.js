@@ -74,11 +74,15 @@ function getIndexElems() {
                 notifications(first:50) {
                     edges {
                         node {
-                            dbId
-                            date
-                            notificationGroup
+                            userId
+                            number
+                            actionGroupName
                             actionName
-                            isRead
+                            creationDate
+                            lastUpdateDate
+                            readDate
+                            details
+                            n
                             ... on ForumNotification {
                                 thread {
                                     dbId
@@ -90,7 +94,29 @@ function getIndexElems() {
                                         name
                                     }
                                 }
+                                users:associatedUsers {
+                                    name
+                                }
                             }
+                        }
+                    }
+                }
+            }
+            records(first:150) {
+                edges {
+                    node {
+                        dbId
+                        associatedUser {
+                            name
+                        }
+                        actionGroupName
+                        actionName
+                        details
+                        date
+                        notifiedIds
+                        thread:associatedThread {
+                            dbId
+                            title
                         }
                     }
                 }
@@ -99,8 +125,9 @@ function getIndexElems() {
             if (!res.ok) basicQueryError();
             return res.json();
         }).then((json) => {
-            if (json?.data?.viewer?.notifications?.edges == null) basicQueryError();
+            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) basicQueryError();
             gettingEvents = false;
+            const records = json.data.records;
             const notifications = json.data.viewer.notifications;
             const userId = json.data.viewer.dbId;
             notifCont.innerHTML = '';
@@ -111,25 +138,23 @@ function getIndexElems() {
                 const e = topBar.querySelector('#topBar_r_recentEvents');
                 if (n > 0) {
                     e.style.display = '';
-                    const ss = n > 1 ? 'nouveaux évènements' : 'nouvel évènement';
+                    const ss = n > 1 ? 'notifications' : 'notification';
                     e.innerHTML = `<p>\${n} \${ss}</p>`;
                 } else e.style.display = 'none';  
             }
 
             const history = {};
-            const newComments = {};            
-            const ignoreThreadComments = new Set();
-            let lastEvent = {first:null, name:'', n:0};
-            lastEvent.flush = () => {
-                if (lastEvent.first?.notificationGroup == null) return;
-                else if (lastEvent.first.notificationGroup == 'FORUM') {
-                    const notif = lastEvent.first;
-                    switch (notif.actionName) {
+            let currEvent = {firstRecord:null, name:'', n:0};
+            currEvent.flush = () => {
+                if (currEvent.firstRecord?.actionGroupName == null) return;
+                else if (currEvent.firstRecord.actionGroupName == 'FORUM') {
+                    const record = currEvent.firstRecord;
+                    switch (record.actionName) {
                         case 'addComment':
-                            const sComm = lastEvent.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
-                            const node = stringToNodes(`<a href="$root/forum/\${notif.thread.dbId}" onclick="return false;" class="historyItem">
-                                <p class="title">\${notif.thread.title}</p>
-                                <p class="description">\${lastEvent.n} \${sComm}</p>
+                            const sComm = currEvent.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
+                            const node = stringToNodes(`<a href="$root/forum/\${record.thread.dbId}" onclick="return false;" class="historyItem">
+                                <p class="title">\${record.thread.title}</p>
+                                <p class="description">\${currEvent.n} \${sComm}</p>
                             </a>`)[0];
                             node.addEventListener('click',() => loadPage(node.href,StateAction.PushState));
                             histCont.insertAdjacentElement('afterbegin',node);
@@ -137,54 +162,55 @@ function getIndexElems() {
                     }
                 }
             }
-
-            for (const edge of notifications.edges) {
-                const notif = edge.node;
-                switch (notif.actionName) {
+            for (const edge of records.edges.toReversed()) {
+                const record = edge.node;
+                if (record.actionGroupName == 'FORUM') switch (record.actionName) {
                     case 'addComment':
-                        if (lastEvent.name == 'thAddComment_'+notif.thread.dbId) lastEvent.n++;
+                        if (currEvent.name == 'thAddComment_'+record.thread.dbId) currEvent.n++;
                         else {
-                            lastEvent.flush();
-                            lastEvent.first = notif;
-                            lastEvent.name = 'thAddComment_'+notif.thread.dbId;
-                            lastEvent.n = 1;
+                            currEvent.flush();
+                            currEvent.firstRecord = record;
+                            currEvent.name = 'thAddComment_'+record.thread.dbId;
+                            currEvent.n = 1;
                         }
-                        
-                        if (ignoreThreadComments.has(notif.thread.dbId)) continue;
-                        if (notif.isRead) { ignoreThreadComments.add(notif.thread.dbId); continue; }
-                        if (newComments[notif.thread.dbId] == null) newComments[notif.thread.dbId] = {n:0, notifId:notif.dbId, thread:notif.thread, users:new Set()};
-                        const o = newComments[notif.thread.dbId];
-                        o.n++;
-                        o.users.add(notif.comment.author.name);
                         break;
                 }
             }
-            lastEvent.flush();
-            
-            for (const dbId in newComments) {
-                const o = newComments[dbId];
-                const s = o.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
-                const node = stringToNodes(`<a href="$root/forum/\${o.thread.dbId}" onclick="return false" class="notification new">
+            currEvent.flush();
+
+            for (const edge of notifications.edges) {
+                const notification = edge.node;
+                const s = notification.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
+                const notRead = notification.readDate == null ? ' new' : '';
+                const users = notification.users;
+                let names = [];
+                for (let i=0; i<(users.length >= 3 ? 3 : users.length); i++) names.push(users[i].name);
+                const sNames = '(' + names.join(',') + (users.length > 3 ? `, et \${users.length-3} autres...` : '') + ')'; 
+
+                const node = stringToNodes(`<a href="$root/forum/\${notification.thread.dbId}" onclick="return false" class="notification\${notRead}">
                     <div class="notification_type">
 
                     </div>
                     <div class="notification_content">
-                        <p class="title">\${o.thread.title}</p>
-                        <p class="desc">\${o.n} \${s} (\${Array.from(o.users).join(',')})</p>
+                        <p class="title">\${notification.thread.title}</p>
+                        <p class="desc">\${notification.n} \${s} \${sNames}</p>
                     </div>
                 </a>`)[0];
                 let timeout = null;
                 node.addEventListener('click',() => {
+                    const alreadyRead = !node.classList.contains('new');
+                    console.log(alreadyRead);
                     node.classList.remove('new');
                     loadPage(node.href,StateAction.PushState).then(() => {
-                        sendQuery(`mutation SetNotificationToRead(\$userId:Int!,\$notifId:String!) {
-                            f:setNotificationToRead(userId:\$userId,notifId:\$notifId) {
+                        if (alreadyRead) return;
+                        sendQuery(`mutation SetNotificationToRead(\$userId:Int!,\$number:Int!) {
+                            f:setNotificationToRead(userId:\$userId,number:\$number) {
                                 __typename
                                 success
                                 resultCode
                                 resultMessage
                             }
-                        }`,{userId:userId,notifId:o.notifId}).then((res) => {
+                        }`,{userId:userId,number:notification.number}).then((res) => {
                             if (!res.ok) basicQueryError();
                             return res.json();
                         }).then((json) => {
@@ -196,10 +222,9 @@ function getIndexElems() {
                     });
                 });
                 node.addEventListener('mouseleave',() => { if (timeout != null) clearTimeout(timeout); timeout = null; });
-                notifCont.insertAdjacentElement('beforeend',node);             
+                notifCont.insertAdjacentElement('beforeend',node); 
             }
-            
-            for (const k in newComments) if (newComments.hasOwnProperty(k)) ++recentEventsN;
+            for (const edge of notifications.edges) if (edge.node.readDate == null) ++recentEventsN;
             setRecentEventsN(recentEventsN);
         });
     }
@@ -304,6 +329,7 @@ function getIndexElems() {
         z-index: 11;
         transform: translate(100%,0%);
         transition: transform 0.15s;
+        overflow: auto;
     }
     #rightBar[open="1"] {
         transform: translate(0%,0%);
