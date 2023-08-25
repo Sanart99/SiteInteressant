@@ -512,6 +512,7 @@ function getForumMainElem() {
                             creationDate
                             lastUpdateDate
                             permission
+                            isRead
                             comments(last:1) {
                                 edges {
                                     node {
@@ -564,8 +565,7 @@ function getForumMainElem() {
                     tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Date inconnue</td></tr>`);
                     lastDelimiter = 'Date inconnue';
                 }
-
-                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}">
+                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="\${edge.node.isRead ? '' : 'new'}">
                     <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="https://data.twinoid.com/img/icons/selected.png"/></div></a></td>
                     <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
                     <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.number}</p><p class="author">\${comment.author.name}</p></a></td>
@@ -574,6 +574,7 @@ function getForumMainElem() {
                 for (const e of tr.querySelectorAll('a')) {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true));
                 }
+                if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="https://data.twinoid.com/img/icons/recent.png"/>');
             }
 
             const eNPage = document.querySelector('#forumL .nPage');
@@ -696,7 +697,24 @@ function getForumMainElem() {
                         return res.json();
                     }).then((json) => {
                         if (json?.data?.f?.success == null) basicQueryError();
-                        if (json.data.f.success) commentNode.classList.remove('new');
+                        if (json.data.f.success == false) return;
+                        commentNode.classList.remove('new');
+                        sendQuery(`query (\$threadId:ID!) {
+                            node(id:\$threadId) {
+                                id
+                                ... on Thread {
+                                    isRead
+                                }
+                            }
+                        }`,{threadId:threadId}).then((res) => {
+                            if (!res.ok) basicQueryError();
+                            return res.json();
+                        }).then((json) => {
+                            if (json?.data?.node?.isRead == null) basicQueryError();
+                            if (json.data.node.isRead == false) return;
+                            const e = document.querySelector(`#forum_threads tr[data-node-id="\${threadId}"] .statusIcons .new`);
+                            if (e != null) e.style.display = 'none';
+                        });
                     })
                 });
             }
@@ -1529,10 +1547,14 @@ function getForumMainElem() {
     #forum_threads tbody td {
         height: 35px;
     }
-    #forum_threads .selectArrow {
+    #forum_threads .statusIcons .selectArrow {
         position: absolute;
-        transform: translate(-100%,0px);
+        transform: translate(-150%,0px);
         display: none;
+    }
+    #forum_threads .statusIcons .new {
+        position: absolute;
+        transform: translate(-50%,0px);
     }
     #forum_threads tbody tr[data-selected="true"] .statusIcons, #forum_threads tbody tr[data-selected="true"] .quickDetails{
         background-color: #B6B8BD;
