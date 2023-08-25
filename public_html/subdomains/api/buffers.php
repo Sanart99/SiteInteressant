@@ -33,6 +33,7 @@ class BufferManager {
     /** Contains all the fetched data, the other buffers references it. */
     public static array $result = [
         'records' => [],
+        'recordsM' => [],
         'users' => [],
         'forum' => [
             'threads' => [],
@@ -115,6 +116,7 @@ class BufferManager {
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
                     case DataType::Notification:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
+                    case DataType::Record: RecordsBuffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$reqGroup->count()) throw new \Error("ReqGroup error. ({$a[0]->name})");
@@ -804,15 +806,59 @@ class RecordsBuffer {
         return BufferManager::request(DataType::Record, $id) == 0;
     }
 
+    public static function requestMultiple(PaginationVals $pag):bool {
+        return BufferManager::requestGroup(DataType::Record, $pag) == 0;
+    }
+
     public static function getFromId(int $id):?array {
         return BufferManager::get(['records',$id]);
+    }
+
+    public static function getMultiple(PaginationVals $pag) {
+        return BufferManager::get(['recordsM',$pag->getString()]);
     }
 
     public static function exec(LDPDO $conn) {
         $bufRes =& BufferManager::$result;
         $req =& BufferManager::$req;
         $fet =& BufferManager::$fet;
+        $rg =& BufferManager::$reqGroup;
+        $fg =& BufferManager::$fetGroup;
 
+        $toRemove = [];
+        foreach ($rg->getIterator() as $v) switch ($v[0]) {
+            case DataType::Record:
+                $pag = $v[1];
+                $cursF = function($vCurs,$i) {
+                    switch ($i) {
+                        case 1: return "date<'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<{$vCurs[1]})";
+                        case 2: return "date>'{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>{$vCurs[1]})";
+                        case 3: return "date DESC,id DESC";
+                        case 4: return "date,id";
+                        case 5: return "date>='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id>={$vCurs[1]})";
+                        case 6: return "date<='{$vCurs[0]}' OR (date='{$vCurs[0]}' AND id<={$vCurs[1]})";
+                        default: throw new \Schema\SafeBufferException("cursorF ??");
+                    }
+                };                
+                BufferManager::pagRequest($conn, 'records', '1=1', $pag, $cursF,
+                    fn($row) => base64_encode("{$row['date']}!{$row['id']}"),
+                    fn($s) => (preg_match('/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)!(\d+)$/',base64_decode($s),$m) ? ['2000-01-01 00:00:00',1] : [$m[1],(int)$m[2]]),
+                    function($row) use(&$bufRes,&$req,&$fet) {
+                        $bufRes['records'][$row['data']['id']] = $row;
+                        $req->remove([DataType::Notification,[$row['data']['id']]]);
+                        $fet->add([DataType::Notification,[$row['data']['id']]]);
+                    },
+                    function($rows) use(&$bufRes,&$pag) { $bufRes['recordsM'][$pag->getString()] = $rows; },
+                    '*'
+                );
+                
+                array_push($toRemove,$v);
+                break;
+        }
+        foreach ($toRemove as $v) {
+            $rg->remove($v);
+            $fg->add($v);
+        }
         $toRemove = [];
         foreach ($req->getIterator() as $v) switch ($v[0]) {
             case DataType::Record:
