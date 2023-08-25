@@ -199,7 +199,6 @@ function getIndexElems() {
                 let timeout = null;
                 node.addEventListener('click',() => {
                     const alreadyRead = !node.classList.contains('new');
-                    console.log(alreadyRead);
                     node.classList.remove('new');
                     loadPage(node.href,StateAction.PushState).then(() => {
                         if (alreadyRead) return;
@@ -696,7 +695,6 @@ function getForumMainElem() {
                         if (!res.ok) basicQueryError();
                         return res.json();
                     }).then((json) => {
-                        console.log(json);
                         if (json?.data?.f?.success == null) basicQueryError();
                         if (json.data.f.success) commentNode.classList.remove('new');
                     })
