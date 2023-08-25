@@ -608,6 +608,7 @@ function getForumMainElem() {
                                 creationDate
                                 lastEditionDate
                                 content
+                                isRead
                                 author {
                                     id
                                     dbId
@@ -669,7 +670,7 @@ function getForumMainElem() {
             eComments.innerHTML = '';
             currThreadId = threadId;
             for (const comment of comments.edges) {
-                eComments.insertAdjacentHTML('beforeend',`<div class="comment">
+                const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}">
                     <div class="header">
                         <div class="avatarDiv">
                             <img class="avatar" src="\${comment.node.author.avatarURL}" />
@@ -678,7 +679,28 @@ function getForumMainElem() {
                         <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
                     </div>
                     <div class="body">\${comment.node.content}</div>
-                </div>`);
+                </div>`)[0];
+                eComments.insertAdjacentElement('beforeend',commentNode);
+                let b = false;
+                commentNode.querySelector('.body').addEventListener('mouseover',() => {
+                    if (!commentNode.classList.contains('new') || b) return;
+                    b = true;
+                    sendQuery(`mutation MarkCommentAsRead (\$threadId:Int!, \$commNumber:Int!) {
+                        f:forumThread_markCommentAsRead(threadId:\$threadId,commentNumber:\$commNumber) {
+                            __typename
+                            success
+                            resultCode
+                            resultMessage
+                        }
+                    }`.trim(),{threadId:json.data.node.dbId,commNumber:comment.node.number}).then((res) => {
+                        if (!res.ok) basicQueryError();
+                        return res.json();
+                    }).then((json) => {
+                        console.log(json);
+                        if (json?.data?.f?.success == null) basicQueryError();
+                        if (json.data.f.success) commentNode.classList.remove('new');
+                    })
+                });
             }
 
             const n = first ?? last;
@@ -1623,6 +1645,10 @@ function getForumMainElem() {
         padding: 0.6rem 0.6rem 0.6rem 5.9rem;
         font-size: 0.9rem;
         white-space: pre-wrap;
+        transition: box-shadow 0.25s;
+    }
+    #forum_comments .comment.new .body {
+        box-shadow: 0px 0px min(7px,1.2rem) min(5px,0.4rem) #ffdd79a6;
     }
     #searchForm {
         padding: 10px;
