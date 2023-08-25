@@ -3,10 +3,10 @@ namespace LDLib\Forum;
 
 use LDLib\General\ErrorType;
 use LDLib\User\RegisteredUser;
-use Schema\UsersBuffer;
 use LDLib\Database\LDPDO;
 use Schema\ForumBuffer;
 
+use function LDLib\Database\{get_lock,release_lock};
 use function LDLib\Parser\textToHTML;
 
 enum ThreadPermission:string {
@@ -176,28 +176,64 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     $actionGroup = 'forum';
     $action  = 'addComment';
 
+    // add comment
     $n = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0] + 1;
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,readBy) VALUES (?,?,?,?,?,?) RETURNING *');
     $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    $aDetails = ['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']];
 
+    // update thread
     $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
 
+    // add record
     $rowThread = $conn->query("SELECT * FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
     $followingIds = new \Ds\Set(json_decode($rowThread['following_ids']));
     $followingIds->remove($user->id);
     $followingIds = $followingIds->toArray();
     $jsonFollowingIds = json_encode($followingIds);
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date,notified_ids) VALUES (?,?,?,?,?,?) RETURNING *");
-    $stmt->execute([$user->id,$actionGroup,$action,json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow,$jsonFollowingIds]);
+    $stmt->execute([$user->id,$actionGroup,$action,json_encode($aDetails),$sNow,$jsonFollowingIds]);
     $recRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-    $maxN = $conn->query("SELECT MAX(number) FROM notifications WHERE user_id={$user->id}")->fetch(\PDO::FETCH_NUM)[0];
-    if (!is_int($maxN)) $maxN = 0;
-    $stmt = $conn->prepare('INSERT INTO notifications (user_id,number,creation_date,action_group,action,record_id) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$user->id,$maxN+1,$sNow,$actionGroup,$action,$recRow['id']]);
+    // add/update notification
+    $locks = [];
+    foreach ($followingIds as $follId) {
+        $lockName = "siteinteressant_notif_$follId";
+        $lockTry = 0;
+        while (!in_array($lockName,$locks) && get_lock($conn,$lockName) == 0) {
+            if ($lockTry++ == 5) return ErrorType::DBLOCK_TAKEN;
+            usleep(250000);
+        }
+        $locks[] = $lockName;
+    
+        $notification = $conn->query("SELECT * FROM notifications WHERE user_id=$follId AND read_date IS NULL AND JSON_CONTAINS(details, '{\"threadId\":$threadId}')=1 LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+        if ($notification == false) {
+            $details = $aDetails;
+            $details['userIds'] = [$user->id];
+
+            $maxN = $conn->query("SELECT MAX(number) FROM notifications WHERE user_id=$follId")->fetch(\PDO::FETCH_NUM)[0];
+            if (!is_int($maxN)) $maxN = 0;
+
+            $stmt = $conn->prepare('INSERT INTO notifications (user_id,number,creation_date,last_update_date,action_group,action,details,n,record_id) VALUES (?,?,?,?,?,?,?,?,?)');
+            $stmt->execute([$follId,$maxN+1,$sNow,$sNow,$actionGroup,$action,json_encode($details),1,$recRow['id']]);
+        } else {
+            $details = json_decode($notification['details'], true);
+            if (!in_array($user->id,$details['userIds'])) $details['userIds'][] = $user->id;
+
+            $stmt = $conn->prepare("UPDATE notifications SET n=n+1, last_update_date=:lastUpdateDate, details=:details WHERE user_id=:userId AND read_date IS NULL AND JSON_CONTAINS(details, :sJson)=1 LIMIT 1");
+            $stmt->execute([
+                ':lastUpdateDate' => $sNow,
+                ':details' => json_encode($details),
+                ':userId' => $follId,
+                ':sJson' => "{\"threadId\":$threadId}"
+            ]);
+        }
+    }
 
     $conn->query('COMMIT');
+    foreach ($locks as $lock) release_lock($conn, $lock);
+
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
     return $comment;
