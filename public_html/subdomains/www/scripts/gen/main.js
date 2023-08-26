@@ -749,7 +749,8 @@ function getForumMainElem() {
                         --><button class="button1 link" type="button">Lien</button><!--
                         --><button class="button1 cite" type="button">Citer</button><!--
                         --><button class="button1 spoil" type="button">Spoil</button><!--
-                        --><button class="button1 rp" type="button">Roleplay</button>
+                        --><button class="button1 rp" type="button">Roleplay</button><!--
+                        --><button class="button1 code" type="button">Code</button>
                     </div>
                     <textarea name="msg"></textarea>
                     <div class="emojisDiv">
@@ -954,7 +955,8 @@ function getForumMainElem() {
                     --><button class="button1 link" type="button">Lien</button><!--
                     --><button class="button1 cite" type="button">Citer</button><!--
                     --><button class="button1 spoil" type="button">Spoil</button><!--
-                    --><button class="button1 rp" type="button">Roleplay</button>
+                    --><button class="button1 rp" type="button">Roleplay</button><!--
+                    --><button class="button1 code" type="button">Code</button>
                 </div>
                 <textarea name="msg" tabindex="2"></textarea>
                 <div class="emojisDiv">
@@ -1234,6 +1236,7 @@ function getForumMainElem() {
         replyForm.querySelector('.buttonBar .cite').addEventListener('click',() => quickInputInsert('[cite]','[/cite]'));
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
         replyForm.querySelector('.buttonBar .rp').addEventListener('click',() => quickInputInsert('[rp]','[/rp]'));
+        replyForm.querySelector('.buttonBar .code').addEventListener('click',() => quickInputInsert('[code]','[/code]'));
 
         // Emojis
         if (savedCategories == null) sendQuery(`query {
@@ -1493,6 +1496,14 @@ function getForumMainElem() {
         padding: 3px;
         font-size: 0.9rem;
         margin: 0.5rem 20% 0px 0.75rem;
+    }
+    #mainDiv_forum .replyFormDiv .preview pre, #mainDiv_forum .comment .body pre {
+        padding: 5px;
+        box-shadow: inset 0px 1px 2px rgba(0,0,0, 0.35);
+        margin: 0.5rem 0px;
+        border: 1px solid rgba(255,255,255, 0.5);
+        overflow: auto;
+        font-size: 0.7rem;
     }
     #mainDiv_forum .replyFormDiv .replyForm {
         box-shadow: 0px 1px 2px black;
