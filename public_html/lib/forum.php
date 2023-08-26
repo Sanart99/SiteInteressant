@@ -62,8 +62,9 @@ class Comment {
     public readonly string $content;
     public readonly \DateTimeInterface $creationDate;
     public readonly \DateTimeInterface $lastEditionDate;
+    public readonly array $readBy;
 
-    private function __construct(int $threadId, int $number, int $authorId, string $content, \DateTimeInterface $creationDate, \DateTimeInterface $lastEditionDate) {
+    private function __construct(int $threadId, int $number, int $authorId, string $content, \DateTimeInterface $creationDate, \DateTimeInterface $lastEditionDate, array $readBy) {
         $this->nodeId = "forum_{$threadId}-{$number}";
         $this->threadId = $threadId;
         $this->number = $number;
@@ -71,12 +72,14 @@ class Comment {
         $this->content = $content;
         $this->creationDate = $creationDate;
         $this->lastEditionDate = $lastEditionDate;
+        $this->readBy = $readBy;
     }
 
     public static function initFromRow(array $row) {
         $data = isset($row['data']) ? $row['data'] : $row;
         return new self($data['thread_id'], $data['number'], $data['author_id'], $data['content'],
-            new \DateTimeImmutable($data['creation_date']),new \DateTimeImmutable($data['last_edition_date']));
+            new \DateTimeImmutable($data['creation_date']),new \DateTimeImmutable($data['last_edition_date']),
+            json_decode($data['readBy']));
     }
 
     public static function getIdFromRow(array $row) {
