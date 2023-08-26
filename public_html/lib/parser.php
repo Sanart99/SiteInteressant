@@ -172,6 +172,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                     $sSpec = '';
                     $activeMarker = null;
                     $kwMarkerMode = false;
+                    $kwMarkersToSkip->clear();
                     continue;
                 }
             }
