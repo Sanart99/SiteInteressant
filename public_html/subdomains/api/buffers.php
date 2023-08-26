@@ -27,6 +27,7 @@ enum DataType {
     case ForumTidThread;
     case ForumTidComment;
     case ForumSearch;
+    case FirstUnreadComment;
 }
 
 class BufferManager {
@@ -43,7 +44,8 @@ class BufferManager {
             'tid_threads' => [],
             'tid_threadsM' => [],
             'tid_comments' => [],
-            'tid_commentsM' => []
+            'tid_commentsM' => [],
+            'firstUnreadComments' => []
         ],
         'notificationsM' => [],
         'emojis' => [],
@@ -128,7 +130,8 @@ class BufferManager {
                     case DataType::ForumThread:
                     case DataType::ForumTidThread:
                     case DataType::ForumComment:
-                    case DataType::ForumTidComment: ForumBuffer::exec(self::$conn); break;
+                    case DataType::ForumTidComment:
+                    case DataType::FirstUnreadComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
@@ -502,6 +505,12 @@ class ForumBuffer {
         throw new SafeBufferException("requestComment: invalid id '$id'");
     }
 
+    public static function requestFirstUnreadComment(int $userId, int|string $threadId) {
+        if (is_string($threadId) && preg_match('/^forum_(\d+)$/',$threadId,$m) > 0) return BufferManager::request(DataType::FirstUnreadComment, [$userId,(int)$m[1]]);
+        else if (is_int($threadId)) return BufferManager::request(DataType::FirstUnreadComment, [$userId,$threadId]);
+        throw new SafeBufferException("requestFirstUnreadComment: invalid id '$threadId'");
+    }
+
     public static function requestTidComment(string $id) {
         if (preg_match('/^forum_tid_(\d+)-(\d+)$/',$id,$m) > 0) return BufferManager::request(DataType::ForumTidComment,[(int)$m[1],(int)$m[2]]);
         throw new SafeBufferException("requestTidComment: invalid id '$id'");
@@ -544,6 +553,12 @@ class ForumBuffer {
 
     public static function getComment(string $id) {
         return BufferManager::get(['forum','comments',$id]);
+    }
+
+    public static function getFirstUnreadComment(int $userId, int|string $threadId) {
+        if (is_string($threadId) && preg_match('/^forum_(\d+)$/',$threadId,$m) > 0) return BufferManager::get(['forum','firstUnreadComments',$userId,(int)$m[1]]);
+        else if (is_int($threadId)) return BufferManager::get(['forum','firstUnreadComments',$userId,$threadId]);
+        throw new SafeBufferException("getFirstUnreadComment: invalid id '$threadId'");
     }
 
     public static function getTidComment(string $id) {
@@ -791,6 +806,20 @@ class ForumBuffer {
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
                 $bufRes['forum']['tid_comments'][\LDLib\Forum\TidComment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                array_push($toRemove, $v);
+                break;
+            case DataType::FirstUnreadComment:
+                $userId = $v[1][0];
+                $threadId = $v[1][1];
+                $metadata = null;
+
+                $row = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND JSON_CONTAINS(readBy, '$userId')=0 ORDER BY number LIMIT 1")->fetch();
+                if ($row !== false) {
+                    $pos = $conn->query("SELECT COUNT(*) FROM comments WHERE thread_id=$threadId AND number<{$row['number']}")->fetch(\PDO::FETCH_NUM)[0];
+                    $metadata = ['pos' => $pos];
+                }
+
+                $bufRes['forum']['firstUnreadComments'][$userId][$threadId] = ['data' => $row === false ? null : $row, 'metadata' => $metadata];
                 array_push($toRemove, $v);
                 break;
         }

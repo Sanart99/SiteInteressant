@@ -891,6 +891,7 @@ class ThreadType extends ObjectType {
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('Comment'),
                     'args' => [
+                        'toFirstUnreadComment' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false],
                         'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
@@ -899,17 +900,36 @@ class ThreadType extends ObjectType {
                         'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
                         'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
                     ],
-                    'resolve' => function($o, $args, $__, $ri) {
-                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
-                        $pag->skipPages = $args['skipPages'];
-                        return self::process($o,function($row) use($pag) {
+                    'resolve' => fn($o, $args, $__, $ri) => self::process($o,function($row) use(&$args) {
+                        if ($args['toFirstUnreadComment']) {
+                            $user = Context::getAuthenticatedUser();
+                            ForumBuffer::requestFirstUnreadComment($user->id, $row['data']['id']);
+                            return quickReactPromise(function() use(&$user,&$row,&$args) {
+                                $rowUnreadComm = ForumBuffer::getFirstUnreadComment($user->id, $row['data']['id']);
+                                if ($rowUnreadComm === null || $rowUnreadComm['data'] === null) return null;
+
+                                $pag = new PaginationVals($args['first']??10,null,null,null,$args['withPageCount'],$args['withLastPageSpecialBehavior']);
+                                $v = ($rowUnreadComm['metadata']['pos'] / $args['first']);
+                                if ($v % 1 > 0) $v++;
+                                else if ($v < 0) $v = 0;
+                                $pag->skipPages = (int)$v;
+
+                                ForumBuffer::requestComments($row['data']['id'],$pag);
+                                return quickReactPromise(function() use ($row,$pag) {
+                                    $data = ForumBuffer::getComments($row['data']['id'],$pag);
+                                    return $data;
+                                });
+                            });
+                        } else {
+                            $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
+                            $pag->skipPages = $args['skipPages'];
                             ForumBuffer::requestComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
                                 $data = ForumBuffer::getComments($row['data']['id'],$pag);
                                 return $data;
                             });
-                        });
-                    }
+                        }
+                    })
                 ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
@@ -917,6 +937,17 @@ class ThreadType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         $res = DBManager::getConnection()->query("SELECT COUNT(*) FROM comments WHERE thread_id={$row['data']['id']} AND JSON_CONTAINS(readBy, '{$user->id}')=0")->fetch(\PDO::FETCH_NUM);
                         return ($res[0]??0) === 0;
+                    })
+                ],
+                'firstUnreadComment' => [
+                    'type' => fn() => Types::FirstUnreadComment(),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $user = Context::getAuthenticatedUser();
+                        ForumBuffer::requestFirstUnreadComment($user->id, $row['data']['id']);
+                        return quickReactPromise(function() use(&$user,&$row) {
+                            $row = ForumBuffer::getFirstUnreadComment($user->id, $row['data']['id']);
+                            return ($row === null || $row['data'] === null) ? null : $row;
+                        });
                     })
                 ]
             ]
@@ -1043,6 +1074,24 @@ class CommentType extends ObjectType {
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['readBy'])))
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class FirstUnreadCommentType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'comment' => [
+                    'type' => fn() => Type::nonNull(Types::Comment()),
+                    'resolve' => fn($o) => Comment::getIdFromRow($o['data'])
+                ],
+                'pos' => [
+                    'type' => fn() => Type::nonNull(Type::int()),
+                    'resolve' => fn($o) => $o['metadata']['pos']
                 ]
             ]
         ];
@@ -1535,6 +1584,10 @@ class Types {
 
     public static function TidComment():TidCommentType {
         return self::$types['TidComment'] ??= new TidCommentType();
+    }
+
+    public static function FirstUnreadComment():FirstUnreadCommentType {
+        return self::$types['FirstUnreadComment'] ??= new FirstUnreadCommentType();
     }
 
     public static function ForumSearchItem():ForumSearchItemType {
