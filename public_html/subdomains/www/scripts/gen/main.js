@@ -782,7 +782,7 @@ function getForumMainElem() {
                     if (json?.data?.f?.success == null) basicQueryError();
                     loadThread(threadId,0,10);
                 });
-            });
+            },'forum_replyText');
 
             const actionsCont = document.querySelectorAll('#forumR .actions');
             for (const cont of actionsCont) {
@@ -1005,7 +1005,7 @@ function getForumMainElem() {
                 loadThread(json.data.f.thread.id,10);
                 loadThreads(10);
             });
-        });
+        },'forum_newThreadText');
         forumR.querySelector('.replyForm textarea').focus();
     }
     function loadSearchForm() {
@@ -1178,7 +1178,7 @@ function getForumMainElem() {
     );
     
     let savedCategories = null;
-    function setupReplyForm(replyFormDiv, onSubmit) {
+    function setupReplyForm(replyFormDiv, onSubmit, sessionSaveName=null) {
         const replyForm = replyFormDiv.querySelector('.replyForm');
         const replyFormTA = replyFormDiv.querySelector('textarea');
         let acReplyForm = null;
@@ -1198,12 +1198,14 @@ function getForumMainElem() {
                 }).then((json) => {
                     if (json?.data?.parseText == null) basicQueryError();
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
-                    sessionSet('forum_replyText',sToParse);
+                    if (sessionSaveName != null) sessionSet(sessionSaveName,sToParse);
                 });
             },100);
         });
-        replyFormTA.value = sessionGet('forum_replyText')??'';
-        replyForm.dispatchEvent(new Event('input'));
+        if (sessionSaveName != null) {
+            replyFormTA.value = sessionGet(sessionSaveName)??'';
+            replyForm.dispatchEvent(new Event('input'));
+        }
         
         replyForm.addEventListener('submit',(e) => onSubmit(e));
 
