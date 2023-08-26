@@ -1184,18 +1184,23 @@ function getForumMainElem() {
             toReplyForm = setTimeout(() => {
                 if (acReplyForm != null) acReplyForm.abort();
                 acReplyForm = new AbortController();
+                const sToParse = replyFormTA.value;
                 sendQuery(`query ParseText(\$msg:String!) {
                     parseText(text:\$msg)
-                }`,{msg:replyFormTA.value},null,'ParseText',{signal:acReplyForm.signal}).then((res) => {
+                }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((res) => {
                     acReplyForm = null;
                     if (!res.ok) basicQueryError();
                     return res.json();
                 }).then((json) => {
                     if (json?.data?.parseText == null) basicQueryError();
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
+                    sessionSet('forum_replyText',sToParse);
                 });
             },100);
         });
+        replyFormTA.value = sessionGet('forum_replyText')??'';
+        replyForm.dispatchEvent(new Event('input'));
+        
         replyForm.addEventListener('submit',(e) => onSubmit(e));
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
