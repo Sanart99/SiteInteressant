@@ -572,7 +572,7 @@ function getForumMainElem() {
                 </tr>`)[0];
                 tBody.insertAdjacentElement('beforeend',tr);
                 for (const e of tr.querySelectorAll('a')) {
-                    e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true));
+                    e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
                 }
                 if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="https://data.twinoid.com/img/icons/recent.png"/>');
             }
@@ -587,8 +587,8 @@ function getForumMainElem() {
             highlightThread(currThreadId);
         });
     }
-    function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false) {
-        sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int!) {
+    function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false,toFirstUnreadComment=false) {
+        sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int!,\$toFirstUnreadComment:Boolean!) {
             viewer {
                 dbId
             }
@@ -599,7 +599,8 @@ function getForumMainElem() {
                     dbId
                     title
                     followingIds
-                    comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,withPageCount:true,withLastPageSpecialBehavior:true) {
+                    comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,
+                        withPageCount:true,withLastPageSpecialBehavior:true,toFirstUnreadComment:\$toFirstUnreadComment) {
                         edges {
                             node {
                                 id
@@ -630,7 +631,7 @@ function getForumMainElem() {
                     }
                 }
             }
-        }`,{threadId:threadId,first:first,last:last,after:after,before:before,skipPages:skipPages}).then((res) => {
+        }`,{threadId:threadId,first:first,last:last,after:after,before:before,skipPages:skipPages,toFirstUnreadComment:toFirstUnreadComment}).then((res) => {
             if (!res.ok) basicQueryError();
             return res.json();
         }).then((json) => {
