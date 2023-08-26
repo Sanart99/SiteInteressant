@@ -748,7 +748,8 @@ function getForumMainElem() {
                         --><button class="button1 strike" type="button">Barré</button><!--
                         --><button class="button1 link" type="button">Lien</button><!--
                         --><button class="button1 cite" type="button">Citer</button><!--
-                        --><button class="button1 spoil" type="button">Spoil</button>
+                        --><button class="button1 spoil" type="button">Spoil</button><!--
+                        --><button class="button1 rp" type="button">Roleplay</button>
                     </div>
                     <textarea name="msg"></textarea>
                     <div class="emojisDiv">
@@ -952,7 +953,8 @@ function getForumMainElem() {
                     --><button class="button1 strike" type="button">Barré</button><!--
                     --><button class="button1 link" type="button">Lien</button><!--
                     --><button class="button1 cite" type="button">Citer</button><!--
-                    --><button class="button1 spoil" type="button">Spoil</button>
+                    --><button class="button1 spoil" type="button">Spoil</button><!--
+                    --><button class="button1 rp" type="button">Roleplay</button>
                 </div>
                 <textarea name="msg" tabindex="2"></textarea>
                 <div class="emojisDiv">
@@ -1231,6 +1233,7 @@ function getForumMainElem() {
         });
         replyForm.querySelector('.buttonBar .cite').addEventListener('click',() => quickInputInsert('[cite]','[/cite]'));
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
+        replyForm.querySelector('.buttonBar .rp').addEventListener('click',() => quickInputInsert('[rp]','[/rp]'));
 
         // Emojis
         if (savedCategories == null) sendQuery(`query {
@@ -1465,6 +1468,31 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt, #mainDiv_forum .comment .body .spoil:hover .spoilTxt {
         opacity:unset;
+    }
+    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker::before, #mainDiv_forum .comment .body .rpTextSpeaker::before {
+        content: url(https://data.twinoid.com/img/icons/rp.png);
+        margin: 0px 0.1em 0px 0px;
+    }
+    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker, #mainDiv_forum .comment .body .rpTextSpeaker {
+        font-weight: bold;
+        font-size: 90%;
+        font-style: italic;
+        margin: 0px 0px 0px 1%;
+    }
+    #mainDiv_forum .replyFormDiv .preview .rpText::before, #mainDiv_forum .comment .body .rpText::before {
+        display: block;
+        position:absolute;
+        content: url(https://data.twinoid.com/img/design/arrowUp.png);
+        transform: translate(0.5rem, -86%);
+    }
+    #mainDiv_forum .replyFormDiv .preview .rpText, #mainDiv_forum .comment .body .rpText {
+        background: #dddbd8;
+        border: 1px solid #efefef;
+        box-shadow: 0px 0px 2px black;
+        border-radius: 6px;
+        padding: 3px;
+        font-size: 0.9rem;
+        margin: 0.5rem 20% 0px 0.75rem;
     }
     #mainDiv_forum .replyFormDiv .replyForm {
         box-shadow: 0px 1px 2px black;
