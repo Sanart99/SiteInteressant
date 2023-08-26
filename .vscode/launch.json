@@ -18,7 +18,9 @@
             "type": "firefox",
             "request": "launch",
             "reAttach": true,
-            "url": "http://local_siteinteressant.net:80"
+            "url": "http://local_siteinteressant.net:80",
+            "profile": "dev",
+            "keepProfileChanges": true
         }
     ]
 }
