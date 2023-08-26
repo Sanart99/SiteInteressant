@@ -906,7 +906,14 @@ class ThreadType extends ObjectType {
                             ForumBuffer::requestFirstUnreadComment($user->id, $row['data']['id']);
                             return quickReactPromise(function() use(&$user,&$row,&$args) {
                                 $rowUnreadComm = ForumBuffer::getFirstUnreadComment($user->id, $row['data']['id']);
-                                if ($rowUnreadComm === null || $rowUnreadComm['data'] === null) return null;
+                                if ($rowUnreadComm === null || $rowUnreadComm['data'] === null) {
+                                    $pag = new PaginationVals(null,$args['last']??10,null,null,$args['withPageCount'],true);
+                                    ForumBuffer::requestComments($row['data']['id'],$pag);
+                                    return quickReactPromise(function() use ($row,$pag) {
+                                        $data = ForumBuffer::getComments($row['data']['id'],$pag);
+                                        return $data;
+                                    });
+                                }
 
                                 $pag = new PaginationVals($args['first']??10,null,null,null,$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                                 $v = ($rowUnreadComm['metadata']['pos'] / $args['first']);
