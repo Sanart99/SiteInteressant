@@ -1417,7 +1417,7 @@ function getForumMainElem() {
         padding: 0.1rem 0px 0.1rem 0px;
     }
     #mainDiv_forum .replyFormDiv {
-        margin-top: 2rem;
+        margin: 2.2rem 0px;
         padding-top: 2rem;
         border-top: 1px dashed black;
         transition: all 0.5s;
