@@ -1430,6 +1430,9 @@ function getForumMainElem() {
         margin: 0;
         min-height: 0;
     }
+    #mainDiv_forum .replyFormDiv.hide * {
+        display: none !important;
+    }
     #mainDiv_forum .replyFormDiv .previewToggler {
         border: 1px dashed #00000050;
         padding: 0.1em 0.2em;
