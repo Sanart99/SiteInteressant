@@ -1477,7 +1477,7 @@ function getForumMainElem() {
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt, #mainDiv_forum .comment .body .spoil:hover .spoilTxt {
         opacity:unset;
     }
-    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker::before, #mainDiv_forum .comment .body .rpTextSpeaker::before {
+    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before, #mainDiv_forum .comment .body .rpTextSpeaker > p::before {
         content: url(https://data.twinoid.com/img/icons/rp.png);
         margin: 0px 0.1em 0px 0px;
     }

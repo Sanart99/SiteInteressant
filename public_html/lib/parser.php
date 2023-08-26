@@ -129,8 +129,8 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
         }, $result),
         new KeywordMarker('rp',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
-            $sArg = preg_match('/^[^<>]+$/',$arg,$m) > 0 ? "<p class=\"rpTextSpeaker\">{$m[0]}</p>" : '';
-            return ["</p>$sArg<p class=\"rpText\">",'</p><p>'];
+            $sArg = preg_match('/^[^<>]+$/',$arg,$m) > 0 ? "<div class=\"rpTextSpeaker\"><p>{$m[0]}</p></div>" : '';
+            return ["</p>$sArg<div class=\"rpText\"><p>",'</p></div><p>'];
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
