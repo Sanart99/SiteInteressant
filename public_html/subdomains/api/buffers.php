@@ -444,6 +444,7 @@ class UsersBuffer {
                 if ($row === false || !isset(json_decode($row['aliases'])[0])) {
                     $bufRes['emojis'][$alias] = null;
                     $bufRes['usersEmojis'][$userId][$alias] = null;
+                    array_push($toRemove,$v);
                     break;
                 }
                 $aliases = json_decode($row['aliases']);
