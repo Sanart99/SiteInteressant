@@ -79,7 +79,7 @@ class Comment {
         $data = isset($row['data']) ? $row['data'] : $row;
         return new self($data['thread_id'], $data['number'], $data['author_id'], $data['content'],
             new \DateTimeImmutable($data['creation_date']),new \DateTimeImmutable($data['last_edition_date']),
-            json_decode($data['readBy']));
+            json_decode($data['read_by']));
     }
 
     public static function getIdFromRow(array $row) {
@@ -155,7 +155,7 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value,"[$user->id]"]);
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,readBy) VALUES (?,?,?,?,?,?) RETURNING *');
+    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,read_by) VALUES (?,?,?,?,?,?) RETURNING *');
     $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -181,7 +181,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     // add comment
     $n = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0] + 1;
-    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,readBy) VALUES (?,?,?,?,?,?) RETURNING *');
+    $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,read_by) VALUES (?,?,?,?,?,?) RETURNING *');
     $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
     $aDetails = ['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']];
@@ -255,7 +255,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($oldCommRow['creation_date']))->getTimestamp()) / 60;
     if (!(($maxN === $oldCommRow['number'] && $minutes < 10) || $minutes < 1.5)) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
-    $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=? readBy=? WHERE thread_id=? AND number=? LIMIT 1");
+    $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=? read_by=? WHERE thread_id=? AND number=? LIMIT 1");
     $stmt->execute([textToHTML($user->id, $msg),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
@@ -292,11 +292,11 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
 function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
     $comment = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
     if ($comment == false) return ErrorType::NOTFOUND;
-    $readBy = json_decode($comment['readBy']);
+    $readBy = json_decode($comment['read_by']);
     if (in_array($user->id,$readBy)) return true;
     $readBy[] = $user->id;
     
-    $stmt = $conn->prepare("UPDATE comments SET readBy=? WHERE thread_id=$threadId AND number=$commNumber LIMIT 1");
+    $stmt = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number=$commNumber LIMIT 1");
     $stmt->execute([json_encode($readBy)]);
     return true;
 }

@@ -814,7 +814,7 @@ class ForumBuffer {
                 $threadId = $v[1][1];
                 $metadata = null;
 
-                $row = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND JSON_CONTAINS(readBy, '$userId')=0 ORDER BY number LIMIT 1")->fetch();
+                $row = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND JSON_CONTAINS(read_by, '$userId')=0 ORDER BY number LIMIT 1")->fetch();
                 if ($row !== false) {
                     $pos = $conn->query("SELECT COUNT(*) FROM comments WHERE thread_id=$threadId AND number<{$row['number']}")->fetch(\PDO::FETCH_NUM)[0];
                     $metadata = ['pos' => $pos];

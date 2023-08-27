@@ -942,7 +942,7 @@ class ThreadType extends ObjectType {
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,function($row) {
                         $user = Context::getAuthenticatedUser();
-                        $res = DBManager::getConnection()->query("SELECT COUNT(*) FROM comments WHERE thread_id={$row['data']['id']} AND JSON_CONTAINS(readBy, '{$user->id}')=0")->fetch(\PDO::FETCH_NUM);
+                        $res = DBManager::getConnection()->query("SELECT COUNT(*) FROM comments WHERE thread_id={$row['data']['id']} AND JSON_CONTAINS(read_by, '{$user->id}')=0")->fetch(\PDO::FETCH_NUM);
                         return ($res[0]??0) === 0;
                     })
                 ],
@@ -1080,7 +1080,7 @@ class CommentType extends ObjectType {
                 ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
-                    'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['readBy'])))
+                    'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['read_by'])))
                 ]
             ]
         ];
