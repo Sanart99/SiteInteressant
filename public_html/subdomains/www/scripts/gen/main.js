@@ -565,7 +565,7 @@ function getForumMainElem() {
                     tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Date inconnue</td></tr>`);
                     lastDelimiter = 'Date inconnue';
                 }
-                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="\${edge.node.isRead ? '' : 'new'}">
+                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread \${edge.node.isRead ? '' : 'new'}">
                     <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="https://data.twinoid.com/img/icons/selected.png"/></div></a></td>
                     <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
                     <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.number}</p><p class="author">\${comment.author.name}</p></a></td>
@@ -1367,14 +1367,15 @@ function getForumMainElem() {
         outline: 1px solid var(--color-black-1);
         padding: 0.2rem 0.4rem 0.2rem 0.4rem;
         color: white;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
+        font-weight: bold;
     }
     #mainDiv_forum .button1:hover {
         background-color: #3b4151;
         border-color: var(--color-black-1);
     }
     #mainDiv_forum .button1 img {
-        vertical-align: text-bottom;
+        vertical-align: -0.4em;
         margin-right: 0.2rem;
     }
     #mainDiv_forum .button2 {
@@ -1479,7 +1480,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before, #mainDiv_forum .comment .body .rpTextSpeaker > p::before {
         content: url(https://data.twinoid.com/img/icons/rp.png);
-        margin: 0px 0.1em 0px 0px;
+        margin: 0px 0.2em 0px 0px;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker, #mainDiv_forum .comment .body .rpTextSpeaker {
         font-weight: bold;
@@ -1593,9 +1594,21 @@ function getForumMainElem() {
     }
     #forum_threads thead {
         font-size: 0.6rem;
+        font-weight: bold;
+    }
+    #forum_threads thead td {
+        font-weight: bold;
+        padding: 0px 0px 0.1em 0px;
     }
     #forum_threads tbody td {
-        height: 35px;
+        height: 100%;
+    }
+    #forum_threads tr.thread {
+        font-size: 0.9rem;
+        height: 2rem;
+    }
+    #forum_threads tr.thread:not(.new) p {
+        opacity: 0.55;
     }
     #forum_threads .statusIcons .selectArrow {
         position: absolute;
@@ -1637,16 +1650,17 @@ function getForumMainElem() {
     #forum_threads .quickDetails {
         width: 20%;
         text-align: end;
-        padding: 0.2rem 0px 0px 0px;
     }
     #forum_threads .quickDetails a {
         display: flex;
         flex-direction: column;
         justify-content: center;
+        padding: 0.2em 0.1em 0px 0px;
     }
     #forum_threads .quickDetails .nAnswers {
         font-weight: bold;
         font-size: 1.1rem;
+        line-height: 0.7;
     }
     #forum_threads .quickDetails .author {
         font-size: 0.7rem;
@@ -1658,13 +1672,15 @@ function getForumMainElem() {
     #forum_threads .title a {
         display: flex;
         align-items: center;
+        padding: 0.2em 0px 0.2em 0.2em;
     }
     #forum_threads .delimiter {
         background-color: var(--color-black-2);
-        height: 14px;
-        font-size: 0.9rem;
+        height: 0.85rem;
+        font-size: 0.75rem;
         color: white;
         text-align: center;
+        font-weight: bold;
     }
     #forum_comments {
         margin: 2.5rem 0px 0px 0px;
@@ -1775,57 +1791,61 @@ function getForumMainElem() {
         color: grey;
         font-size: 0.7rem;
     }
-    .forum_mainBar {
+    #mainDiv_forum .forum_mainBar {
         margin-bottom: 1rem;
     }
-    .forum_mainBar_sub1 {
+    #mainDiv_forum .forum_mainBar_sub1 {
         background-color: #B63B00;
         font-size: 1rem;
         color: white;
         font-weight: bold;
         padding: 0.1rem 0.3rem 0px 0.3rem;
     }
-    .forum_mainBar_sub2 {
+    #mainDiv_forum .forum_mainBar_sub2 {
         display: flex;
         justify-content: space-between;
         background-color: #B63B00;
         opacity: 0.83;
         padding: 0.4rem;
     }
-    .forum_footer, .pagDivDiv {
+    #mainDiv_forum .forum_footer, #mainDiv_forum .pagDivDiv {
         display: flex;
         justify-content: space-between;
         background-color: var(--color-black-2);
         padding: 0.4rem;
     }
-    .forum_footer .actions, .forum_mainBar .actions {
+    #mainDiv_forum .forum_footer .actions, #mainDiv_forum .forum_mainBar .actions {
         flex: 1 2 60%;
     }
-    .forum_footer .paginationDiv, .forum_mainBar .paginationDiv, .pagDivDiv .paginationDiv {
+    #mainDiv_forum .forum_footer .paginationDiv, #mainDiv_forum .forum_mainBar .paginationDiv, #mainDiv_forum .pagDivDiv .paginationDiv {
         display: flex;
         justify-content: space-between;
         flex: 1 0 43%;
         align-items: center;
     }
-    .forum_footer .actions + .paginationDiv, .forum_mainBar .paginationDiv {
+    #mainDiv_forum .forum_footer .actions + .paginationDiv, #mainDiv_forum .forum_mainBar .paginationDiv {
         padding-left: 1.5%;
         border-left: 1px dashed black;
     }
-    .pagination_details:hover .nPage {
+    #mainDiv_forum .pagination_details {
+        font-weight: initial;
+        font-size: 0.7rem;
+    }
+    #mainDiv_forum .pagination_details:hover .nPage {
         border: 1px dashed white;
         box-sizing: border-box;
     }
-    .pagination_details .nPage {
-        /* display: block; */
-        font-size: 1.1rem;
+    #mainDiv_forum .pagination_details .nPage {
+        font-size: 1rem;
         vertical-align: -0.15rem;
+        font-weight: bold;
     }
-    .pagination_details .maxPages {
-        font-size: 0.8rem;
+    #mainDiv_forum .pagination_details .maxPages {
+        font-size: 0.7rem;
         opacity: 0.8;
-        vertical-align: -0.1rem;
+        vertical-align: -0.05rem;
     }
-    .pagination_details input[type="text"]{
+    #mainDiv_forum .pagination_details input[type="text"]{
         width: 2.5rem;
         text-align: center;
         border: 0;
@@ -1835,11 +1855,11 @@ function getForumMainElem() {
         #forumR, #forumL{
             max-width: 95%;
         }
-        .forum_footer, .forum_mainBar_sub2 {
+        #mainDiv_forum .forum_footer, #mainDiv_forum .forum_mainBar_sub2 {
             flex-direction: column;
             gap: 0.5rem;
         }
-        .forum_footer .actions + .paginationDiv, .forum_mainBar .paginationDiv {
+        #mainDiv_forum .forum_footer .actions + .paginationDiv, #mainDiv_forum .forum_mainBar .paginationDiv {
             padding: 0;
             border: 0;
             padding-top: 1.5%;
