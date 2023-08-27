@@ -1875,7 +1875,8 @@ function getVersionHistoryElem() {
     <div id="mainDiv_versionHistory" class="authPadded" data-is-auth="$isAuth">
         <div id="versions">
             <button>0.1</button><!--
-            --><button>0.1b</button>
+            --><button>0.1b</button><!--
+            --><button>0.2</button>
         </div>
         <div id="versionDescription"></div>
     </div>
@@ -1965,6 +1966,31 @@ function getVersionHistoryElem() {
                                     <li>Quand vous créez un topic ou un commentaire le champ sera sélectionné automatiquement.</li>
                                     <li>La barre de droite se ferme automatiquement plus tôt.</li>
                                     <li>Et autres ajustements visuels</li>
+                                </ul>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                    break;
+            case '0.2':
+                div.innerHTML = `
+                    <h2>Version 0.2 <span>Sortie : 28 Août 2023</span></h2>
+                    <p class="subheader">— Amélioration du forum, maintenant on peut voir les messages non-lus et c'est plus beau à voir. Il reste plus grand chose pour qu'il soit meilleur que celui de Twinoid.</p>
+                    <div class="main">
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Nouvelles fonctionnalités</h4>
+                                <ul>
+                                    <li>Ajout des marqueurs pour voir les topics et messages lus et non lus.</li>
+                                    <li>Ouvrir un topic redirige automatiquement au dernier message non-lu ou à la dernière page.</li>
+                                    <li>Les messages que vous écrivez ne sont plus forcément effacés si vous quittez ou rafraichissez la page.</li>
+                                    <li>Ajout des balises roleplay et code.</li>
+                                </ul>
+                                <h4>Bugfixs</h4>
+                                <ul>
+                                    <li>Des smileys qui ne s'affichaient pas s'affichent maintenant. (rétroactif)</li>
+                                    <li>Les insertions de smileys non-reconnus ne génèrent plus d'erreur.</li>
+                                    <li>L'apparence visuelle du forum a été améliorée.</li>
                                 </ul>
                             </section>
                         </section>
