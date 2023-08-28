@@ -1595,6 +1595,7 @@ function getForumMainElem() {
         display: inline-block;
         width: 100%;
         min-height: 100%;
+        height: 34px;
     }
     #forum_threads thead {
         font-size: 0.6rem;
