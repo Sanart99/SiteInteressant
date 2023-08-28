@@ -700,6 +700,7 @@ function getForumMainElem() {
                         if (json?.data?.f?.success == null) basicQueryError();
                         if (json.data.f.success == false) return;
                         commentNode.classList.remove('new');
+                        document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`)?.classList.remove('new');
                         sendQuery(`query (\$threadId:ID!) {
                             node(id:\$threadId) {
                                 id
