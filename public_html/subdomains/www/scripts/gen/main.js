@@ -1207,7 +1207,10 @@ function getForumMainElem() {
             replyForm.dispatchEvent(new Event('input'));
         }
         
-        replyForm.addEventListener('submit',(e) => onSubmit(e));
+        replyForm.addEventListener('submit',(e) => {
+            onSubmit(e);
+            if (sessionSaveName != null) sessionRem(sessionSaveName);
+        });
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
             var v = replyFormDiv.querySelector('.preview').style.display;
