@@ -471,14 +471,7 @@ function getForumMainElem() {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="statusIcons"><a href="#" onclick ="return false;"></a></td>
-                            <td class="title"><a href="#" onclick ="return false;"><p>Titre</p></a></td>
-                            <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">20</p><p class="author">Someone</p></a></td>
-                        </tr>
-                        <tr>
-                            <td colspan="100" class="delimiter">Delimiter</td>
-                        </tr> 
+                        
                     </tbody>
                 </table>
                 <div class="forum_footer">
