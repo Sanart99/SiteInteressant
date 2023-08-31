@@ -1558,6 +1558,7 @@ function getForumMainElem() {
         font-size: 0.8rem;
         padding: 0.3rem;
         font-family: monospace;
+        resize: vertical;
     }
     #mainDiv_forum .replyFormDiv .replyForm .emojis {
         background-color: var(--color-grey-lighter);
