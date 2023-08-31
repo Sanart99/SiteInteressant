@@ -63,12 +63,12 @@ function getIndexElems() {
     }
 
     let gettingEvents = false;
-    function getRecentEvents() {
+    async function getRecentEvents() {
         if (gettingEvents) return; else gettingEvents = true;
         const notifCont = rightBar.querySelector('#rightBar_recentEvents');
         const histCont = rightBar.querySelector('#rightBar_history > div');
         notifCont.innerHTML = '<p>Loading...</p>';
-        sendQuery(`query {
+        return sendQuery(`query {
             viewer {
                 dbId
                 notifications(first:50) {
@@ -266,8 +266,21 @@ function getIndexElems() {
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
 
-        getRecentEvents();
-        setInterval(() => { if (rightBar.getAttribute('open') != 1) getRecentEvents(); },15000);
+        if (globalMap['notifInterval'] != true) {
+            getRecentEvents().then(() => {
+                globalMap['notifInterval'] = true;
+                let nError = 0;
+                let i = setInterval(async () => {
+                    try { if (rightBar.getAttribute('open') != 1) await getRecentEvents(); }
+                    catch (e) {
+                        console.error(`Couldn't display notifications.`);
+                        console.error(e);
+                        // clearInterval(i);
+                        globalMap['notifInterval'] = false;
+                    }
+                },5000);
+            });
+        }
     }
 
     JAVASCRIPT,
