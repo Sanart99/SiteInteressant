@@ -103,7 +103,8 @@ function get_user_from_sid(LDPDO $conn, string $sid):?RegisteredUser {
 }
 
 function crypt_password(string $pwd):array {
-    $res = preg_match('/^(.{28})(.{32})$/',crypt($pwd,$_SERVER['LD_CRYPT_PASSWORD']),$m);
+    $sCrypt = (bool)$_SERVER['LD_TEST'] ? $_SERVER['TEST_LD_CRYPT_PASSWORD'] : $_SERVER['LD_CRYPT_PASSWORD'];
+    $res = preg_match('/^(.{28})(.{32})$/',crypt($pwd, $sCrypt),$m);
     if ($res === false || $res === 0) throw new TypedException("Password encryption failure.", ErrorType::PASSWORD_INVALID);
     return $m;
 }

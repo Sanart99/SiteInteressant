@@ -144,7 +144,11 @@ class QueryType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         return $user == null ? null : $user->id;
                     }
-                ]
+                ],
+                'testMode' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn() => (bool)$_SERVER['LD_TEST']
+                ],
             ]
         ]);
     }

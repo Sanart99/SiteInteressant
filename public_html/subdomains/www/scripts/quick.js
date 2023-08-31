@@ -22,5 +22,12 @@ function getDateAsString(date) {
     return a;
 }
 
+async function isServerInTestMode() {
+    return await sendQuery(`query { testMode }`).then((res) => {
+        if (!res.ok) basicQueryError();
+        else return res.json();
+    }).then((json) => json?.data?.testMode == true);
+}
+
 JAVASCRIPT;
 ?>
