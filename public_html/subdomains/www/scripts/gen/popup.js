@@ -165,12 +165,14 @@ function getConnexionForm() {
         }`,{username:username,password:password}).then((res) => {
             if (!res.ok) basicQueryError();
             else return res.json();
-        }).then((json) => {
+        }).then(async (json) => {
             if (json?.data?.loginUser?.success == null) basicQueryError();
             if (json.data.loginUser.success === true) {
                 location.reload();
             } else {
-                alert('Nom et/ou mot de passe incorrect(s).');
+                let msg = 'Nom et/ou mot de passe incorrect(s).';
+                if (await isServerInTestMode() == true) msg = `[\${json.data.loginUser.resultCode}] ` + msg;
+                alert(msg);
                 submit.value = submitOldValue;
                 submit.disabled = false;
             }
