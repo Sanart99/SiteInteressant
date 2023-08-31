@@ -281,7 +281,7 @@ class BufferManager {
             $pageCount = (int)((fmod($v,1) > 0) ? $v+1 : $v);
             if ($pageCount < 1) $pageCount = 1;
             
-            if ($nResults == 0) $currPage = null; 
+            if ($nResults == 0) $currPage = 1; 
             else if ($after == null && $before == null) $currPage = $first != null ? 1 : $pageCount;
             else {
                 try {
