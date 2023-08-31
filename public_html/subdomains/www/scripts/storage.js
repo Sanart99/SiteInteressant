@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
+const globalMap = new Map();
 let testedTypes = [];
 function storageAvailable(sType) {
     let storage;
