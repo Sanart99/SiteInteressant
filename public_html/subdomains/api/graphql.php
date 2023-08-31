@@ -25,7 +25,7 @@ else if (isset($_POST['gqlQuery'])) $input = json_decode($_POST['gqlQuery'], tru
 else { http_response_code(200); echo "..."; return; }
 
 if ($input == null) { http_response_code(400); echo "JSON ERROR."; return; }
-else if (!array_key_exists('query',$input)) { http_response_code(400); echo "Bad request : $input"; return;  }
+else if (!is_array($input) || !array_key_exists('query',$input)) { http_response_code(400); echo "Bad request : $input"; return;  }
 
 $variableValues = isset($input['variables']) ? (is_array($input['variables']) ? $input['variables'] : json_decode($input['variables'],true)) : null;
 $operationName = (isset($input['operationName']) && is_string($input['operationName'])) ? $input['operationName'] : null;
