@@ -1001,6 +1001,7 @@ function getForumMainElem() {
                     thread {
                         __typename
                         id
+                        dbId
                         followingIds
                     }
                 }
@@ -1009,7 +1010,7 @@ function getForumMainElem() {
                 return res.json();
             }).then((json) => {
                 if (json?.data?.f?.thread?.id == null) basicQueryError();
-                loadThread(json.data.f.thread.id,10);
+                loadPage(`$root/forum/\${json.data.f.thread.dbId}`, StateAction.PushState);
                 loadThreads(10);
             });
         },'forum_newThreadText');
@@ -1338,11 +1339,16 @@ function getForumMainElem() {
 
     const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
     if (m != null) loadThread(`forum_\${m[1]}`,10);
-    _loadPageMidProcesses['forumMP'] = (url,displayedURL) => {
+    _loadPageMidProcesses['forumMP'] = (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
         const m = new RegExp("^$root/forum/(\\\d+)").exec(displayedURL);
         if (m == null) return false;
         loadThread(`forum_\${m[1]}`,10);
+        switch (stateAction) {
+            case StateAction.PushState: history.pushState({pageUrl:url}, "", displayedURL); break;
+            case StateAction.ReplaceState: history.replaceState({pageUrl:url}, "", displayedURL); break;
+            default: break;
+        }
         return true;
     };
 
