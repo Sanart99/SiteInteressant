@@ -26,7 +26,7 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
 
     if (isset($_COOKIE['sid'])) return ErrorType::DUPLICATE;
 
-    if ($conn->query("SELECT COUNT(*) FROM connection_attempts WHERE DATE(date)=DATE('$sNow') AND successful=0")->fetch()[0] > 10)
+    if ($conn->query("SELECT COUNT(*) FROM connection_attempts WHERE DATE(date)=DATE('$sNow') AND successful=0")->fetch()[0] >= 10)
         return ErrorType::PROHIBITED;
     
     // Check name+pwd
