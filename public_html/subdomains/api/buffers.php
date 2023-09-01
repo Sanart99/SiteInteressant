@@ -213,7 +213,7 @@ class BufferManager {
                 $stmt = $conn->prepare($sql);
                 $stmt->execute($executeVals);
             } else $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
-        }        
+        }  
 
         // Store results
         $result = [];
@@ -750,16 +750,18 @@ class ForumBuffer {
                     [':keywords' => $keywords]
                 );
 
-                $sql = 'SELECT * FROM tid_threads WHERE ';
-                for ($i=0; $i<count($threadIds); $i++) {
-                    if ($i != 0) $sql .= ' OR ';
-                    $sql .= "id={$threadIds[$i]}";
-                }
-                $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
-                while ($row = $stmt->fetch()) {
-                    $req->remove(DataType::ForumTidThread,$row['id']);
-                    $fet->add(DataType::ForumTidThread,$row['id']);
-                    $bufRes['forum']['tid_threads'][(int)$row['id']] = ['data' => $row, 'metadata' => null];
+                if (count($threadIds) > 0) {
+                    $sql = 'SELECT * FROM tid_threads WHERE ';
+                    for ($i=0; $i<count($threadIds); $i++) {
+                        if ($i != 0) $sql .= ' OR ';
+                        $sql .= "id={$threadIds[$i]}";
+                    }
+                    $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
+                    while ($row = $stmt->fetch()) {
+                        $req->remove(DataType::ForumTidThread,$row['id']);
+                        $fet->add(DataType::ForumTidThread,$row['id']);
+                        $bufRes['forum']['tid_threads'][(int)$row['id']] = ['data' => $row, 'metadata' => null];
+                    }
                 }
 
                 array_push($toRemove, $v);
