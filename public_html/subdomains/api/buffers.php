@@ -224,7 +224,7 @@ class BufferManager {
             if (count($result) == $n) { $hadMoreResults = true; break; }
             $row = $aRows[$i];
             
-            $v = ['data' => $row, 'metadata' => null];
+            $v = ['data' => $row, 'metadata' => ['fromDb' => $dbName]];
             $storeOne($v);
 
             $refRow =& $v;
@@ -305,6 +305,7 @@ class BufferManager {
         $storeAll([
             'data' => $result,
             'metadata' => [
+                'fromDb' => $dbName,
                 'pageInfo' => new PageInfo($startCursor??null,$endCursor??null,$hasPreviousPage??false,$hasNextPage??false,$pageCount,$currPage)
             ]
         ]);
