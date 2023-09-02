@@ -678,9 +678,28 @@ class ForumBuffer {
                 $pag = $v[1][1];
                 $keywords = $fsq->keywords;
                 
+                switch ($fsq->threadType) {
+                    case \LdLib\Forum\ThreadType::Standard:
+                        $dtThread = DataType::ForumThread;
+                        $dtComment = DataType::ForumComment;
+                        $threadsRow = 'threads';
+                        $commsRow = 'comments';
+                        $sCommNumRow = 'number';
+                        $sDateRow = 'creation_date';
+                        break;
+                    case \LdLib\Forum\ThreadType::Twinoid:
+                        $dtThread = DataType::ForumTidThread;
+                        $dtComment = DataType::ForumTidComment;
+                        $threadsRow = 'tid_threads';
+                        $commsRow = 'tid_comments';
+                        $sCommNumRow = 'id';
+                        $sDateRow = 'deduced_date';
+                        break;
+                }
+
                 $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
-                if ($fsq->startDate != null) { $v = $fsq->startDate->format('Y-m-d'); $sqlWhere .= " AND deduced_date>='$v'"; }
-                if ($fsq->endDate != null) { $v = $fsq->endDate->format('Y-m-d'); $sqlWhere .= " AND deduced_date<='$v'"; }
+                if ($fsq->startDate != null) { $sStartDate = $fsq->startDate->format('Y-m-d H:i:s'); $sqlWhere .= " AND $sDateRow>='$sStartDate'"; }
+                if ($fsq->endDate != null) { $sEndDate = $fsq->endDate->format('Y-m-d H:i:s'); $sqlWhere .= " AND $sDateRow<='$sEndDate'"; }
                 if ($fsq->userIds != null) {
                     $sqlWhere .= ' AND (';
                     for ($i=0; $i<count($fsq->userIds); $i++) $sqlWhere .= $i > 0 ? " OR author_id={$fsq->userIds[$i]}" : "author_id={$fsq->userIds[$i]}";
@@ -689,27 +708,27 @@ class ForumBuffer {
 
                 switch ($fsq->sortBy) {
                     case SearchSorting::ByDate:
-                        $sRow = 'deduced_date';
-                        $cursF = function($vCurs,$i) {
+                        $sRow = $sDateRow;
+                        $cursF = function($vCurs,$i) use(&$sDateRow,&$sCommNumRow) {
                             if ($vCurs != null) {
                                 $date = $vCurs[0];
                                 $thId = $vCurs[1];
                                 $id = $vCurs[2];
                             }
                             switch ($i) {
-                                case 1: return "(deduced_date<'$date' OR (deduced_date='$date' AND (thread_id>$thId OR (thread_id=$thId AND id>$id))))";
-                                case 2: return "(deduced_date>'$date' OR (deduced_date='$date' AND (thread_id<$thId OR (thread_id=$thId AND id<$id))))";
-                                case 3: return "deduced_date DESC,thread_id,id";
-                                case 4: return "deduced_date,thread_id DESC,id DESC";
-                                case 5: return "(deduced_date>'$date' OR (deduced_date='$date' AND (thread_id<$thId OR (thread_id=$thId AND id<=$id))))";
-                                case 6: return "(deduced_date<'$date' OR (deduced_date='$date' AND (thread_id>$thId OR (thread_id=$thId AND id>=$id))))";
+                                case 1: return "($sDateRow<'$date' OR ($sDateRow='$date' AND (thread_id>$thId OR (thread_id=$thId AND $sCommNumRow>$id))))";
+                                case 2: return "($sDateRow>'$date' OR ($sDateRow='$date' AND (thread_id<$thId OR (thread_id=$thId AND $sCommNumRow<$id))))";
+                                case 3: return "$sDateRow DESC,thread_id,$sCommNumRow";
+                                case 4: return "$sDateRow,thread_id DESC,$sCommNumRow DESC";
+                                case 5: return "($sDateRow>'$date' OR ($sDateRow='$date' AND (thread_id<$thId OR (thread_id=$thId AND $sCommNumRow<=$id))))";
+                                case 6: return "($sDateRow<'$date' OR ($sDateRow='$date' AND (thread_id>$thId OR (thread_id=$thId AND $sCommNumRow>=$id))))";
                                 default: throw new \Schema\SafeBufferException("cursorF ??");
                             }
                         };
                         break;
                     case SearchSorting::ByRelevance:
                         $sRow = 'relevance';
-                        $cursF = function($vCurs,$i) {
+                        $cursF = function($vCurs,$i) use(&$sCommNumRow) {
                             $sRow = '(MATCH(content) AGAINST(:keywords IN BOOLEAN MODE))';
                             $tol = 0.00001;
                             if ($vCurs != null) {
@@ -718,12 +737,12 @@ class ForumBuffer {
                                 $id = $vCurs[2];
                             }
                             switch ($i) {
-                                case 1: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND id>$id))))";
-                                case 2: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND id<$id))))";
-                                case 3: return "relevance DESC,thread_id,id";
-                                case 4: return "relevance,thread_id DESC,id DESC";
-                                case 5: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND id<=$id))))";
-                                case 6: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND id>=$id))))";
+                                case 1: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND $sCommNumRow>$id))))";
+                                case 2: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND $sCommNumRow<$id))))";
+                                case 3: return "relevance DESC,thread_id,$sCommNumRow";
+                                case 4: return "relevance,thread_id DESC,$sCommNumRow DESC";
+                                case 5: return "($sRow>$relevance+$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id<$thId OR (thread_id=$thId AND $sCommNumRow<=$id))))";
+                                case 6: return "($sRow<$relevance-$tol OR (abs($relevance-$sRow)<=$tol AND (thread_id>$thId OR (thread_id=$thId AND $sCommNumRow>=$id))))";
                                 default: throw new \Schema\SafeBufferException("cursorF ??");
                             }
                         };
@@ -732,15 +751,25 @@ class ForumBuffer {
                 }
 
                 $threadIds = [];
-                BufferManager::pagRequest($conn, 'tid_comments', $sqlWhere, $pag, $cursF,
-                    function($row) use($sRow) { return base64_encode("{$row[$sRow]}!{$row['thread_id']}!{$row['id']}"); },
-                    fn($s) => (preg_match('/^(?:(\d{4}-\d\d-\d\d|\d+\.?\d*))!(\d+)!(\d+)$/',base64_decode($s),$m) === 0) ? ["2001-01-01",1,1] : [$m[1],$m[2],$m[3]],
-                    function ($row) use(&$bufRes,&$req,&$fet,&$threadIds) {
-                        $comm = \LDLib\Forum\TidComment::initFromRow($row);
+                BufferManager::pagRequest($conn, $commsRow, $sqlWhere, $pag, $cursF,
+                    function($row) use($sRow, &$sCommNumRow) { return base64_encode("{$row[$sRow]}!{$row['thread_id']}!{$row[$sCommNumRow]}"); },
+                    fn($s) => (preg_match('/^(?:(\d{4}-\d\d-\d\d(?: \d\d:\d\d:\d\d)?|\d+\.?\d*))!(\d+)!(\d+)$/',base64_decode($s),$m) === 0) ? ["2001-01-01 00:00:00",1,1] : [$m[1],$m[2],$m[3]],
+                    function (&$row) use(&$bufRes,&$req,&$fet,&$threadIds,&$commsRow,&$dtComment) {
+                        switch ($dtComment) {
+                            case DataType::ForumTidComment:
+                                $comm = \LDLib\Forum\TidComment::initFromRow($row);
+                                $commNum = $comm->id;
+                                break;
+                            case DataType::ForumComment:
+                                $comm = \LDLib\Forum\Comment::initFromRow($row);
+                                $commNum = $comm->number;
+                                break;
+                        }
+
                         $threadIds[] = $comm->threadId;
-                        $bufRes['forum']['tid_comments'][$comm->nodeId] = $row;
-                        $req->remove([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
-                        $fet->add([DataType::ForumTidComment,[$comm->threadId,$comm->id]]);
+                        $bufRes['forum'][$commsRow][$comm->nodeId] = $row;
+                        $req->remove([$dtComment,[$comm->threadId,$commNum]]);
+                        $fet->add([$dtComment,[$comm->threadId,$commNum]]);
                     },
                     function($rows) use(&$bufRes,&$fsq,&$pag) {
                         $s1 = $fsq->asString();
@@ -750,18 +779,18 @@ class ForumBuffer {
                     "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance",
                     [':keywords' => $keywords]
                 );
-
+                
                 if (count($threadIds) > 0) {
-                    $sql = 'SELECT * FROM tid_threads WHERE ';
+                    $sql = "SELECT * FROM $threadsRow WHERE ";
                     for ($i=0; $i<count($threadIds); $i++) {
                         if ($i != 0) $sql .= ' OR ';
                         $sql .= "id={$threadIds[$i]}";
                     }
                     $stmt = $conn->query($sql,\PDO::FETCH_ASSOC);
                     while ($row = $stmt->fetch()) {
-                        $req->remove(DataType::ForumTidThread,$row['id']);
-                        $fet->add(DataType::ForumTidThread,$row['id']);
-                        $bufRes['forum']['tid_threads'][(int)$row['id']] = ['data' => $row, 'metadata' => null];
+                        $req->remove($dtThread,$row['id']);
+                        $fet->add($dtThread,$row['id']);
+                        $bufRes['forum'][$threadsRow][(int)$row['id']] = ['data' => $row, 'metadata' => null];
                     }
                 }
 

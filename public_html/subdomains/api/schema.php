@@ -118,6 +118,7 @@ class QueryType extends ObjectType {
                         'startDate' => [ 'type' => Types::DateTime(), 'defaultValue' => null ],
                         'endDate' => [ 'type' => Types::DateTime(), 'defaultValue' => null ],
                         'userIds' => [ 'type' => Type::listOf(Type::nonNull(Type::int())), 'defaultValue' => null ],
+                        'threadsType' => [ 'type' => Types::ThreadType(), 'defaultValue' => \LdLib\Forum\ThreadType::Twinoid ],
                         'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
@@ -131,7 +132,7 @@ class QueryType extends ObjectType {
                         if ($user == null) return ConnectionType::getEmptyConnection();
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                         $pag->skipPages = $args['skipPages'];
-                        $fsq = new ForumSearchQuery($args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
+                        $fsq = new ForumSearchQuery($args['threadsType'], $args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
                         ForumBuffer::requestSearch($fsq,$pag);
                         return quickReactPromise(function() use($fsq,$pag) {
                             return ForumBuffer::getSearch($fsq,$pag);
@@ -606,6 +607,56 @@ class PageInfoType extends ObjectType {
     }
 }
 
+class AnyThreadType extends UnionType {
+    public static function guess($o,$throwError=false) {
+        $dbName = $o['metadata']['fromDb'];
+        switch ($dbName) {
+            case 'comments':
+            case 'threads': return Types::Thread();
+            case 'tid_comments': 
+            case 'tid_threads': return Types::TidThread();
+        }
+        if ($throwError) throw new \Exception("Unknown dbName '$dbName'");
+        return null;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'types'=> [
+                Types::Thread(),
+                Types::TidThread()
+            ],
+            'resolveType' => fn($o) => self::guess($o,true)
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class AnyCommentType extends UnionType {
+    public static function guess($o,$throwError=false) {
+        $dbName = $o['metadata']['fromDb'];
+        switch ($dbName) {
+            case 'comments':
+            case 'threads': return Types::Comment();
+            case 'tid_comments': 
+            case 'tid_threads': return Types::TidComment();
+        }
+        if ($throwError) throw new \Exception("Unknown dbName '$dbName'");
+        return null;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'types'=> [
+                Types::Comment(),
+                Types::TidComment()
+            ],
+            'resolveType' => fn($o) => self::guess($o,true)
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Operations *****/
 
 
@@ -700,12 +751,12 @@ class ForumSearchItemType extends ObjectType {
         $config = [
             'fields' => [
                 'thread' => [
-                    'type' => fn() => Types::TidThread(),
-                    'resolve' => fn($o) => $o['edge']['data']['thread_id'],
+                    'type' => fn() => Types::AnyThread(),
+                    'resolve' => fn($o) => $o['edge']
                 ],
                 'comment' => [
-                    'type' => fn() => Types::TidComment(),
-                    'resolve' => fn($o) => $o
+                    'type' => fn() => Types::AnyComment(),
+                    'resolve' => fn($o) => $o['edge']
                 ],
                 'relevance' => [
                     'type' => fn() => Type::float(),
@@ -756,7 +807,10 @@ class TidThreadType extends ObjectType {
     private static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
         if ($authUser == null || !$authUser->titles->contains('oldInteressant')) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+        if (is_array($o)) {
+            if (isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+            else if (isset($o['metadata']['fromDb']) && $o['metadata']['fromDb'] == 'tid_comments') $o = $o['data']['thread_id'];
+        }
         ForumBuffer::requestTidThread($o);
         return quickReactPromise(function() use($o,$f) {
             $row = ForumBuffer::getTidThread($o);
@@ -843,7 +897,10 @@ class ThreadType extends ObjectType {
     private static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
         if ($authUser == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+        if (is_array($o)) {
+            if (isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+            else if (isset($o['metadata']['fromDb']) && $o['metadata']['fromDb'] == 'comments') $o = $o['data']['thread_id'];
+        }
         ForumBuffer::requestThread($o);
         return quickReactPromise(function() use(&$o,&$f,&$authUser) {
             $row = ForumBuffer::getThread($o);
@@ -1032,7 +1089,10 @@ class CommentType extends ObjectType {
     private static function process(mixed $o, callable $f) {
         $authUser = Context::getAuthenticatedUser();
         if ($authUser == null) return null;
-        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = Comment::getIdFromRow($o['edge']['data']);
+        if (is_array($o)) {
+            if (isset($o['cursor'], $o['edge'])) $o = Comment::getIdFromRow($o['edge']['data']);
+            else if (isset($o['data'], $o['metadata'])) $o = Comment::getIdFromRow($o['data']);
+        }
 
         ForumBuffer::requestComment($o);
         return quickReactPromise(function() use(&$o,&$f,&$authUser) {
@@ -1581,12 +1641,20 @@ class Types {
         return self::$types['Forum'] ??= new ForumType();
     }
 
+    public static function AnyThread():AnyThreadType {
+        return self::$types['AnyThread'] ??= new AnyThreadType();
+    }
+
     public static function Thread():ThreadType {
         return self::$types['Thread'] ??= new ThreadType();
     }
 
     public static function TidThread():TidThreadType {
         return self::$types['TidThread'] ??= new TidThreadType();
+    }
+
+    public static function AnyComment():AnyCommentType {
+        return self::$types['AnyComment'] ??= new AnyCommentType();
     }
 
     public static function Comment():CommentType {
@@ -1623,6 +1691,10 @@ class Types {
 
     public static function SearchSorting():PhpEnumType {
         return self::$types['SearchSorting'] ??= new PhpEnumType(SearchSorting::class);
+    }
+
+    public static function ThreadType():PhpEnumType {
+        return self::$types['\LdLib\Forum\ThreadType'] ??= new PhpEnumType(\LdLib\Forum\ThreadType::class);
     }
 
     public static function ThreadPermission():PhpEnumType {

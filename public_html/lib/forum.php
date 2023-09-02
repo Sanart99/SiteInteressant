@@ -19,6 +19,11 @@ enum SearchSorting {
     case ByDate;
 }
 
+enum ThreadType {
+    case Standard;
+    case Twinoid;
+}
+
 class Thread {
     public readonly string $nodeId;
     public readonly int $id;
@@ -118,14 +123,16 @@ class TidComment {
 }
 
 class ForumSearchQuery {
+    public readonly ThreadType $threadType;
     public readonly string $keywords;
     public readonly SearchSorting $sortBy;
     public readonly ?\DateTimeInterface $startDate;
     public readonly ?\DateTimeInterface $endDate;
     public readonly ?array $userIds;
 
-    public function __construct(string $keywords, SearchSorting $sortBy, ?\DateTimeInterface $startDate = null, ?\DateTimeInterface $endDate = null, ?array $userIds = null) {
+    public function __construct(ThreadType $threadType, string $keywords, SearchSorting $sortBy, ?\DateTimeInterface $startDate = null, ?\DateTimeInterface $endDate = null, ?array $userIds = null) {
         if (preg_match('/^[\w\+\~\-,\s]+$/', $keywords) == 0) throw new \Exception('Invalid keywords.');
+        $this->threadType = $threadType;
         $this->keywords = $keywords;
         $this->sortBy = $sortBy;
         $this->startDate = $startDate;
@@ -134,7 +141,8 @@ class ForumSearchQuery {
     }
 
     public function asString():string {
-        $s = "`k:{$this->keywords}`sort:{$this->sortBy->name}";
+        $s = "`type:{$this->threadType->name}";
+        $s .= "`k:{$this->keywords}`sort:{$this->sortBy->name}";
         if ($this->startDate != null) $s .= "`sDate:{$this->startDate->format('Y-m-d H:i:s')}";
         if ($this->endDate != null) $s .= "`eDate:{$this->endDate->format('Y-m-d H:i:s')}";
         if ($this->userIds != null) { $v = implode(',',$this->userIds); $s .= "`ids:$v"; }
