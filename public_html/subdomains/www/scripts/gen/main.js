@@ -1578,7 +1578,9 @@ function getForumMainElem() {
         margin: 0px 0px 1rem 0px;
         white-space: pre-wrap;
     }
-    #mainDiv_forum .replyFormDiv .preview blockquote, #mainDiv_forum .comment .body blockquote {
+    #mainDiv_forum .replyFormDiv .preview blockquote,
+    #mainDiv_forum .comment .body blockquote,
+    #mainDiv_forum #searchFormResults .content blockquote {
         padding: 0.3rem 0px 0.3rem 0.3rem;
         border-left: 1px dashed rgba(0,0,0, 0.6);
         border-bottom: 1px dashed rgba(0,0,0, 0.6);
@@ -1586,40 +1588,58 @@ function getForumMainElem() {
         opacity: 0.7;
         margin: 0.2rem 0.3rem 0.5rem 0.3rem;
     }
-    #mainDiv_forum .replyFormDiv .preview .preQuote, #mainDiv_forum .comment .body .preQuote {
+    #mainDiv_forum .replyFormDiv .preview .preQuote,
+    #mainDiv_forum .comment .body .preQuote,
+    #mainDiv_forum #searchFormResults .content .preQuote {
         font-size: 80%;
         font-weight: bold;
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil, #mainDiv_forum .comment .body .spoil {
+    #mainDiv_forum .replyFormDiv .preview .spoil,
+    #mainDiv_forum .comment .body .spoil,
+    #mainDiv_forum #searchFormResults .content .spoil {
         cursor: help;
         background-image: url(https://data.twinoid.com/img/design/spoiler.png);
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt, #mainDiv_forum .comment .body .spoil .spoilTxt {
+    #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt,
+    #mainDiv_forum .comment .body .spoil .spoilTxt,
+    #mainDiv_forum #searchFormResults .content .spoil .spoilTxt {
         opacity:0;
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil:hover, #mainDiv_forum .comment .body .spoil:hover {
+    #mainDiv_forum .replyFormDiv .preview .spoil:hover,
+    #mainDiv_forum .comment .body .spoil:hover,
+    #mainDiv_forum #searchFormResults .content .spoil:hover {
         background-image: url(https://data.twinoid.com/img/design/spoiler_hover.png);
     }
-    #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt, #mainDiv_forum .comment .body .spoil:hover .spoilTxt {
+    #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt,
+    #mainDiv_forum .comment .body .spoil:hover .spoilTxt,
+    #mainDiv_forum #searchFormResults .content .spoil:hover .spoilTxt {
         opacity:unset;
     }
-    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before, #mainDiv_forum .comment .body .rpTextSpeaker > p::before {
+    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before,
+    #mainDiv_forum .comment .body .rpTextSpeaker > p::before,
+    #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before {
         content: url(https://data.twinoid.com/img/icons/rp.png);
         margin: 0px 0.2em 0px 0px;
     }
-    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker, #mainDiv_forum .comment .body .rpTextSpeaker {
+    #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker,
+    #mainDiv_forum .comment .body .rpTextSpeaker,
+    #mainDiv_forum #searchFormResults .content .rpTextSpeaker {
         font-weight: bold;
         font-size: 90%;
         font-style: italic;
         margin: 0px 0px 0px 1%;
     }
-    #mainDiv_forum .replyFormDiv .preview .rpText::before, #mainDiv_forum .comment .body .rpText::before {
+    #mainDiv_forum .replyFormDiv .preview .rpText::before,
+    #mainDiv_forum .comment .body .rpText::before,
+    #mainDiv_forum #searchFormResults .content .rpText::before {
         display: block;
         position:absolute;
         content: url(https://data.twinoid.com/img/design/arrowUp.png);
         transform: translate(0.5rem, -86%);
     }
-    #mainDiv_forum .replyFormDiv .preview .rpText, #mainDiv_forum .comment .body .rpText {
+    #mainDiv_forum .replyFormDiv .preview .rpText,
+    #mainDiv_forum .comment .body .rpText,
+    #mainDiv_forum #searchFormResults .content .rpText {
         background: #dddbd8;
         border: 1px solid #efefef;
         box-shadow: 0px 0px 2px black;
@@ -1628,7 +1648,9 @@ function getForumMainElem() {
         font-size: 0.9rem;
         margin: 0.5rem 20% 0px 0.75rem;
     }
-    #mainDiv_forum .replyFormDiv .preview pre, #mainDiv_forum .comment .body pre {
+    #mainDiv_forum .replyFormDiv .preview pre,
+    #mainDiv_forum .comment .body pre,
+    #mainDiv_forum #searchFormResults .content pre {
         padding: 5px;
         box-shadow: inset 0px 1px 2px rgba(0,0,0, 0.35);
         margin: 0.5rem 0px;
