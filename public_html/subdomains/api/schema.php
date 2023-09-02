@@ -147,19 +147,20 @@ class QueryType extends ObjectType {
                     }
                 ],
                 'userlist' => [
-                    'type' => fn() => Types::getConnectionObjectType('RegisteredUser'),
+                    'type' => fn() => Types::getConnectionObjectType('AnyUser'),
                     'args' => [
                         'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
-                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ]
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'twinoidUsers' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false]
                     ],
                     'resolve' => function($o,$args) {
                         if (Context::getAuthenticatedUser() == null) return null;
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before']);
-                        UsersBuffer::requestUsers($pag);
-                        return quickReactPromise(function() use($pag) {
-                            return UsersBuffer::getUsers($pag);
+                        UsersBuffer::requestUsers($pag, $args['twinoidUsers']);
+                        return quickReactPromise(function() use($pag,&$args) {
+                            return UsersBuffer::getUsers($pag, $args['twinoidUsers']);
                         });
                     }
                 ],
