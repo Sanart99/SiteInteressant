@@ -1019,6 +1019,7 @@ function getForumMainElem() {
     function loadSearchForm() {
         forumR.innerHTML = '';
         const e = stringToNodes(`
+        <datalist id="dl_userlist"></datalist>
         <div class="forum_mainBar">
             <div class="forum_mainBar_sub1"><p>Recherche</p></div>
             <div class="forum_mainBar_sub2">
@@ -1028,14 +1029,19 @@ function getForumMainElem() {
         <form id="searchForm">
             <div class="parameters">
                 <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords"/>
-                <!--<label for="searchForm_dateRange">Date :</label><div>
+                <label for="search_threadType">Type de topic :</label><div>
+                    <input id="searchForm_threadType_standard" name="threadType" type="radio" value="Standard" checked="true"/><label for="searchForm_threadType_standard">SiteInteressant</label>
+                    <input id="searchForm_threadType_twinoid" name="threadType" type="radio" value="Twinoid"/><label for="searchForm_threadType_twinoid">Twinoid</label>
+                </div>
+                <label for="searchForm_dateRange">Date :</label><div>
                     <input id="searchForm_fromDate" type="date" name="fromDate"/> -
                     <input id="searchForm_toDate" type="date" name="toDate"/>
-                </div>-->
+                </div>
                 <label for="searchForm_sortBy">Trier par :</label><div>
                     <input id="searchForm_sortByRelevance" name="sortBy" type="radio" value="ByRelevance" checked="true"/><label for="searchForm_sortByRelevance">Pertinence</label>
                     <input id="searchForm_sortByDate" name="sortBy" type="radio" value="ByDate"/><label for="searchForm_sortByDate">Date</label>
                 </div>
+                <label for="searchForm_author">Auteur :</label><input id="searchForm_author" name="author" type="text" list="dl_userlist"/>
             </div>
             <div class="buttons">
                 <input class="button3" type="submit" value="Rechercher"/>
@@ -1057,6 +1063,16 @@ function getForumMainElem() {
             });
             back.style.display = mobileMode ? '' : 'none';
         }
+        loadDatalist(false);
+
+        document.querySelector('#searchForm_threadType_twinoid').addEventListener('change',(e) => {
+            if (!e.target.checked) return;
+            loadDatalist(true);
+        });
+        document.querySelector('#searchForm_threadType_standard').addEventListener('change',(e) => {
+            if (!e.target.checked) return;
+            loadDatalist(false);
+        });
 
         const pagDivs = forumR.querySelectorAll('.pagDivDiv');
         for (const node of pagDivs) {
@@ -1071,7 +1087,7 @@ function getForumMainElem() {
         const searchForm = forumR.querySelector('#searchForm');
         const searchFormResults = forumR.querySelector('#searchFormResults');
         const submitButton = forumR.querySelector('input[type="submit"]');
-        let keywords, sortBy, startDate, endDate = '';
+        let keywords, threadType, sortBy, startDate, endDate, userIds = '';
         searchForm.addEventListener('submit',(e) => {
             e.preventDefault();
             if (submitButton.disabled === true) return;
@@ -1079,56 +1095,87 @@ function getForumMainElem() {
 
             const data = new FormData(e.target);
             keywords = data.get('keywords');
+            threadType = data.get('threadType');
             sortBy = data.get('sortBy');
             startDate = data.get('fromDate') == '' ? null : data.get('fromDate');
             endDate = data.get('toDate') == '' ? null : data.get('toDate');
+            
+            let m = /^[^\(]+\((\d+)\)$/.exec(data.get('author'));
+            userIds = m == null ? null : [parseInt(m[1])];
 
             loadSearchResults(10);
         });
 
         function loadSearchResults(first,last,after,before,skipPages = 0) {
-            sendQuery(`query Search(\$keywords:String!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$sortBy:SearchSorting!,\$startDate:DateTime,\$endDate:DateTime,\$skipPages:Int!) {
+            sendQuery(`query Search(
+                \$keywords:String!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,
+                \$startDate:DateTime,\$endDate:DateTime,\$userIds:[Int!],\$threadType:ThreadType,
+                \$sortBy:SearchSorting!,\$skipPages:Int!
+            ) {
                 search(
                     keywords:\$keywords, first:\$first, after:\$after, before:\$before, last:\$last, 
-                    sortBy:\$sortBy, startDate:\$startDate, endDate:\$endDate, 
+                    sortBy:\$sortBy, startDate:\$startDate, endDate:\$endDate, userIds:\$userIds, threadsType:\$threadType,
                     skipPages:\$skipPages, withPageCount:true, withLastPageSpecialBehavior:true
                 ) {
                     __typename
                     edges {
                         node {
-                            __typename
                             thread {
                                 __typename
-                                id
-                                dbId
-                                authorId
-                                title
-                                deducedDate
-                                minorTag
-                                majorTag
-                                states
-                                kubeCount
-                                pageCount
-                                commentCount
+                                ... on TidThread {
+                                    id
+                                    dbId
+                                    authorId
+                                    title
+                                    deducedDate
+                                    minorTag
+                                    majorTag
+                                    states
+                                    kubeCount
+                                    pageCount
+                                }
+                                ... on Thread {
+                                    id
+                                    dbId
+                                    authorId
+                                    title
+                                    tags
+                                    creationDate
+                                    lastUpdateDate
+                                }
                             }
                             comment {
                                 __typename
-                                id
-                                dbId
-                                threadId
-                                authorId
-                                states
-                                content
-                                contentWarning
-                                deducedDate
-                                loadTimestamp
+                                ... on TidComment {
+                                    id
+                                    dbId
+                                    threadId
+                                    authorId
+                                    states
+                                    deducedDate
+                                    loadTimestamp
+                                    content
+                                    contentWarning
+                                }
+                                ... on Comment {
+                                    id
+                                    number
+                                    threadId
+                                    author {
+                                        dbId
+                                        name
+                                        avatarURL
+                                    }
+                                    creationDate
+                                    lastEditionDate
+                                    content
+                                }
                             }
                             relevance
                         }
                         cursor
                     }
                     pageInfo {
-                        __typename
                         hasNextPage
                         hasPreviousPage
                         startCursor
@@ -1137,7 +1184,7 @@ function getForumMainElem() {
                         currPage
                     }
                 }
-            }`,{keywords:keywords,first:first,last:last,after:after,before:before,sortBy:sortBy,startDate:startDate,endDate:endDate,skipPages:skipPages}).then((res) => {
+            }`,{keywords:keywords,first:first,last:last,after:after,before:before,sortBy:sortBy,startDate:startDate,endDate:endDate,userIds:userIds,threadType:threadType,skipPages:skipPages}).then((res) => {
                 if (!res.ok) basicQueryError();
                 return res.json();
             }).then((json) => {
@@ -1147,16 +1194,44 @@ function getForumMainElem() {
                 searchFormResults.innerHTML = '';
                 for (const edge of json.data.search.edges) {
                     const item = edge.node;
-                    const e = stringToNodes(`<div class="searchItem">
-                        <div class="infos">
-                            <p><b>Titre :</b> \${item.thread.title}</p>
-                            <p><b>ID Utilisateur :</b> \${item.comment.authorId}</p>
-                        </div>
-                        <div class="content">\${item.comment.content}</div>
-                        <div class="footer">
-                            <p>\${item.comment.deducedDate}</p>
-                        </div>
-                    </div>`)[0];
+                    let e = null;
+                    switch (item.thread.__typename) {
+                        case 'Thread':
+                            e = stringToNodes(`<div class="searchItem">
+                                <div class="infos">
+                                    <p><b>Titre :</b> \${item.thread.title}</p>
+                                    <p><b>ID Utilisateur :</b> \${item.comment.author.dbId}</p>
+                                </div>
+                                <div class="content">\${item.comment.content}</div>
+                                <div class="footer">
+                                    <p>\${item.comment.creationDate} - <a href="$root/forum/\${item.thread.dbId}" target="_blank">Lien</a></p>
+                                </div>
+                            </div>`)[0];
+                            break;
+                        case 'TidThread':
+                            e = stringToNodes(`<div class="searchItem">
+                                <div class="infos">
+                                    <p><b>Titre :</b> \${item.thread.title}</p>
+                                    <p><b>ID Utilisateur :</b> \${item.comment.authorId}</p>
+                                </div>
+                                <div class="content">\${item.comment.content}</div>
+                                <div class="footer">
+                                    <p>\${item.comment.deducedDate}</p>
+                                </div>
+                            </div>`)[0];
+                            break;
+                        default:
+                            e = stringToNodes(`<div class="searchItem">
+                                <div class="infos">
+                                    <p><b>Erreur de chargement</b></p>
+                                </div>
+                                <div class="content"><p><b>Erreur de chargement</b></p></div>
+                                <div class="footer">
+                                    <p><b>Erreur de chargement</b></p>
+                                </div>
+                            </div>`)[0];
+                            break;
+                    }
                     searchFormResults.insertAdjacentElement('beforeend',e);
                 }
 
@@ -1173,6 +1248,40 @@ function getForumMainElem() {
                     }
                 } else {
                     for (const node of pagDivs) node.style.display = 'none';
+                }
+            });
+        }
+
+        function loadDatalist(twinoidUsers = false) {
+            sendQuery(`query Userlist(\$twinoidUsers:Boolean!) {
+                userlist(first:500,twinoidUsers:\$twinoidUsers) {
+                    edges {
+                        node {
+                            ... on RegisteredUser {
+                                id
+                                dbId
+                                name
+                            }
+                            ... on TidUser {
+                                id
+                                dbId
+                                name
+                            }
+                        }
+                    }
+                }
+            }`,{twinoidUsers:twinoidUsers}).then((res) => {
+                if (!res.ok) basicQueryError();
+                return res.json();
+            }).then((json) => {
+                if (json?.data?.userlist?.edges == null) basicQueryError();
+
+                const eUserlist = document.querySelector('#dl_userlist');
+                eUserlist.innerHTML = '<option></option>';
+                eUserlist.disabled = false;
+                for (const edge of json.data.userlist.edges) {
+                    const user = edge.node;
+                    eUserlist.insertAdjacentHTML('beforeend',`<option>\${user.name}(\${user.dbId})</option>`);
                 }
             });
         }
