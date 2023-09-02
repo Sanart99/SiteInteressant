@@ -624,6 +624,30 @@ class PageInfoType extends ObjectType {
     }
 }
 
+class AnyUserType extends UnionType {
+    public static function guess($o,$throwError=false) {
+        if (isset($o['edge'], $o['cursor'])) $o = $o['edge'];
+        $dbName = $o['metadata']['fromDb'];
+        switch ($dbName) {
+            case 'users': return Types::RegisteredUser();
+            case 'tid_users': return Types::TidUser();
+        }
+        if ($throwError) throw new \Exception("Unknown dbName '$dbName'");
+        return null;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'types'=> [
+                Types::RegisteredUser(),
+                Types::TidUser()
+            ],
+            'resolveType' => fn($o) => self::guess($o,true)
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 class AnyThreadType extends UnionType {
     public static function guess($o,$throwError=false) {
         $dbName = $o['metadata']['fromDb'];
@@ -756,6 +780,42 @@ class RegisteredUserType extends ObjectType {
                             return $row;
                         });
                     })
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class TidUserType extends ObjectType {
+    public static function process(mixed $o, callable $f) {
+        $authUser = Context::getAuthenticatedUser();
+        if (!$authUser->titles->contains('oldInteressant')) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
+
+        UsersBuffer::requestTidUser($o);
+        return quickReactPromise(function() use($o,$f) {
+            $row = UsersBuffer::getTidUser($o);
+            if ($row == null) return null;
+            return $f($row);
+        });
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'interfaces' => [Types::Node()],
+            'fields' => [
+                'id' => [
+                    'type' => fn() => Type::id(),
+                    'resolve' => fn($o) => self::process($o, fn($o) => "USER_TID_{$o['data']['id']}")
+                ],
+                'dbId' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['id'])
+                ],
+                'name' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
                 ]
             ]
         ];
@@ -1648,6 +1708,14 @@ class Types {
 
     public static function RegisteredUser():RegisteredUserType {
         return self::$types['RegisteredUser'] ??= new RegisteredUserType();
+    }
+
+    public static function TidUser():TidUserType {
+        return self::$types['TidUser'] ??= new TidUserType();
+    }
+
+    public static function AnyUser():AnyUserType {
+        return self::$types['AnyUser'] ??= new AnyUserType();
     }
 
     public static function Record():RecordType {

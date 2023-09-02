@@ -28,6 +28,7 @@ enum DataType {
     case ForumTidComment;
     case ForumSearch;
     case FirstUnreadComment;
+    case TidUser;
 }
 
 class BufferManager {
@@ -36,6 +37,8 @@ class BufferManager {
         'records' => [],
         'recordsM' => [],
         'users' => [],
+        'tidUsers' => [],
+        'tidUsersM' => [],
         'forum' => [
             'threads' => [],
             'threadsM' => [],
@@ -117,6 +120,7 @@ class BufferManager {
                     case DataType::ForumTidComment:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
+                    case DataType::TidUser:
                     case DataType::Notification:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
@@ -134,6 +138,7 @@ class BufferManager {
                     case DataType::ForumTidComment:
                     case DataType::FirstUnreadComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
+                    case DataType::TidUser:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
                 }
@@ -324,6 +329,10 @@ class UsersBuffer {
         return BufferManager::request(DataType::User, $id) == 0;
     }
 
+    public static function requestTidUser(int $id):bool {
+        return BufferManager::request(DataType::TidUser, $id) == 0;
+    }
+
     public static function requestUserNotifications(int $userId, PaginationVals $pag) {
         return BufferManager::requestGroup(DataType::Notification,[$userId,$pag]);
     }
@@ -336,12 +345,16 @@ class UsersBuffer {
         return BufferManager::requestGroup(DataType::Emoji,[$userId,$pag]);
     }
 
-    public static function requestUsers(PaginationVals $pag) {
-        return BufferManager::requestGroup(DataType::User,$pag);
+    public static function requestUsers(PaginationVals $pag, bool $twinoidUsers = false) {
+        return BufferManager::requestGroup(($twinoidUsers ? DataType::TidUser : DataType::User),$pag);
     }
 
     public static function getFromId(int $id):?array {
         return BufferManager::get(['users',$id]);
+    }
+
+    public static function getTidUser(int $id):?array {
+        return BufferManager::get(['tidUsers',$id]);
     }
 
     public static function getUserNotifications(int $userId, PaginationVals $pag) {
@@ -356,8 +369,8 @@ class UsersBuffer {
         return BufferManager::get(['emojisM',$userId,$pag->getString()]);
     }
 
-    public static function getUsers(PaginationVals $pag) {
-        return BufferManager::get(['usersM',$pag->getString()]);
+    public static function getUsers(PaginationVals $pag, bool $twinoidUsers = false) {
+        return BufferManager::get([($twinoidUsers ? 'tidUsersM' : 'usersM'),$pag->getString()]);
     }
 
     public static function exec(LDPDO $conn) {
@@ -431,16 +444,21 @@ class UsersBuffer {
                 array_push($toRemove,$v);
                 break;
             case DataType::User:
+            case DataType::TidUser:
+                $dataType = $v[0];
                 $pag = $v[1];
-                BufferManager::pagRequest($conn, 'users', '1=1', $pag, 'id',
+                $dbName = $dataType == DataType::User ? 'users' : 'tid_users';
+                $sDataType = $dataType == DataType::User ? 'users' : 'tidUsers';
+
+                BufferManager::pagRequest($conn, $dbName, '1=1', $pag, 'id',
                     fn($row) => base64_encode($row['id']),
                     fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? (int)$m[0] : 1,
-                    function($row) use(&$bufRes,&$req,&$fet) {
-                        $bufRes['users'][$row['data']['id']] = $row;
-                        $req->remove([DataType::User,$row['data']['id']]);
-                        $fet->add([DataType::User,$row['data']['id']]);
+                    function($row) use(&$bufRes,&$req,&$fet,&$sDataType,&$dataType) {
+                        $bufRes[$sDataType][$row['data']['id']] = $row;
+                        $req->remove([$dataType,$row['data']['id']]);
+                        $fet->add([$dataType,$row['data']['id']]);
                     },
-                    function($rows) use(&$bufRes,&$pag) { $bufRes['usersM'][$pag->getString()] = $rows; }
+                    function($rows) use(&$bufRes,&$pag,&$sDataType) { $bufRes["{$sDataType}M"][$pag->getString()] = $rows; }
                 );
                 array_push($toRemove,$v);
                 break;
@@ -451,13 +469,16 @@ class UsersBuffer {
         }
         foreach ($req->getIterator() as $v) switch ($v[0]) {
             case DataType::User:
+            case DataType::TidUser:
                 $userId = $v[1];
+                $dbName = $v[0] == DataType::User ? 'users' : 'tid_users';
+                $sDataType = $v[0] == DataType::User ? 'users' : 'tidUsers';
 
-                $stmt = $conn->prepare("SELECT * FROM users WHERE id=?");
+                $stmt = $conn->prepare("SELECT * FROM $dbName WHERE id=?");
                 $stmt->execute([$userId]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-                $bufRes['users'][$userId] = $row === false ? null : ['data' => $row, 'metadata' => null];
+                $bufRes[$sDataType][$userId] = $row === false ? null : ['data' => $row, 'metadata' => $dbName];
                 array_push($toRemove,$v);
                 break;
             case DataType::Emoji:
