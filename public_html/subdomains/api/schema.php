@@ -146,6 +146,23 @@ class QueryType extends ObjectType {
                         return $user == null ? null : $user->id;
                     }
                 ],
+                'userlist' => [
+                    'type' => fn() => Types::getConnectionObjectType('RegisteredUser'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ]
+                    ],
+                    'resolve' => function($o,$args) {
+                        if (Context::getAuthenticatedUser() == null) return null;
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before']);
+                        UsersBuffer::requestUsers($pag);
+                        return quickReactPromise(function() use($pag) {
+                            return UsersBuffer::getUsers($pag);
+                        });
+                    }
+                ],
                 'testMode' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn() => (bool)$_SERVER['LD_TEST']

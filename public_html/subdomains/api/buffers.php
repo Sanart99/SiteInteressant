@@ -116,6 +116,7 @@ class BufferManager {
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
+                    case DataType::User:
                     case DataType::Notification:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
@@ -335,6 +336,10 @@ class UsersBuffer {
         return BufferManager::requestGroup(DataType::Emoji,[$userId,$pag]);
     }
 
+    public static function requestUsers(PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::User,$pag);
+    }
+
     public static function getFromId(int $id):?array {
         return BufferManager::get(['users',$id]);
     }
@@ -349,6 +354,10 @@ class UsersBuffer {
 
     public static function getUserEmojis(int $userId, PaginationVals $pag) {
         return BufferManager::get(['emojisM',$userId,$pag->getString()]);
+    }
+
+    public static function getUsers(PaginationVals $pag) {
+        return BufferManager::get(['usersM',$pag->getString()]);
     }
 
     public static function exec(LDPDO $conn) {
@@ -418,6 +427,20 @@ class UsersBuffer {
                         $fet->add([DataType::Emoji,[$userId,$aliases[0]]]);
                     },
                     function($rows) use(&$bufRes,&$pag,&$userId) { $bufRes['emojisM'][$userId][$pag->getString()] = $rows; }
+                );
+                array_push($toRemove,$v);
+                break;
+            case DataType::User:
+                $pag = $v[1];
+                BufferManager::pagRequest($conn, 'users', '1=1', $pag, 'id',
+                    fn($row) => base64_encode($row['id']),
+                    fn($s) => preg_match('/^\d+$/',base64_decode($s),$m) > 0 ? (int)$m[0] : 1,
+                    function($row) use(&$bufRes,&$req,&$fet) {
+                        $bufRes['users'][$row['data']['id']] = $row;
+                        $req->remove([DataType::User,$row['data']['id']]);
+                        $fet->add([DataType::User,$row['data']['id']]);
+                    },
+                    function($rows) use(&$bufRes,&$pag) { $bufRes['usersM'][$pag->getString()] = $rows; }
                 );
                 array_push($toRemove,$v);
                 break;
