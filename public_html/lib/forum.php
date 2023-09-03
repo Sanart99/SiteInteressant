@@ -1,6 +1,7 @@
 <?php
 namespace LDLib\Forum;
 
+use DateTimeInterface;
 use LDLib\General\ErrorType;
 use LDLib\User\RegisteredUser;
 use LDLib\Database\LDPDO;
@@ -257,12 +258,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     $conn->query('START TRANSACTION');
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
-
-    // Get current comment and check eligiblity
-    $oldCommRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-    $maxN = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0];
-    $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($oldCommRow['creation_date']))->getTimestamp()) / 60;
-    if (!(($maxN === $oldCommRow['number'] && $minutes < 10) || $minutes < 1.5)) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
+    if (!check_can_edit_comment($conn,$user,$threadId,$commNumber,$now)) return ErrorType::PROHIBITED;
 
     // Edit comment
     $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=?, read_by=? WHERE thread_id=? AND number=? LIMIT 1");
@@ -290,15 +286,22 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     return $comment;
 }
 
+function check_can_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
+    $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($user->id != $commRow['author_id'] && !$user->isAdministrator()) return false;
+    $maxN = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0];
+    $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($commRow['creation_date']))->getTimestamp()) / 60;
+    return (($maxN === $commRow['number'] && $minutes < 10) || $minutes < 1.5);
+}
+
 function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
     $conn->query('START TRANSACTION');
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
+    if (!check_can_remove_comment($conn,$user,$threadId,$commNumber,$now)) return ErrorType::PROHIBITED;
 
     $stmt = $conn->query("DELETE FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1 RETURNING *");
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
-    $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($commentRow['creation_date']))->getTimestamp()) / 60;
-    if ($minutes > 1.5) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','remComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
@@ -307,6 +310,13 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     $comment = Comment::initFromRow($commentRow);
     ForumBuffer::forgetComment($comment->nodeId);
     return $comment;
+}
+
+function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
+    $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($user->id != $commRow['author_id'] && !$user->isAdministrator()) return false;
+    $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($commRow['creation_date']))->getTimestamp()) / 60;
+    return $minutes < 1.5;
 }
 
 function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
