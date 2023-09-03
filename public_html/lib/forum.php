@@ -250,7 +250,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     return $comment;
 }
 
-function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg) {
+function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg, ?string $title = null) {
     if (mb_strlen($msg) === 0) return ErrorType::MESSAGE_TOOSHORT;
     if (mb_strlen($msg) > 6000) return ErrorType::MESSAGE_TOOLONG;
 
@@ -258,20 +258,32 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
 
+    // Get current comment and check eligiblity
     $oldCommRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
     $maxN = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0];
     $minutes = ($now->getTimestamp() - (new \DateTimeImmutable($oldCommRow['creation_date']))->getTimestamp()) / 60;
     if (!(($maxN === $oldCommRow['number'] && $minutes < 10) || $minutes < 1.5)) { $conn->query('ROLLBACK'); return ErrorType::EXPIRED; }
 
+    // Edit comment
     $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=?, read_by=? WHERE thread_id=? AND number=? LIMIT 1");
     $stmt->execute([textToHTML($user->id, $msg),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
-    $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
+    // Update thread data
+    $sSet = "last_update_date=:sNow";
+    $v = [
+        ':sNow' => $sNow,
+        ':threadId' => $threadId
+    ];
+    if ($title != null && $commentRow['number'] == 0) { $v[':title'] = $title; $sSet .= ', title=:title'; }
+    $stmt = $conn->prepare("UPDATE threads SET $sSet WHERE id=:threadId LIMIT 1");
+    $stmt->execute($v);
 
+    // Insert record
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','editComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
 
+    // End
     $conn->query('COMMIT');
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);

@@ -209,12 +209,13 @@ class MutationType extends ObjectType {
                     'args' => [
                         'threadId' => Type::nonNull(Type::int()),
                         'commentNumber' => Type::nonNull(Type::int()),
-                        'content' => Type::nonNull(Type::string())
+                        'content' => Type::nonNull(Type::string()),
+                        'title' => Type::string()
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return ErrorType::USER_INVALID;
-                        $v = thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content']);
+                        $v = thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null);
                         return $v instanceof ErrorType ? $v : true;
                     }
                 ],
