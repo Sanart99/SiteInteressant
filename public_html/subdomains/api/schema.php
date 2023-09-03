@@ -45,7 +45,8 @@ use function LDLib\Forum\{
     create_thread,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
-    thread_follow, thread_unfollow
+    thread_follow, thread_unfollow,
+    check_can_edit_comment, check_can_remove_comment
 };
 use function LDLib\Net\curl_fetch;
 use function LdLib\User\set_notification_to_read;
@@ -1224,6 +1225,16 @@ class CommentType extends ObjectType {
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['read_by'])))
+                ],
+                'canEdit' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,fn($row) =>
+                        check_can_edit_comment(DBManager::getConnection(), Context::getAuthenticatedUser(),$row['data']['thread_id'],$row['data']['number'],new \DateTime('now')))
+                ],
+                'canRemove' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,fn($row) =>
+                        check_can_remove_comment(DBManager::getConnection(), Context::getAuthenticatedUser(),$row['data']['thread_id'],$row['data']['number'],new \DateTime('now')))
                 ]
             ]
         ];
