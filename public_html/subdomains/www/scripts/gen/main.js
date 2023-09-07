@@ -1301,7 +1301,7 @@ function getForumMainElem() {
         const replyFormTA = replyFormDiv.querySelector('textarea');
         let acReplyForm = null;
         let toReplyForm = null;
-        replyForm.addEventListener('input',() => {
+        replyFormTA.addEventListener('input',() => {
             if (toReplyForm != null) clearTimeout(toReplyForm);
             toReplyForm = setTimeout(() => {
                 if (acReplyForm != null) acReplyForm.abort();
@@ -1322,7 +1322,7 @@ function getForumMainElem() {
         });
         if (sessionSaveName != null) {
             replyFormTA.value = sessionGet(sessionSaveName)??'';
-            replyForm.dispatchEvent(new Event('input'));
+            replyFormTA.dispatchEvent(new Event('input'));
         }
         
         replyForm.addEventListener('submit',(e) => {
