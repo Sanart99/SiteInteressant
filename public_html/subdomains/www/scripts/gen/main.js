@@ -557,7 +557,8 @@ function getForumMainElem() {
                 const comment = edge.node.comments.edges[0].node;
                 const date = new Date(edge.node.lastUpdateDate+'Z');
                 if (!isNaN(date.getTime())) {
-                    const sDate = getDateAsString(date).join(' ');
+                    const sDate = getDateAsString(date).slice(0,4).join(' ');
+
                     if (date.toISOString().substr(0,10) == now.toISOString().substr(0,10)) {
                         if (lastDelimiter != "Aujourd'hui") {
                             tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Aujourd'hui</td></tr>`);

@@ -16,10 +16,15 @@ function basicQueryError(msg) {
 }
 
 function getDateAsString(date) {
-    const a = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full'}).format(date).split(' ');
-    a[0] = a[0].charAt(0).toUpperCase() + a[0].slice(1);
-    a[2] = a[2].charAt(0).toUpperCase() + a[2].slice(1);
-    return a;
+    const a = new Intl.DateTimeFormat('fr-FR', { dateStyle:'full', timeStyle:'long' }).format(date).split(' ');
+    const a2 = [];
+    a2[0] = a[0].charAt(0).toUpperCase() + a[0].slice(1);
+    a2[1] = a[1];
+    a2[2] = a[2].charAt(0).toUpperCase() + a[2].slice(1);
+    a2[3] = a[3];
+    a2[4] = a[5];
+    a2[5] = a[6];
+    return a2;
 }
 
 async function isServerInTestMode() {
