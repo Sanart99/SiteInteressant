@@ -263,30 +263,28 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
         }
 
         switch (true) {
+            case $ignoreSpec:
+                $ignoreSpec = false;
+                $result .= htmlspecialchars($char);
+                break;
             case ($char == '\\'):
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
                 $ignoreSpec = true;
                 break;
             case (preg_match('/^[\*\/\-]$/',$char) > 0):
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
                 $sSpec = $char;
                 $sMarkerMode = true;
                 break;
             case ($char == ':'):
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
                 $sEmoji = ':';
                 break;
             case (preg_match('/^\[$/',$char) > 0):
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= htmlspecialchars($char); break; }
                 $kwMarkerMode = true;
                 break;
             case ($char == "\n"):
                 if ($skipIfNewLine) { $skipIfNewLine = false; break; }
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
                 $result .= '<br/>';
                 break;
             default:
-                if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
                 $skipIfNewLine = false;
                 $result .= htmlspecialchars($char);
                 break;
