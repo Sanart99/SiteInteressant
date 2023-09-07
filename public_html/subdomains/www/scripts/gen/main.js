@@ -606,6 +606,7 @@ function getForumMainElem() {
                     dbId
                     title
                     followingIds
+                    canRemove
                     comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,
                         withPageCount:true,withLastPageSpecialBehavior:true,toFirstUnreadComment:\$toFirstUnreadComment) {
                         edges {
@@ -617,6 +618,8 @@ function getForumMainElem() {
                                 lastEditionDate
                                 content
                                 isRead
+                                canEdit
+                                canRemove
                                 author {
                                     id
                                     dbId
@@ -645,6 +648,7 @@ function getForumMainElem() {
             if (json?.data?.node?.comments?.edges == null) basicQueryError();
             currThreadId = threadId;
             highlightThread(currThreadId);
+            const threadDbId = json.data.node.comments.edges[0].node.threadId;
 
             forumR.innerHTML = '';
             if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
@@ -686,9 +690,130 @@ function getForumMainElem() {
                         <p class="name">\${comment.node.author.name}</p>
                         <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
                     </div>
-                    <div class="body">\${comment.node.content}</div>
+                    <div class="body">
+                        <div class="main">\${comment.node.content}</div>
+                        <div class="footer"><p class="infos"></p><p class="actionLinks"></p></div>
+                    </div>
                 </div>`)[0];
-                eComments.insertAdjacentElement('beforeend',commentNode);
+                const footerInfos = commentNode.querySelector('.footer p.infos');
+                let aFooterInfos = [];
+                if (comment.node.lastEditionDate != null) {
+                    const a = getDateAsString(new Date(comment.node.lastEditionDate+'Z'));
+                    const s = `Le \${a[1]} \${a[2]} \${a[3]} à \${a[4]}`;
+                    aFooterInfos.push(`Dernière édition : \${s}`);
+                }
+                if (aFooterInfos.length > 0) footerInfos.innerHTML = aFooterInfos.join('<br/>') + '<br/>';
+                
+                const footerP = commentNode.querySelector('.footer p.actionLinks');
+                let aFooter = [];
+                if (comment.node.canEdit) {
+                    const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
+                    nodeEdit.addEventListener('click',() => {
+                        const replyFormId = `edit_\${comment.node.id}`;
+                        const titleId = replyFormId+'_title';
+                        if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
+
+                        commentNode.classList.add('selected');
+                        if (replyFormSetups.get(replyFormId) == null) {
+                            addReplyFormSetup(replyFormId,(div) => {
+                                if (comment.node.number == 0) {
+                                    const nodeTitle = stringToNodes(`<div class="title">
+                                        <label for="editThread_title">Titre : </label><input id="editThread_title" class="inputText1" type="text" name="title"/>
+                                    </div>`)[0];
+                                    div.querySelector('.replyForm').insertAdjacentElement('afterbegin',nodeTitle);
+                                    const input = nodeTitle.querySelector('#editThread_title');
+                                    input.value = sessionGet('title') ?? json.data.node.title;
+                                    input.addEventListener('input',() => sessionSet('title',input.value));
+                                }
+                                div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
+                                setupReplyForm(div,(e) => {
+                                    e.preventDefault();
+                                    const data = new FormData(e.target);
+                                    const title = data.get('title');
+                                    sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
+                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
+                                            __typename
+                                            success
+                                            resultCode
+                                            resultMessage
+                                        }
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((res) => {
+                                        if (!res.ok) basicQueryError();
+                                        return res.json();
+                                    }).then((json) => {
+                                        if (json?.data?.f?.success != true) basicQueryError();
+                                        if (comment.node.number == 0) sessionRem(titleId);
+                                        location.reload();
+                                    });
+                                },replyFormId);
+                            });
+                        }
+                        loadReplyForm(replyFormId);
+                        const replyForm = document.querySelector('#forumR .replyForm');
+                        const textarea = replyForm.querySelector('textarea');
+                        if (textarea.value == '') textarea.value = contentToText(stringToNodes(comment.node.content));
+                        if (comment.node.number == 0) {
+                            const title = replyForm.querySelector('.title input');
+                            if (title.value == '') title.value = json.data.node.title;
+                        }
+                        textarea.dispatchEvent(new Event('input'));
+                    });
+                    aFooter.push(nodeEdit);
+                }
+                if (comment.node.canRemove || json.data.node.canRemove) {
+                    const nodeDel = stringToNodes('<a class="delete" href="#" onclick="return false;">Supprimer</a>')[0];
+                    nodeDel.addEventListener('click',() => {
+                        const e = stringToNodes(`<div id="askDelete" class="popupContainer" style="padding: 1rem;display: flex;gap: 1rem;">
+                            <input id="askDelete_cancel" type="button" value="Retour"/>
+                            <input id="askDelete_delete" type="button" value="Supprimer"/>
+                        </div>`)[0];
+                        e.querySelector('#askDelete_cancel').addEventListener('click',() => { popupDiv.close(); e.remove(); });
+                        e.querySelector('#askDelete_delete').addEventListener('click',() => {
+                            if (comment.node.number == 0) {
+                                sendQuery(`mutation RemoveThread (\$threadId:Int!) {
+                                    f:forum_removeThread(threadId:\$threadId) {
+                                        __typename
+                                        success
+                                        resultCode
+                                        resultMessage
+                                    }
+                                }`,{threadId:threadDbId}).then((res) => {
+                                    if (!res.ok) basicQueryError();
+                                    return res.json();
+                                }).then((json) => {
+                                    if (json?.data?.f?.success != true) basicQueryError();
+                                    location.href = "$root/forum";
+                                });
+                            } else {
+                                sendQuery(`mutation ForumRemoveComment (\$threadId:Int!, \$commNumber:Int!) {
+                                        f:forumThread_removeComment(threadId:\$threadId,commentNumber:\$commNumber) {
+                                            __typename
+                                            success
+                                            resultCode
+                                            resultMessage
+                                        }
+                                    }
+                                `,{threadId:threadDbId,commNumber:comment.node.number}).then((res) => {
+                                    if (!res.ok) basicQueryError();
+                                    return res.json();
+                                }).then((json) => {
+                                    if (json?.data?.f?.success != true) basicQueryError();
+                                    location.reload();
+                                });
+                            }
+                            popupDiv.close();
+                            e.remove();
+                        });
+                        popupDiv.insertAdjacentElement('beforeend',e);
+                        popupDiv.openTo('#askDelete');
+                    });
+                    aFooter.push(nodeDel);
+                }
+                for (const n of aFooter) {
+                    if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', ' - ');
+                    footerP.insertAdjacentElement('beforeend',n);
+                }
+
                 let b = false;
                 commentNode.querySelector('.body').addEventListener('mouseover',() => {
                     if (!commentNode.classList.contains('new') || b) return;
@@ -726,6 +851,7 @@ function getForumMainElem() {
                         });
                     })
                 });
+                eComments.insertAdjacentElement('beforeend',commentNode);
             }
 
             const n = first ?? last;
@@ -744,53 +870,59 @@ function getForumMainElem() {
                 }
             }
 
-            const replyFormDiv = stringToNodes(`<div class="replyFormDiv hide">
-                <a class="previewToggler" href="#" onclick="return false;">Masquer / afficher l'aperçu de votre message</a>
-                <div class="preview">
-
-                </div>
-                <form class="replyForm">
-                    <div class="buttonBar">
-                        <button class="button1 bold" type="button">G</button><!--
-                        --><button class="button1 italic" type="button">I</button><!--
-                        --><button class="button1 strike" type="button">Barré</button><!--
-                        --><button class="button1 link" type="button">Lien</button><!--
-                        --><button class="button1 cite" type="button">Citer</button><!--
-                        --><button class="button1 spoil" type="button">Spoil</button><!--
-                        --><button class="button1 rp" type="button">Roleplay</button><!--
-                        --><button class="button1 code" type="button">Code</button>
-                    </div>
-                    <textarea name="msg"></textarea>
-                    <div class="emojisDiv">
-                        <div class="emojisButtons"></div>
-                        <div class="emojis"></div>
-                    </div>
-                    <input class="button2" type="submit" value="Envoyer"/>
-                </form>
-            </div>`)[0];
+            const replyFormDiv = getNewReplyForm();
+            const replyFormSetups = new Map();
+            let currReplyFormLoaded = '';
+            replyFormDiv.classList.add('hide');
             forumR.insertAdjacentElement('beforeend',replyFormDiv);
-            setupReplyForm(replyFormDiv,(e) => {
-                e.preventDefault();
-                const data = new FormData(e.target);
-                const submitButton = e.target.querySelector('input[type="submit"]');
-                if (submitButton.disabled === true) return;
-                submitButton.disabled = true;
-
-                sendQuery(`mutation ForumAddComment(\$threadId:Int!,\$msg:String!) {
-                    f:forumThread_addComment(threadId:\$threadId,content:\$msg) {
-                        __typename
-                        success
-                        resultCode
-                        resultMessage
+            function addReplyFormSetup(name, f) {
+                replyFormSetups.set(name, () => f(replyFormDiv));
+            }
+            function loadReplyForm(name) {
+                if (currReplyFormLoaded == name || replyFormSetups.get(name) == null) {
+                    if (replyFormDiv.classList.contains('hide')) {
+                        replyFormDiv.classList.remove('hide');
+                        replyFormDiv.querySelector('textarea').focus();
+                    } else {
+                        replyFormDiv.classList.add('hide');
+                        replyFormDiv.querySelector('textarea').blur();
                     }
-                }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((res) => {
-                    if (!res.ok) basicQueryError();
-                    return res.json();
-                }).then((json) => {
-                    if (json?.data?.f?.success == null) basicQueryError();
-                    loadThread(threadId,0,10);
-                });
-            },'forum_replyText');
+                    return;
+                }
+
+                replyFormDiv.innerHTML = '';
+                for (const e of Array.from(getNewReplyForm().children)) replyFormDiv.insertAdjacentElement('beforeend',e);
+
+                currReplyFormLoaded = name;
+                replyFormDiv.classList.remove('hide');
+                replyFormSetups.get(name)();
+            }
+
+            addReplyFormSetup('reply',(div) => {
+                setupReplyForm(div,(e) => {
+                    e.preventDefault();
+
+                    const data = new FormData(e.target);
+                    const submitButton = e.target.querySelector('input[type="submit"]');
+                    if (submitButton.disabled === true) return;
+                    submitButton.disabled = true;
+
+                    sendQuery(`mutation ForumAddComment(\$threadId:Int!,\$msg:String!) {
+                        f:forumThread_addComment(threadId:\$threadId,content:\$msg) {
+                            __typename
+                            success
+                            resultCode
+                            resultMessage
+                        }
+                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((res) => {
+                        if (!res.ok) basicQueryError();
+                        return res.json();
+                    }).then((json) => {
+                        if (json?.data?.f?.success == null) basicQueryError();
+                        loadThread(threadId,0,10);
+                    });
+                },'forum_replyText');
+            });            
 
             const actionsCont = document.querySelectorAll('#forumR .actions');
             for (const cont of actionsCont) {
@@ -806,9 +938,8 @@ function getForumMainElem() {
                 const reply = stringToNodes('<button class="button1 reply" type="button"><img src="https://data.twinoid.com/img/icons/edit.png"/>Répondre</button>')[0];
                 cont.insertAdjacentElement('beforeend',reply);
                 reply.addEventListener('click', () => {
-                    if (replyFormDiv.classList.contains('hide')) replyFormDiv.classList.remove('hide')
-                    else replyFormDiv.classList.add('hide');
-                    replyFormDiv.querySelector('textarea').focus();
+                    for (const e of document.querySelectorAll('#forum_comments .comment.selected')) e.classList.remove("selected");
+                    loadReplyForm('reply');
                 });
             }
             function getFollowButton() {
@@ -1287,6 +1418,49 @@ function getForumMainElem() {
             });
         }
     }
+    function contentToText(s) {
+        let res = '';
+        let sRpTextSpeaker = '';
+        let sPreQuote = '';
+        for (const node of s) {
+            switch (node.nodeName) {
+                case '#text': res += node.textContent; break;
+                case 'IMG': res += node.alt; break;
+                case 'BR': res += '\\n'; break;
+                case 'B': res +=  '**' + contentToText(node.childNodes) + '**'; break;
+                case 'I': res +=  '//' + contentToText(node.childNodes) + '//'; break;
+                case 'S': res +=  '--' + contentToText(node.childNodes) + '--'; break;
+                case 'PRE': res += '[code]' + contentToText(node.childNodes) + '[/code]\\n'; break;
+                case 'CODE': res += contentToText(node.childNodes); break;
+                case 'A': res += `[link=\${node.href}]` + contentToText(node.childNodes) + '[/link]'; break;
+                case 'BLOCKQUOTE':
+                    if (sPreQuote != '') res += `[cite=\${sPreQuote}]` + contentToText(node.childNodes) + '[/cite]\\n';
+                    else res += '[cite]' + contentToText(node.childNodes) + '[/cite]\\n';
+                    sPreQuote = '';
+                    break;
+                case 'DIV':
+                    if (node.classList.contains('rpText')) {
+                        if (sRpTextSpeaker != '') res += `[rp=\${sRpTextSpeaker}]` + contentToText(node.childNodes) + '[/rp]\\n';
+                        else res += '[rp]' + contentToText(node.childNodes) + '[/rp]\\n';
+                        sRpTextSpeaker = '';
+                    } else if (node.classList.contains('rpTextSpeaker')) sRpTextSpeaker = node.innerText;
+                    else res += contentToText(node.childNodes);
+                    break;
+                case 'SPAN':
+                    if (node.classList.contains('spoil')) res += '[spoil]' + contentToText(node.childNodes) + '[/spoil]';
+                    else res += contentToText(node.childNodes);
+                    break;
+                case 'P':
+                    if (node.classList.contains('spoil')) res += '[spoil=block;]' + contentToText(node.childNodes) + '[/spoil]\\n';
+                    else if (node.classList.contains('preQuote')) sPreQuote = node.innerText;
+                    else res += contentToText(node.childNodes);
+                    break;
+                default:
+                    console.error('unknown: '+node.nodeName);
+            }
+        }
+        return res;
+    }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
     setupPagInput(forumFooter,
         () => loadThreads(10),
@@ -1436,6 +1610,31 @@ function getForumMainElem() {
             }
         }
     }
+    function getNewReplyForm() {
+        return stringToNodes(`<div class="replyFormDiv">
+                <a class="previewToggler" href="#" onclick="return false;">Masquer / afficher l'aperçu de votre message</a>
+                <div class="preview"></div>
+            
+                <form class="replyForm">
+                    <div class="buttonBar">
+                        <button class="button1 bold" type="button">G</button><!--
+                        --><button class="button1 italic" type="button">I</button><!--
+                        --><button class="button1 strike" type="button">Barré</button><!--
+                        --><button class="button1 link" type="button">Lien</button><!--
+                        --><button class="button1 cite" type="button">Citer</button><!--
+                        --><button class="button1 spoil" type="button">Spoil</button><!--
+                        --><button class="button1 rp" type="button">Roleplay</button><!--
+                        --><button class="button1 code" type="button">Code</button>
+                    </div>
+                    <textarea name="msg"></textarea>
+                    <div class="emojisDiv">
+                        <div class="emojisButtons"></div>
+                        <div class="emojis"></div>
+                    </div>
+                    <input class="button2" type="submit" value="Envoyer"/>
+                </form>
+            </div>`)[0];
+    }
 
     document.querySelector('.newThreadLoader').addEventListener('click',loadNewThreadForm);
     document.querySelector('.searchLoader').addEventListener('click',loadSearchForm);
@@ -1574,7 +1773,7 @@ function getForumMainElem() {
         background-color: #F4F3F2;
         border-top: 1px solid rgba(0,0,0, 0.4);
         box-shadow: 0px 2px 2px rgb(0 0 0 / 15%);
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         padding: 0.6rem 0.6rem 0.6rem 5.9rem;
         margin: 0px 0px 1rem 0px;
         white-space: pre-wrap;
@@ -1669,6 +1868,12 @@ function getForumMainElem() {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
+    }
+    #mainDiv_forum .replyFormDiv .replyForm .formTitle {
+        padding: 0.4em 0.3em 0.3em 0.3em;
+        margin: 0em 0em 0.2em 0em;
+        border: 2px dashed red;
+        font-weight: bold;
     }
     #mainDiv_forum .replyFormDiv .replyForm div.title {
         display: flex;
@@ -1841,6 +2046,7 @@ function getForumMainElem() {
         color: white;
         position: relative;
         height: 2.3rem;
+        z-index: 1;
     }
     #forum_comments .header .name {
         position: absolute;
@@ -1875,16 +2081,36 @@ function getForumMainElem() {
     }
     #forum_comments .body {
         background-color: white;
-        min-height: 100px;
         margin: 0px 0.2rem 2.3rem 0.3rem;
         box-shadow: 0px 0px min(3px,0.2rem) 0px #00000088;
-        padding: 0.6rem 0.6rem 0.6rem 5.9rem;
+        padding: 0.6rem 0.4rem 0.4rem 5.9rem;
         font-size: 0.9rem;
-        white-space: pre-wrap;
         transition: box-shadow 0.25s;
+        position: relative;
+        z-index: 0;
+    }
+    #forum_comments .body .main {
+        white-space: pre-wrap;
+        min-height: 5rem;
+        margin: 0px 0px 0.3em 0px;
     }
     #forum_comments .comment.new .body {
         box-shadow: 0px 0px min(7px,1.2rem) min(5px,0.4rem) #ffdd79a6;
+    }
+    #forum_comments .comment.selected {
+        border: 2px dashed red;
+    }
+    #forum_comments .footer {
+        font-size: 0.7rem;
+        text-align: right;
+        margin: 0.2em 0px 0px 0px;
+    }
+    #forum_comments .footer *:not(last-child) {
+        margin: 0px 0px 0.1em 0px;
+    }
+    #forum_comments .footer .infos {
+        color: gray;
+        opacity: 0.8;
     }
     #searchForm {
         padding: 10px;
