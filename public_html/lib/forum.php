@@ -179,6 +179,30 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     return [$thread,$comment];
 }
 
+function remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+    $now = new \DateTimeImmutable('now');
+    $sNow = $now->format('Y-m-d H:i:s');
+    if (!check_can_remove_thread($conn,$user,$threadId,$now)) return ErrorType::PROHIBITED;
+
+    $conn->query('START TRANSACTION');
+    $threadRow = $conn->query("DELETE FROM threads WHERE id=$threadId RETURNING *")->fetch(\PDO::FETCH_ASSOC);
+    $conn->query("DELETE FROM comments WHERE thread_id=$threadId");
+
+    $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
+    $stmt->execute([$user->id,'forum','remThread',json_encode(['threadId' => $threadRow['id']]),$sNow]);
+
+    $thread = Thread::initFromRow($threadRow);
+    $conn->query('COMMIT');
+    return $thread;
+}
+
+function check_can_remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId, DateTimeInterface $currDate) {
+    $row = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
+    if ($row === false || ($user->id != $row['author_id'] && !$user->isAdministrator())) return false;
+    $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($row['creation_date']))->getTimestamp()) / 60;
+    return $minutes < 1.5;
+}
+
 function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, string $msg) {
     if (mb_strlen($msg) === 0) return ErrorType::MESSAGE_TOOSHORT;
     if (mb_strlen($msg) > 6000) return ErrorType::MESSAGE_TOOLONG;

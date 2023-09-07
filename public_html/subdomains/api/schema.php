@@ -42,7 +42,7 @@ use function LDLib\Auth\{
 use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
-    create_thread,
+    create_thread, remove_thread,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
     thread_follow, thread_unfollow,
@@ -190,6 +190,18 @@ class MutationType extends ObjectType {
                         if ($user == null) return ErrorType::USER_INVALID;
                         $v = create_thread(DBManager::getConnection(),$user,$args['title'],$args['tags'],$user->settings->defaultThreadPermission,$args['content']);
                         return $v instanceof ErrorType ? $v : $v[0]->id;
+                    }
+                ],
+                'forum_removeThread' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThread')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = remove_thread(DBManager::getConnection(),$user,$args['threadId']);
+                        return $v instanceof ErrorType ? $v : $v->id;
                     }
                 ],
                 'forumThread_addComment' => [
