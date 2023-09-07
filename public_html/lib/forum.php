@@ -313,6 +313,7 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
 }
 
 function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
+    if ($commNumber == 0) return false;
     $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
     if ($user->id != $commRow['author_id'] && !$user->isAdministrator()) return false;
     $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($commRow['creation_date']))->getTimestamp()) / 60;
