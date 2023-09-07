@@ -287,6 +287,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
                 break;
             default:
                 if ($ignoreSpec) { $ignoreSpec = false; $result .= '\\'; break; }
+                $skipIfNewLine = false;
                 $result .= htmlspecialchars($char);
                 break;
         }
