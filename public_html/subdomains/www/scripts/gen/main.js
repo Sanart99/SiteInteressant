@@ -1494,6 +1494,16 @@ function getForumMainElem() {
                 }).catch((e) => {if (e.name != 'AbortError') throw e; } );
             },100);
         });
+        replyFormTA.addEventListener('paste',(e) => {
+            if (replyFormDiv.querySelector('.opt_specChar').checked == false) return;
+            e.preventDefault();
+            const v = e.clipboardData.getData('text/plain').replaceAll(/[\\*\\/\\-\\[\\]]/g,(s) => '\\\\'+s);
+            const start = replyFormTA.selectionStart;
+            const end = replyFormTA.selectionEnd;
+            replyFormTA.value = replyFormTA.value.slice(0,start) + v + replyFormTA.value.slice(end);
+            replyFormTA.selectionStart = replyFormTA.selectionEnd = start+v.length;
+            replyFormTA.dispatchEvent(new Event('input'));
+        });
         if (sessionSaveName != null) {
             replyFormTA.value = sessionGet(sessionSaveName)??'';
             replyFormTA.dispatchEvent(new Event('input'));
@@ -1610,7 +1620,9 @@ function getForumMainElem() {
             }
         }
     }
+    let newReplyFormC = 0;
     function getNewReplyForm() {
+        newReplyFormC++;
         return stringToNodes(`<div class="replyFormDiv">
                 <a class="previewToggler" href="#" onclick="return false;">Masquer / afficher l'aperçu de votre message</a>
                 <div class="preview"></div>
@@ -1627,6 +1639,9 @@ function getForumMainElem() {
                         --><button class="button1 code" type="button">Code</button>
                     </div>
                     <textarea name="msg"></textarea>
+                    <div class="optDiv">
+                        <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                    </div>
                     <div class="emojisDiv">
                         <div class="emojisButtons"></div>
                         <div class="emojis"></div>
@@ -1902,6 +1917,13 @@ function getForumMainElem() {
         padding: 0.3rem;
         font-family: monospace;
         resize: vertical;
+    }
+    #mainDiv_forum .replyFormDiv .replyForm .optDiv {
+        margin: 0.3em;
+        font-size: 0.7em;
+    }
+    #mainDiv_forum .replyFormDiv .replyForm .optDiv input {
+        vertical-align: middle;
     }
     #mainDiv_forum .replyFormDiv .replyForm .emojis {
         background-color: var(--color-grey-lighter);
