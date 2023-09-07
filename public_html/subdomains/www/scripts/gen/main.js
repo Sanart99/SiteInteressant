@@ -1317,7 +1317,7 @@ function getForumMainElem() {
                     if (json?.data?.parseText == null) basicQueryError();
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
                     if (sessionSaveName != null) sessionSet(sessionSaveName,sToParse);
-                });
+                }).catch((e) => {if (e.name != 'AbortError') throw e; } );
             },100);
         });
         if (sessionSaveName != null) {
