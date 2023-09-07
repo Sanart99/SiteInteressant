@@ -46,7 +46,7 @@ use function LDLib\Forum\{
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
     thread_follow, thread_unfollow,
-    check_can_edit_comment, check_can_remove_comment
+    check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
 use function LDLib\Net\curl_fetch;
 use function LdLib\User\set_notification_to_read;
@@ -1098,6 +1098,10 @@ class ThreadType extends ObjectType {
                         $res = DBManager::getConnection()->query("SELECT COUNT(*) FROM comments WHERE thread_id={$row['data']['id']} AND JSON_CONTAINS(read_by, '{$user->id}')=0")->fetch(\PDO::FETCH_NUM);
                         return ($res[0]??0) === 0;
                     })
+                ],
+                'canRemove' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => check_can_remove_thread(DBManager::getConnection(), Context::getAuthenticatedUser(), $row['data']['id'], new \DateTime('now')))
                 ],
                 'firstUnreadComment' => [
                     'type' => fn() => Types::FirstUnreadComment(),
