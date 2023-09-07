@@ -302,7 +302,7 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     preg_match_all('/((?:<.+?>)*?(?:<p(?: .*?)?>|<pre><code>))((?:.|\s)*?)((?:<\/p>|<\/code><\/pre>)(?:<\/.+?>)*)/',$result,$mParts,PREG_SET_ORDER);
     foreach ($mParts as $part) {
         $correctedResult .= $part[1] . implode($tagActive);
-        preg_match_all('/(?(DEFINE)(?P<chars>[^<>]|<br\/>))(?:(?<begin>(?P>chars)*)(?:(?<A1>(?:<(?!\/).*?>)+.*?)(?<B>(?:<\/.*?>)+)|(?<A2>(?:<\/.*?>)+)|(?<A3>(?:<(?!\/).*?>)+(?P>chars)*))?(?<end>(?P>chars)*))/',$part[2],$m,PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+        preg_match_all('/(?(DEFINE)(?P<chars>[^<>]|<\w+.*?\/>|))(?:(?<begin>(?P>chars)*)(?:(?<A1>(?:<(?!\/).*?>)+.*?)(?<B>(?:<\/.*?>)+)|(?<A2>(?:<\/.*?>)+)|(?<A3>(?:<(?!\/).*?>)+(?P>chars)*))?(?<end>(?P>chars)*))/',$part[2],$m,PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
         for ($iM=0; $iM<count($m); $iM++) {
             $nextIsEmpty = isset($m[$iM+1]) && $m[$iM+1][0] == '';
             $v = $m[$iM];
