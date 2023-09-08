@@ -695,6 +695,8 @@ function getForumMainElem() {
                         <div class="footer"><p class="infos"></p><p class="actionLinks"></p></div>
                     </div>
                 </div>`)[0];
+
+                // Footer
                 const footerInfos = commentNode.querySelector('.footer p.infos');
                 let aFooterInfos = [];
                 if (comment.node.lastEditionDate != null) {
@@ -809,11 +811,31 @@ function getForumMainElem() {
                     });
                     aFooter.push(nodeDel);
                 }
+                const nodeCite = stringToNodes('<a class="cite" href="#" onclick="return false;">Citer</a>')[0];
+                nodeCite.addEventListener('click',() => {
+                    const replyFormDiv = forumR.querySelector('.replyFormDiv');
+                    if (replyFormDiv.classList.contains('hide')) replyFormDiv.classList.remove('hide');
+
+                    const citedUsername = commentNode.querySelector('.header .name').innerText;
+                    const sel = getSelection();
+                    const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
+                        `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
+                        : `[cite=\${citedUsername}]\${contentToText(stringToNodes(comment.node.content))}[/cite]`;
+                    
+                    const textarea = replyFormDiv.querySelector('textarea');
+                    const start = textarea.selectionStart;
+                    textarea.value = textarea.value.slice(0,start) + s + textarea.value.slice(start);
+                    textarea.selectionStart = start+s.length;
+                    textarea.dispatchEvent(new Event('input'));
+                    textarea.focus();
+                });
+                aFooter.push(nodeCite);
                 for (const n of aFooter) {
                     if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', ' - ');
                     footerP.insertAdjacentElement('beforeend',n);
                 }
 
+                // Events
                 let b = false;
                 commentNode.querySelector('.body').addEventListener('mouseover',() => {
                     if (!commentNode.classList.contains('new') || b) return;
@@ -851,6 +873,8 @@ function getForumMainElem() {
                         });
                     })
                 });
+
+                // Add element
                 eComments.insertAdjacentElement('beforeend',commentNode);
             }
 
@@ -873,7 +897,6 @@ function getForumMainElem() {
             const replyFormDiv = getNewReplyForm();
             const replyFormSetups = new Map();
             let currReplyFormLoaded = '';
-            replyFormDiv.classList.add('hide');
             forumR.insertAdjacentElement('beforeend',replyFormDiv);
             function addReplyFormSetup(name, f) {
                 replyFormSetups.set(name, () => f(replyFormDiv));
@@ -922,7 +945,9 @@ function getForumMainElem() {
                         loadThread(threadId,0,10);
                     });
                 },'forum_replyText');
-            });            
+            });
+            loadReplyForm('reply');
+            replyFormDiv.classList.add('hide');
 
             const actionsCont = document.querySelectorAll('#forumR .actions');
             for (const cont of actionsCont) {
