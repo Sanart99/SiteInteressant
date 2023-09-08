@@ -8,7 +8,7 @@ require_once $libDir.'/db.php';
 use Ds\Set;
 use GraphQL\Error\ClientAware;
 use LDLib\Database\LDPDO;
-use LDLib\Forum\{ForumSearchQuery,SearchSorting};
+use LDLib\Forum\{ForumSearchQuery,SearchSorting,ThreadPermission};
 use LDLib\General\ {
     PageInfo,
     PaginationVals
@@ -642,8 +642,9 @@ class ForumBuffer {
                 $rowUser = UsersBuffer::getFromId($userId);
                 if ($rowUser != null && $rowUser['data'] != null) {
                     $user = RegisteredUser::initFromRow($rowUser);
+                    $sRegistrationDate = $user->registrationDate->format('Y-m-d H:i:s');
                 }
-                $whereCond = is_null($user) ?  '' : "creation_date>='{$user->registrationDate->format('Y-m-d H:i:s')}'";
+                $whereCond = is_null($user) ?  '' : "creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."'";
 
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
