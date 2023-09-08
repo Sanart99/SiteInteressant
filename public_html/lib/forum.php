@@ -46,6 +46,10 @@ class Thread {
         $this->lastUpdateDate = $lastUpdateDate;
     }
 
+    public function isAccessibleToUser(RegisteredUser $user) {
+        return $this->permission == ThreadPermission::ALL_USERS || ($this->permission == ThreadPermission::CURRENT_USERS && $user->registrationDate <= $this->creationDate);
+    }
+
     public static function initFromRow(array $row) {
         $data = isset($row['data']) ? $row['data'] : $row;
         return new self($data['id'], $data['title'], $data['author_id'], explode(',',$data['tags']),
@@ -192,6 +196,46 @@ function remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
     $stmt->execute([$user->id,'forum','remThread',json_encode(['threadId' => $threadRow['id']]),$sNow]);
 
     $thread = Thread::initFromRow($threadRow);
+    $conn->query('COMMIT');
+    return $thread;
+}
+
+function kube_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+    $now = new \DateTimeImmutable('now');
+    $sNow = $now->format('Y-m-d H:i:s');
+    
+    $conn->query('START TRANSACTION');
+    $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
+    if ($threadRow === false) return ErrorType::NOTFOUND;
+    $thread = Thread::initFromRow($threadRow);
+    if (!$thread->isAccessibleToUser($user)) return ErrorType::PROHIBITED;
+    if ($conn->query("SELECT * FROM kubed_threads WHERE user_id={$user->id} AND thread_id={$thread->id}")->fetch() !== false) return ErrorType::DUPLICATE;
+    
+    $conn->query("INSERT INTO kubed_threads (user_id,thread_id,date) VALUES ({$user->id},{$thread->id},'$sNow')");
+
+    $stmt = $conn->prepare('INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)');
+    $stmt->execute([$user->id,'forum','kubeThread',json_encode(['threadId' => $thread->id]),$sNow]);
+    
+    $conn->query('COMMIT');
+    return $thread;
+}
+
+function unkube_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+    $now = new \DateTimeImmutable('now');
+    $sNow = $now->format('Y-m-d H:i:s');
+    
+    $conn->query('START TRANSACTION');
+    $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
+    if ($threadRow === false) return ErrorType::NOTFOUND;
+    $thread = Thread::initFromRow($threadRow);
+    if (!$thread->isAccessibleToUser($user)) return ErrorType::PROHIBITED;
+
+    $kThreadRow = $conn->query("DELETE FROM kubed_threads WHERE user_id={$user->id} AND thread_id={$thread->id} LIMIT 1 RETURNING *")->fetch(\PDO::FETCH_ASSOC);
+    if ($kThreadRow === false) return ErrorType::NOTFOUND;
+
+    $stmt = $conn->prepare('INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)');
+    $stmt->execute([$user->id,'forum','unkubeThread',json_encode(['threadId' => $thread->id]),$sNow]);
+    
     $conn->query('COMMIT');
     return $thread;
 }

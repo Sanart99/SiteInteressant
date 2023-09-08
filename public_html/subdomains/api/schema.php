@@ -43,6 +43,7 @@ use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
     create_thread, remove_thread,
+    kube_thread, unkube_thread,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
     thread_follow, thread_unfollow,
@@ -201,6 +202,30 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return ErrorType::USER_INVALID;
                         $v = remove_thread(DBManager::getConnection(),$user,$args['threadId']);
+                        return $v instanceof ErrorType ? $v : $v->id;
+                    }
+                ],
+                'forum_kubeThread' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThread')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = kube_thread(DBManager::getConnection(),$user,$args['threadId']);
+                        return $v instanceof ErrorType ? $v : $v->id;
+                    }
+                ],
+                'forum_unkubeThread' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThread')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return ErrorType::USER_INVALID;
+                        $v = unkube_thread(DBManager::getConnection(),$user,$args['threadId']);
                         return $v instanceof ErrorType ? $v : $v->id;
                     }
                 ],
@@ -1040,6 +1065,15 @@ class ThreadType extends ObjectType {
                 'followingIds' => [
                     'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
                     'resolve' => fn($o) => self::process($o,fn($row) => json_decode($row['data']['following_ids']) ),
+                ],
+                'kubedBy' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Types::RegisteredUser())),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $stmt = DBManager::getConnection()->query("SELECT user_id FROM kubed_threads WHERE thread_id={$row['data']['id']}");
+                        $res = [];
+                        while ($row = $stmt->fetch(\PDO::FETCH_NUM)) $res[] = $row[0];
+                        return $res;
+                    })
                 ],
                 'comments' => [
                     'type' => fn() => Types::getConnectionObjectType('Comment'),
