@@ -607,6 +607,10 @@ function getForumMainElem() {
                     title
                     followingIds
                     canRemove
+                    kubedBy {
+                        dbId
+                        name
+                    }
                     comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,
                         withPageCount:true,withLastPageSpecialBehavior:true,toFirstUnreadComment:\$toFirstUnreadComment) {
                         edges {
@@ -659,6 +663,13 @@ function getForumMainElem() {
                         <div class="actions"></div>
                     </div>
                 </div>
+                <div class="subheader">
+                    <div class="infos1"></div>
+                    <div class="infos2 hide">
+                        <div class="main"></div>
+                        <p><a class="infos2Msg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                    </div>
+                </div>
                 <div id="forum_comments"></div>
                 <div class="forum_footer">
                     <div class="actions"></div>
@@ -676,6 +687,97 @@ function getForumMainElem() {
                     cont.insertAdjacentElement('beforeend', paginationDiv);
                 }
             }
+
+            const kubersIds = []; for (const o of json.data.node.kubedBy) kubersIds.push(o.dbId);
+            const eInfos1 = forumR.querySelector('.subheader .infos1');
+            const eInfos2 = forumR.querySelector('.subheader .infos2');
+            const eInfos2Main = eInfos2.querySelector('.main');
+            const eKubes = stringToNodes(`<p>Kubes : <span class="nKubes"></span> - <a href="#" onclick="return false;"></a></p>`)[0];
+            eKubes.querySelector('.nKubes').innerHTML = json.data.node.kubedBy.length;
+            const eAddKube = stringToNodes(`<a href="#" onclick="return false;">Kuber</a>`)[0];
+            const eRemKube = stringToNodes(`<a href="#" onclick="return false;">Dékuber</a>`)[0];
+            let bKubing = false;
+            let bUnkubing = false;
+            eAddKube.addEventListener('click',() => {
+                if (bKubing) return;
+                bKubing = true;
+                let oldS = eAddKube.innerHTML;
+                eAddKube.innerHTML = 'Kubage en cours...';
+                sendQuery(`mutation KubeThread (\$threadId:Int!) {
+                    f:forum_kubeThread(threadId:\$threadId) {
+                        __typename
+                        success
+                        resultCode
+                        resultMessage
+                        thread {
+                            kubedBy {
+                                name
+                            }
+                        }
+                    }
+                }`,{threadId:threadDbId}).then((res) => {
+                    if (!res.ok) basicQueryError();
+                    return res.json();
+                }).then((json) => {
+                    if (json?.data?.f?.success != true) basicQueryError();
+                    bKubing = false;
+                    eAddKube.innerHTML = oldS;
+                    eAddKube.replaceWith(eRemKube);
+                    eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
+                    reloadInfos2(json.data.f.thread);
+                });
+            });
+            eRemKube.addEventListener('click',() => {
+                if (bUnkubing) return;
+                bUnkubing = true;
+                let oldS = eRemKube.innerHTML;
+                eRemKube.innerHTML = 'Dékubage en cours...';
+                sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
+                    f:forum_unkubeThread(threadId:\$threadId) {
+                        __typename
+                        success
+                        resultCode
+                        resultMessage
+                        thread {
+                            kubedBy {
+                                name
+                            }
+                        }
+                    }
+                }`,{threadId:threadDbId}).then((res) => {
+                    if (!res.ok) basicQueryError();
+                    return res.json();
+                }).then((json) => {
+                    if (json?.data?.f?.success != true) basicQueryError();
+                    bUnkubing = false;
+                    eRemKube.innerHTML = oldS;
+                    eRemKube.replaceWith(eAddKube);
+                    eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
+                    reloadInfos2(json.data.f.thread);
+                });
+            });
+            eKubes.querySelector('a').replaceWith(kubersIds.includes(json.data.viewer.dbId) ? eRemKube : eAddKube);
+            eInfos1.insertAdjacentElement('beforeend', eKubes);
+
+            function reloadInfos2(threadData) {
+                if (threadData == null) return;
+                const kubersName = []; for (const o of threadData.kubedBy) kubersName.push(o.name);
+                const sUsers = kubersName.length == 0 ? '[Aucun]'  : kubersName.join(', ');
+                const n = stringToNodes(`<p>Kubeurs : \${sUsers}</p>`)[0];
+                eInfos2Main.innerHTML = '';
+                eInfos2Main.insertAdjacentElement('beforeend',n);
+            }
+            reloadInfos2(json.data.node);
+
+            eInfos2.querySelector('.infos2Msg').addEventListener('click',(e) => {
+                if (eInfos2.classList.contains('hide')) {
+                    e.target.innerHTML = "Moins d'informations...";
+                    eInfos2.classList.remove('hide');
+                } else {
+                    e.target.innerHTML = "Plus d'informations...";
+                    eInfos2.classList.add('hide');
+                }
+            });
 
             const eComments = document.querySelector('#forum_comments');
             const comments = json.data.node.comments;
@@ -2085,7 +2187,7 @@ function getForumMainElem() {
         font-weight: bold;
     }
     #forum_comments {
-        margin: 2.5rem 0px 0px 0px;
+        margin: 2rem 0px 0px 0px;
     }
     #forum_comments .header {
         background-color: var(--color-black-2);
@@ -2230,6 +2332,27 @@ function getForumMainElem() {
         background-color: #B63B00;
         opacity: 0.83;
         padding: 0.4rem;
+    }
+    #mainDiv_forum .subheader .infos1 {
+        font-size: 0.8em;
+    }
+    #mainDiv_forum .subheader .infos2 {
+        font-size: 0.7rem;
+        text-align: center;
+        border-bottom: 1px dotted black;
+        padding: 0px 0px 0.4em 0px;
+    }
+    #mainDiv_forum .subheader .infos2 > .main {
+        text-align: left;
+        transition: all 0.5s;
+        overflow: hidden;
+        max-height: 1em;
+        margin: 1em 0px 0px 0px;
+    }
+    #mainDiv_forum .subheader .infos2.hide > .main {
+        height: 0%;
+        margin: 0;
+        max-height: 0;
     }
     #mainDiv_forum .forum_footer, #mainDiv_forum .pagDivDiv {
         display: flex;
