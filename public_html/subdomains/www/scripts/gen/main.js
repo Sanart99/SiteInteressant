@@ -1999,6 +1999,7 @@ function getForumMainElem() {
         border: 1px solid rgba(255,255,255, 0.5);
         overflow: auto;
         font-size: 0.7rem;
+        max-height: 71em;
     }
     #mainDiv_forum .replyFormDiv .replyForm {
         box-shadow: 0px 1px 2px black;
