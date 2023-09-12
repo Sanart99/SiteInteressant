@@ -457,6 +457,64 @@ class MutationType extends ObjectType {
                             $stmt->execute([':userId' => $args['forUserId'], ':id' => $d['emoji_id'], ':amount' => $d['amount']??null]);
                         }
                     }
+                ],
+                'uploadTidThreads' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'resolve' => function() {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null || !$user->titles->contains('Administrator')) return ErrorType::OPERATION_UNAUTHORIZED;
+                        if (!isset($_FILES['threads'])) return ErrorType::NOTFOUND;
+                        ini_set('memory_limit','300M');
+                        $threads = json_decode(file_get_contents($_FILES['threads']['tmp_name']),true)['threads'];
+                        $conn = DBManager::getConnection();
+                        $conn->query('START TRANSACTION');
+
+
+                        $sqlThreads = 'REPLACE INTO tid_threads (id,author_id,title,created_at,minor_tag,major_tag,states,kube_count,page_count,comment_count) VALUES ';
+                        $valsThreads = [];
+                        $iThr = 0;
+                        foreach ($threads as $th) {
+                            if ($iThr > 0) $sqlThreads .= ', ';
+                            $sqlThreads .= "(:id_$iThr,:authorId_$iThr,:title_$iThr,:createdAt_$iThr,:minorTag_$iThr,:majorTag_$iThr,:states_$iThr,:kubeCount_$iThr,:pageCount_$iThr,:commentCount_$iThr)";
+                            $firstComment = $th['comments'][0];
+                            $valsThreads[":id_$iThr"] = $th['id'];
+                            $valsThreads[":authorId_$iThr"] = $firstComment['authorID'];
+                            $valsThreads[":title_$iThr"] = $th['title'];
+                            $valsThreads[":createdAt_$iThr"] = $firstComment['deducedDate'];
+                            $valsThreads[":minorTag_$iThr"] = $th['minorTag'];
+                            $valsThreads[":majorTag_$iThr"] = $th['majorTag'];
+                            $valsThreads[":states_$iThr"] = $th['states'] == null ? null : json_encode($th['states']);
+                            $valsThreads[":kubeCount_$iThr"] = $th['kubes'];
+                            $valsThreads[":pageCount_$iThr"] = $th['pages'];
+                            $valsThreads[":commentCount_$iThr"] = count($th['comments']);
+                            $iThr++;
+
+                            $sqlComments = 'REPLACE INTO tid_comments (thread_id,id,author_id,states,content,content_warning,displayed_date,deduced_date,load_timestamp) VALUES ';
+                            $valsComments = [];
+                            $iComm = 0;
+                            foreach ($th['comments'] as $comm) {
+                                if ($iComm > 0) $sqlComments .= ', ';
+                                $sqlComments .= "(:thread_id_$iComm,:id_$iComm,:author_id_$iComm,:states_$iComm,:content_$iComm,:content_warning_$iComm,:displayed_date_$iComm,:deduced_date_$iComm,:load_timestamp_$iComm)";
+                                $valsComments[":thread_id_$iComm"] = $th['id'];
+                                $valsComments[":id_$iComm"] = $comm['id'];
+                                $valsComments[":author_id_$iComm"] = $comm['authorID'];
+                                $valsComments[":states_$iComm"] = $comm['states'] == null ? null : json_encode($comm['states']);
+                                $valsComments[":content_$iComm"] = $comm['content'];
+                                $valsComments[":content_warning_$iComm"] = $comm['contentWarning'];
+                                $valsComments[":displayed_date_$iComm"] = $comm['displayedDate'];
+                                $valsComments[":deduced_date_$iComm"] = $comm['deducedDate'];
+                                $valsComments[":load_timestamp_$iComm"] = $comm['loadTimestamp'];
+                                $iComm++;
+                            }
+                            $stmt = $conn->prepare($sqlComments);
+                            $stmt->execute($valsComments);
+                        }
+                        $stmt = $conn->prepare($sqlThreads);
+                        $stmt->execute($valsThreads);
+
+                        $conn->query('COMMIT');
+                        return true;
+                    }
                 ]
             ]
         ]);
