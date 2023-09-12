@@ -1468,7 +1468,7 @@ function getForumMainElem() {
                             </div>`)[0];
                             break;
                         case 'TidThread':
-                            e = stringToNodes(`<div class="searchItem">
+                            e = stringToNodes(`<div class="searchItem tid">
                                 <div class="infos">
                                     <p><b>Titre :</b> \${item.thread.title}</p>
                                     <p><b>ID Utilisateur :</b> \${item.comment.authorId}</p>
@@ -1922,7 +1922,8 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview blockquote,
     #mainDiv_forum .comment .body blockquote,
-    #mainDiv_forum #searchFormResults .content blockquote {
+    #mainDiv_forum #searchFormResults .content blockquote,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content cite {
         padding: 0.3rem 0px 0.3rem 0.3rem;
         border-left: 1px dashed rgba(0,0,0, 0.6);
         border-bottom: 1px dashed rgba(0,0,0, 0.6);
@@ -1932,48 +1933,56 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .preQuote,
     #mainDiv_forum .comment .body .preQuote,
-    #mainDiv_forum #searchFormResults .content .preQuote {
+    #mainDiv_forum #searchFormResults .content .preQuote,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preCite *:not(.tid_user) {
         font-size: 80%;
         font-weight: bold;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil,
     #mainDiv_forum .comment .body .spoil,
-    #mainDiv_forum #searchFormResults .content .spoil {
+    #mainDiv_forum #searchFormResults .content .spoil,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil {
         cursor: help;
         background-image: url(https://data.twinoid.com/img/design/spoiler.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt,
     #mainDiv_forum .comment .body .spoil .spoilTxt,
-    #mainDiv_forum #searchFormResults .content .spoil .spoilTxt {
+    #mainDiv_forum #searchFormResults .content .spoil .spoilTxt,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil {
         opacity:0;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover,
     #mainDiv_forum .comment .body .spoil:hover,
-    #mainDiv_forum #searchFormResults .content .spoil:hover {
+    #mainDiv_forum #searchFormResults .content .spoil:hover,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil:hover {
         background-image: url(https://data.twinoid.com/img/design/spoiler_hover.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt,
     #mainDiv_forum .comment .body .spoil:hover .spoilTxt,
-    #mainDiv_forum #searchFormResults .content .spoil:hover .spoilTxt {
+    #mainDiv_forum #searchFormResults .content .spoil:hover .spoilTxt,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil:hover {
         opacity:unset;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before,
     #mainDiv_forum .comment .body .rpTextSpeaker > p::before,
-    #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before {
+    #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay::before {
         content: url(https://data.twinoid.com/img/icons/rp.png);
         margin: 0px 0.2em 0px 0px;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker,
     #mainDiv_forum .comment .body .rpTextSpeaker,
-    #mainDiv_forum #searchFormResults .content .rpTextSpeaker {
+    #mainDiv_forum #searchFormResults .content .rpTextSpeaker,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay {
         font-weight: bold;
         font-size: 90%;
         font-style: italic;
-        margin: 0px 0px 0px 1%;
+        margin: 0.6em 0px 0px 1%;
     }
     #mainDiv_forum .replyFormDiv .preview .rpText::before,
     #mainDiv_forum .comment .body .rpText::before,
-    #mainDiv_forum #searchFormResults .content .rpText::before {
+    #mainDiv_forum #searchFormResults .content .rpText::before,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay::before {
         display: block;
         position:absolute;
         content: url(https://data.twinoid.com/img/design/arrowUp.png);
@@ -1981,14 +1990,15 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpText,
     #mainDiv_forum .comment .body .rpText,
-    #mainDiv_forum #searchFormResults .content .rpText {
+    #mainDiv_forum #searchFormResults .content .rpText,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         background: #dddbd8;
         border: 1px solid #efefef;
         box-shadow: 0px 0px 2px black;
         border-radius: 6px;
         padding: 3px;
         font-size: 0.9rem;
-        margin: 0.5rem 20% 0px 0.75rem;
+        margin: 0.5rem 20% 0.5rem 0.75rem;
     }
     #mainDiv_forum .replyFormDiv .preview pre,
     #mainDiv_forum .comment .body pre,
@@ -2000,6 +2010,66 @@ function getForumMainElem() {
         overflow: auto;
         font-size: 0.7rem;
         max-height: 71em;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content cite,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay,
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
+        display: block;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_user {
+        background-image: url(https://data.twinoid.com/img/icons/notContact.png);
+        background-repeat: no-repeat;
+        background-position: top right;
+        border-top: 1px solid #fe7d00;
+        background-color: #bd3d00;
+        padding-left: 4px;
+        color: white;
+        box-shadow: 0px 0px 1px black;
+        white-space: nowrap;
+        border-radius: 4px;
+        padding-right: 13px !important;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce {
+        display: block;
+        margin: 1em;
+        padding: 0.7em;
+        padding-left: 2em;
+        border: 1px solid #6B7087;
+        border-radius: 4px;
+        text-shadow: 0px 1px 0px #3b4151;
+        color: white;
+        background-image: url(https://data.twinoid.com/img/design/announceBg.png);
+        background-position: bottom left;
+        background-repeat: no-repeat;
+        background-color: #3b4151;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod::before {
+        content: "Message d'un modérateur";
+        position: absolute;
+        top: 0.5em;
+        color: #F4DF8B;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod {
+        display: block;
+        margin: 1em;
+        padding: 0.7em;
+        padding-left: 0.75em;
+        padding-top: 2em;
+        background-color: #bd3d00;
+        border-radius: 3px;
+        color: white;
+        position: relative;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_strike {
+        text-decoration: line-through;
+        opacity: 0.8;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content em {
+        opacity: 0.7;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content strong {
+        color: #3b4151;
     }
     #mainDiv_forum .replyFormDiv .replyForm {
         box-shadow: 0px 1px 2px black;
