@@ -2071,6 +2071,9 @@ function getForumMainElem() {
     #mainDiv_forum #searchFormResults .searchItem.tid .content strong {
         color: #3b4151;
     }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce strong {
+        color: inherit;
+    }
     #mainDiv_forum .replyFormDiv .replyForm {
         box-shadow: 0px 1px 2px black;
         color: white;
