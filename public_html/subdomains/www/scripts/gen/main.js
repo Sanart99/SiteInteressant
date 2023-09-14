@@ -2029,6 +2029,7 @@ function getForumMainElem() {
         white-space: nowrap;
         border-radius: 4px;
         padding-right: 13px !important;
+        cursor: default;
     }
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce {
         display: block;
