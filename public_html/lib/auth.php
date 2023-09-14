@@ -13,7 +13,10 @@ use LDLib\User\RegisteredUser;
 
 use function LDLib\Database\{get_lock,release_lock};
 
+$usernameRegex = '/^[\w\-]+$/u';
+
 function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?string $appId):OperationResult {
+    global $usernameRegex;
     $now = new \DateTime('now');
     $sNow = $now->format('Y-m-d H:i:s');
     $appId = ($appId == null && isset(Context::$headers['user-agent'])) ? Context::$headers['user-agent'] : 'EMPTY USER AGENT';
@@ -29,7 +32,7 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
     if ($conn->query("SELECT COUNT(*) FROM connection_attempts WHERE DATE(date)=DATE('$sNow') AND successful=0")->fetch()[0] >= 10) return new OperationResult(ErrorType::PROHIBITED, 'Too many failed connection attempts for today.');
     
     // Check name+pwd
-    if (preg_match('/\w+/',$name) == 0) return new OperationResult(ErrorType::INVALID_DATA, "The username contains invalid characters.");
+    if (preg_match($usernameRegex,$name) == 0) return new OperationResult(ErrorType::INVALID_DATA, "The username contains invalid characters.");
     $m = crypt_password($pwd);
     $stmt = $conn->prepare("SELECT * FROM users WHERE name=? AND password=? LIMIT 1");
     $stmt->execute([$name,$m[2]]);
@@ -67,10 +70,11 @@ function logout_user_from_everything(LDPDO $conn, int $userId):OperationResult {
 }
 
 function register_user(LDPDO $conn, string $username, string $password, string $inviteSid):OperationResult {
+    global $usernameRegex;
     if (mb_strlen($username, "utf8") > 30) return new OperationResult(ErrorType::INVALID_DATA, 'The username must not have more than 30 characters.');
     else if (strlen($password) < 6) return new OperationResult(ErrorType::INVALID_DATA, 'The password length must be greater than 5 characters.');
     else if (strlen($password) > 150) return new OperationResult(ErrorType::INVALID_DATA, 'The password length must not be greater than 150 characters.');
-    else if (preg_match('/^[\w\-_]+$/u', $username) < 1) return new OperationResult(ErrorType::INVALID_DATA, 'The username contains invalid characters.');
+    else if (preg_match($usernameRegex, $username) < 1) return new OperationResult(ErrorType::INVALID_DATA, 'The username contains invalid characters.');
     else if ($conn->query("SELECT * FROM users WHERE name='$username' LIMIT 1")->fetch() !== false) return new OperationResult(ErrorType::DUPLICATE, 'This username is already taken.');
     else if (!isset($inviteSid)) return new OperationResult(ErrorType::CONTEXT_INVALID, 'Invite session ID not set.');
     $inviteRow = verify_invite_sid($conn,$inviteSid);
