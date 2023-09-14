@@ -966,7 +966,6 @@ function getForumMainElem() {
                         if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
 
                         commentNode.classList.remove('new');
-                        document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`)?.classList.remove('new'); //! shouldn't happen here, right?
                         sendQuery(`query (\$threadId:ID!) {
                             node(id:\$threadId) {
                                 id
@@ -980,8 +979,11 @@ function getForumMainElem() {
                         }).then((json) => {
                             if (json?.data?.node?.isRead == null) basicQueryResultCheck();
                             if (json.data.node.isRead == false) return;
-                            const e = document.querySelector(`#forum_threads tr[data-node-id="\${threadId}"] .statusIcons .new`);
-                            if (e != null) e.style.display = 'none';
+                            const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                            if (e != null) {
+                                e.classList.remove('new');
+                                e.querySelector('.statusIcons .new').style.display = 'none';
+                            }
                         });
                     })
                 });
