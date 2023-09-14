@@ -1459,6 +1459,7 @@ function getForumMainElem() {
                             e = stringToNodes(`<div class="searchItem">
                                 <div class="infos">
                                     <p><b>Titre :</b> \${item.thread.title}</p>
+                                    <p><b>ID Topic :</b> \${item.thread.dbId}</p>
                                     <p><b>ID Utilisateur :</b> \${item.comment.author.dbId}</p>
                                 </div>
                                 <div class="content">\${item.comment.content}</div>
@@ -1471,6 +1472,7 @@ function getForumMainElem() {
                             e = stringToNodes(`<div class="searchItem tid">
                                 <div class="infos">
                                     <p><b>Titre :</b> \${item.thread.title}</p>
+                                    <p><b>ID Topic :</b> \${item.thread.dbId}</p>
                                     <p><b>ID Utilisateur :</b> \${item.comment.authorId}</p>
                                 </div>
                                 <div class="content">\${item.comment.content}</div>
