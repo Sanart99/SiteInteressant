@@ -1,5 +1,10 @@
 <?php
 header('Content-Type: text/javascript');
+$libDir = __DIR__.'/../../../lib';
+require_once $libDir.'/utils/utils.php';
+dotenv();
+
+$testMode = (int)$_SERVER['LD_TEST'] == 1 ? 'true' : 'false'; 
 echo <<<JAVASCRIPT
 function _(s) { return document.querySelector(s); }
 function _all(s) { return document.querySelectorAll(s); }
@@ -10,9 +15,23 @@ function stringToNodes(s) {
     return tpl.content.cloneNode(true).childNodes;
 }
 
-function basicQueryError(msg) {
-    alert(msg instanceof String ? msg : 'Erreur interne.');
-    throw new Error('Internal error.');
+function basicQueryResultCheck(operationResult, preventThrow = false) {
+    if (operationResult == null) {
+        alert('Erreur interne.');
+        if (preventThrow != true) throw new Error('Internal error.');
+        console.error('Internal error.');
+        return false;
+    } else if (!operationResult.success) {
+        alert(queryOperationResultMessage(operationResult))
+        return false;
+    }
+
+    return true;
+}
+
+function queryOperationResultMessage(operationResult) {
+    const loadedInTestMode = $testMode;
+    return loadedInTestMode ? `[\${operationResult.resultCode}] \${operationResult.resultMessage}` : `\${operationResult.resultMessage}`;
 }
 
 function getDateAsString(date) {
@@ -29,7 +48,7 @@ function getDateAsString(date) {
 
 async function isServerInTestMode() {
     return await sendQuery(`query { testMode }`).then((res) => {
-        if (!res.ok) basicQueryError();
+        if (!res.ok) basicQueryResultCheck();
         else return res.json();
     }).then((json) => json?.data?.testMode == true);
 }

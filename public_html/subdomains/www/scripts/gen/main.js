@@ -122,10 +122,10 @@ function getIndexElems() {
                 }
             }
         }`).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             return res.json();
         }).then((json) => {
-            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) basicQueryError();
+            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) basicQueryResultCheck();
             gettingEvents = false;
             const records = json.data.records;
             const notifications = json.data.viewer.notifications;
@@ -210,11 +210,11 @@ function getIndexElems() {
                                 resultMessage
                             }
                         }`,{userId:userId,number:notification.number}).then((res) => {
-                            if (!res.ok) basicQueryError();
+                            if (!res.ok) basicQueryResultCheck();
                             return res.json();
                         }).then((json) => {
-                            if (json?.data?.f?.success == null) basicQueryError();
-                            if (!json.data.f.success) return;
+                            if (!basicQueryResultCheck(json?.data?.f)) return;
+                            
                             node.classList.remove('new');
                             setRecentEventsN(--recentEventsN);
                         });
@@ -258,10 +258,10 @@ function getIndexElems() {
         topBar.style.display = rightBar.style.display = '';
 
         sendQuery(`query { viewer { name avatarURL } }`).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             return res.json();
         }).then((json) => {
-            if (json?.data?.viewer?.name == null) basicQueryError();
+            if (json?.data?.viewer?.name == null) basicQueryResultCheck();
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
@@ -544,10 +544,10 @@ function getForumMainElem() {
                 }
             }
         }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             return res.json();
         }).then((json) => {
-            if (json?.data?.forum?.threads?.edges == null) basicQueryError();
+            if (json?.data?.forum?.threads?.edges == null) basicQueryResultCheck();
             const tBody = document.querySelector('#forum_threads tbody');
             const threads = json.data.forum.threads;
             tBody.innerHTML = '';
@@ -646,10 +646,10 @@ function getForumMainElem() {
                 }
             }
         }`,{threadId:threadId,first:first,last:last,after:after,before:before,skipPages:skipPages,toFirstUnreadComment:toFirstUnreadComment}).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             return res.json();
         }).then((json) => {
-            if (json?.data?.node?.comments?.edges == null) basicQueryError();
+            if (json?.data?.node?.comments?.edges == null) basicQueryResultCheck();
             currThreadId = threadId;
             highlightThread(currThreadId);
             const threadDbId = json.data.node.comments.edges[0].node.threadId;
@@ -716,12 +716,13 @@ function getForumMainElem() {
                         }
                     }
                 }`,{threadId:threadDbId}).then((res) => {
-                    if (!res.ok) basicQueryError();
+                    if (!res.ok) basicQueryResultCheck();
                     return res.json();
                 }).then((json) => {
-                    if (json?.data?.f?.success != true) basicQueryError();
                     bKubing = false;
                     eAddKube.innerHTML = oldS;
+                    if (!basicQueryResultCheck(json?.data?.f)) return;
+
                     eAddKube.replaceWith(eRemKube);
                     eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
                     reloadInfos2(json.data.f.thread);
@@ -745,12 +746,13 @@ function getForumMainElem() {
                         }
                     }
                 }`,{threadId:threadDbId}).then((res) => {
-                    if (!res.ok) basicQueryError();
+                    if (!res.ok) basicQueryResultCheck();
                     return res.json();
                 }).then((json) => {
-                    if (json?.data?.f?.success != true) basicQueryError();
                     bUnkubing = false;
                     eRemKube.innerHTML = oldS;
+                    if (!basicQueryResultCheck(json?.data?.f)) return;
+
                     eRemKube.replaceWith(eAddKube);
                     eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
                     reloadInfos2(json.data.f.thread);
@@ -819,7 +821,7 @@ function getForumMainElem() {
 
                         commentNode.classList.add('selected');
                         if (replyFormSetups.get(replyFormId) == null) {
-                            addReplyFormSetup(replyFormId,(div) => {
+                            addReplyFormSetup(replyFormId,async (div) => {
                                 if (comment.node.number == 0) {
                                     const nodeTitle = stringToNodes(`<div class="title">
                                         <label for="editThread_title">Titre : </label><input id="editThread_title" class="inputText1" type="text" name="title"/>
@@ -830,11 +832,15 @@ function getForumMainElem() {
                                     input.addEventListener('input',() => sessionSet('title',input.value));
                                 }
                                 div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
-                                setupReplyForm(div,(e) => {
+                                setupReplyForm(div,async (e) => {
                                     e.preventDefault();
+                                    const submitButton = e.target.querySelector('input[type="submit"]');
+                                    if (submitButton.disabled === true) return;
+                                    submitButton.disabled = true;
+
                                     const data = new FormData(e.target);
                                     const title = data.get('title');
-                                    sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
+                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
                                         f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
                                             __typename
                                             success
@@ -842,12 +848,14 @@ function getForumMainElem() {
                                             resultMessage
                                         }
                                     }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((res) => {
-                                        if (!res.ok) basicQueryError();
+                                        if (!res.ok) basicQueryResultCheck();
                                         return res.json();
                                     }).then((json) => {
-                                        if (json?.data?.f?.success != true) basicQueryError();
+                                        if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
+
                                         if (comment.node.number == 0) sessionRem(titleId);
                                         location.reload();
+                                        return true;
                                     });
                                 },replyFormId);
                             });
@@ -872,7 +880,9 @@ function getForumMainElem() {
                             <input id="askDelete_delete" type="button" value="Supprimer"/>
                         </div>`)[0];
                         e.querySelector('#askDelete_cancel').addEventListener('click',() => { popupDiv.close(); e.remove(); });
-                        e.querySelector('#askDelete_delete').addEventListener('click',() => {
+                        const delBut = e.querySelector('#askDelete_delete');
+                        delBut.disabled = true;
+                        delBut.addEventListener('click',() => {
                             if (comment.node.number == 0) {
                                 sendQuery(`mutation RemoveThread (\$threadId:Int!) {
                                     f:forum_removeThread(threadId:\$threadId) {
@@ -882,10 +892,10 @@ function getForumMainElem() {
                                         resultMessage
                                     }
                                 }`,{threadId:threadDbId}).then((res) => {
-                                    if (!res.ok) basicQueryError();
+                                    if (!res.ok) basicQueryResultCheck();
                                     return res.json();
                                 }).then((json) => {
-                                    if (json?.data?.f?.success != true) basicQueryError();
+                                    if (!basicQueryResultCheck(json?.data?.f)) return;
                                     location.href = "$root/forum";
                                 });
                             } else {
@@ -898,10 +908,10 @@ function getForumMainElem() {
                                         }
                                     }
                                 `,{threadId:threadDbId,commNumber:comment.node.number}).then((res) => {
-                                    if (!res.ok) basicQueryError();
+                                    if (!res.ok) basicQueryResultCheck();
                                     return res.json();
                                 }).then((json) => {
-                                    if (json?.data?.f?.success != true) basicQueryError();
+                                    if(!basicQueryResultCheck(json?.data?.f)) return;
                                     location.reload();
                                 });
                             }
@@ -950,13 +960,13 @@ function getForumMainElem() {
                             resultMessage
                         }
                     }`.trim(),{threadId:json.data.node.dbId,commNumber:comment.node.number}).then((res) => {
-                        if (!res.ok) basicQueryError();
+                        if (!res.ok) basicQueryResultCheck();
                         return res.json();
                     }).then((json) => {
-                        if (json?.data?.f?.success == null) basicQueryError();
-                        if (json.data.f.success == false) return;
+                        if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
+
                         commentNode.classList.remove('new');
-                        document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`)?.classList.remove('new');
+                        document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`)?.classList.remove('new'); //! shouldn't happen here, right?
                         sendQuery(`query (\$threadId:ID!) {
                             node(id:\$threadId) {
                                 id
@@ -965,10 +975,10 @@ function getForumMainElem() {
                                 }
                             }
                         }`,{threadId:threadId}).then((res) => {
-                            if (!res.ok) basicQueryError();
+                            if (!res.ok) basicQueryResultCheck();
                             return res.json();
                         }).then((json) => {
-                            if (json?.data?.node?.isRead == null) basicQueryError();
+                            if (json?.data?.node?.isRead == null) basicQueryResultCheck();
                             if (json.data.node.isRead == false) return;
                             const e = document.querySelector(`#forum_threads tr[data-node-id="\${threadId}"] .statusIcons .new`);
                             if (e != null) e.style.display = 'none';
@@ -1024,7 +1034,7 @@ function getForumMainElem() {
             }
 
             addReplyFormSetup('reply',(div) => {
-                setupReplyForm(div,(e) => {
+                setupReplyForm(div,async (e) => {
                     e.preventDefault();
 
                     const data = new FormData(e.target);
@@ -1032,7 +1042,7 @@ function getForumMainElem() {
                     if (submitButton.disabled === true) return;
                     submitButton.disabled = true;
 
-                    sendQuery(`mutation ForumAddComment(\$threadId:Int!,\$msg:String!) {
+                    return await sendQuery(`mutation ForumAddComment(\$threadId:Int!,\$msg:String!) {
                         f:forumThread_addComment(threadId:\$threadId,content:\$msg) {
                             __typename
                             success
@@ -1040,11 +1050,12 @@ function getForumMainElem() {
                             resultMessage
                         }
                     }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((res) => {
-                        if (!res.ok) basicQueryError();
+                        if (!res.ok) basicQueryResultCheck();
                         return res.json();
                     }).then((json) => {
-                        if (json?.data?.f?.success == null) basicQueryError();
+                        if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
                         loadThread(threadId,0,10);
+                        return true;
                     });
                 },'forum_replyText');
             });
@@ -1072,6 +1083,8 @@ function getForumMainElem() {
             function getFollowButton() {
                 const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="https://data.twinoid.com/img/icons/mail.png" />Suivre</p></button>')[0];
                 e.addEventListener('click',() => {
+                    const buttons = document.querySelectorAll('#forumR .actions .follow');
+                    for (const e of buttons) e.disabled = true;
                     sendQuery(`mutation Follow(\$threadId:Int!) {
                         f:forumThread_follow(threadId:\$threadId) {
                             __typename
@@ -1080,12 +1093,15 @@ function getForumMainElem() {
                             resultMessage
                         }
                     }`,{threadId:json.data.node.dbId},null,'Follow').then((res) => {
-                        if (!res.ok) basicQueryError();
+                        if (!res.ok) basicQueryResultCheck();
                         return res.json();
                     }).then((json) => {
-                        if (json?.data?.f?.success == null) basicQueryError();
-                        if (json.data.f.success !== true) return;
-                        for (const e of document.querySelectorAll('#forumR .actions .follow')) e.replaceWith(getUnfollowButton());
+                        if (!basicQueryResultCheck(json?.data?.f,true)) {
+                            for (const e of buttons) e.disabled = false;
+                            return;
+                        }
+
+                        for (const e of buttons) e.replaceWith(getUnfollowButton());
                     });
                 });
                 return e;
@@ -1093,6 +1109,8 @@ function getForumMainElem() {
             function getUnfollowButton() {
                 const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="https://data.twinoid.com/img/icons/remove.png" />Ne plus suivre</p></button>')[0];
                 e.addEventListener('click',() => {
+                    const buttons = document.querySelectorAll('#forumR .actions .follow');
+                    for (const e of buttons) e.disabled = true;
                     sendQuery(`mutation Unfollow(\$threadId:Int!) {
                         f:forumThread_unfollow(threadId:\$threadId) {
                             __typename
@@ -1101,12 +1119,15 @@ function getForumMainElem() {
                             resultMessage
                         }
                     }`,{threadId:json.data.node.dbId},null,'Unfollow').then((res) => {
-                        if (!res.ok) basicQueryError();
+                        if (!res.ok) basicQueryResultCheck();
                         return res.json();
                     }).then((json) => {
-                        if (json?.data?.f?.success == null) basicQueryError();
-                        if (json.data.f.success !== true) return;
-                        for (const e of document.querySelectorAll('#forumR .actions .follow')) e.replaceWith(getFollowButton());
+                        if (!basicQueryResultCheck(json?.data?.f,true)) {
+                            for (const e of buttons) e.disabled = false;
+                            return;
+                        }
+
+                        for (const e of buttons) e.replaceWith(getFollowButton());
                     });
                 });
                 return e;
@@ -1244,14 +1265,14 @@ function getForumMainElem() {
         });
         back.style.display = mobileMode ? '' : 'none';
 
-        setupReplyForm(forumR.querySelector('.replyFormDiv'),(e) => {
+        setupReplyForm(forumR.querySelector('.replyFormDiv'), async (e) => {
             e.preventDefault();
             const data = new FormData(e.target);
             const submitButton = e.target.querySelector('input[type="submit"]');
             if (submitButton.disabled === true) return;
             submitButton.disabled = true;
 
-            sendQuery(`mutation NewThread(\$title:String!,\$tags:[String!]!,\$msg:String!) {
+            return await sendQuery(`mutation NewThread(\$title:String!,\$tags:[String!]!,\$msg:String!) {
                 f:forum_newThread(title:\$title,tags:\$tags,content:\$msg) {
                     __typename
                     success
@@ -1265,12 +1286,17 @@ function getForumMainElem() {
                     }
                 }
             }`,{title:data.get('title'),tags:[],msg:data.get('msg')}).then((res) => {
-                if (!res.ok) basicQueryError();
+                if (!res.ok) basicQueryResultCheck();
                 return res.json();
             }).then((json) => {
-                if (json?.data?.f?.thread?.id == null) basicQueryError();
+                if (json?.data?.f?.thread?.id == null) {
+                    basicQueryResultCheck(null,true);
+                    submitButton.disabled = false;
+                    return false;
+                }
                 loadPage(`$root/forum/\${json.data.f.thread.dbId}`, StateAction.PushState);
                 loadThreads(10);
+                return true;
             });
         },'forum_newThreadText');
         forumR.querySelector('.replyForm textarea').focus();
@@ -1347,7 +1373,7 @@ function getForumMainElem() {
         const searchFormResults = forumR.querySelector('#searchFormResults');
         const submitButton = forumR.querySelector('input[type="submit"]');
         let keywords, threadType, sortBy, startDate, endDate, userIds = '';
-        searchForm.addEventListener('submit',(e) => {
+        searchForm.addEventListener('submit',async (e) => {
             e.preventDefault();
             if (submitButton.disabled === true) return;
             submitButton.disabled = true;
@@ -1362,11 +1388,12 @@ function getForumMainElem() {
             let m = /^[^\(]+\((\d+)\)$/.exec(data.get('author'));
             userIds = m == null ? null : [parseInt(m[1])];
 
-            loadSearchResults(10);
+            await loadSearchResults(10);
+            submitButton.disabled = false;
         });
 
-        function loadSearchResults(first,last,after,before,skipPages = 0) {
-            sendQuery(`query Search(
+        async function loadSearchResults(first,last,after,before,skipPages = 0) {
+            await sendQuery(`query Search(
                 \$keywords:String!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,
                 \$startDate:DateTime,\$endDate:DateTime,\$userIds:[Int!],\$threadType:ThreadType,
                 \$sortBy:SearchSorting!,\$skipPages:Int!
@@ -1444,11 +1471,13 @@ function getForumMainElem() {
                     }
                 }
             }`,{keywords:keywords,first:first,last:last,after:after,before:before,sortBy:sortBy,startDate:startDate,endDate:endDate,userIds:userIds,threadType:threadType,skipPages:skipPages}).then((res) => {
-                if (!res.ok) basicQueryError();
+                if (!res.ok) basicQueryResultCheck();
                 return res.json();
             }).then((json) => {
-                if (json?.data?.search?.edges == null) basicQueryError();
-                submitButton.disabled = false;
+                if (json?.data?.search?.edges == null) {
+                    basicQueryResultCheck(null,true);
+                    return;
+                }
 
                 searchFormResults.innerHTML = '';
                 for (const edge of json.data.search.edges) {
@@ -1532,10 +1561,10 @@ function getForumMainElem() {
                     }
                 }
             }`,{twinoidUsers:twinoidUsers}).then((res) => {
-                if (!res.ok) basicQueryError();
+                if (!res.ok) basicQueryResultCheck();
                 return res.json();
             }).then((json) => {
-                if (json?.data?.userlist?.edges == null) basicQueryError();
+                if (json?.data?.userlist?.edges == null) basicQueryResultCheck();
 
                 const eUserlist = document.querySelector('#dl_userlist');
                 eUserlist.innerHTML = '<option></option>';
@@ -1614,10 +1643,10 @@ function getForumMainElem() {
                     parseText(text:\$msg)
                 }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((res) => {
                     acReplyForm = null;
-                    if (!res.ok) basicQueryError();
+                    if (!res.ok) basicQueryResultCheck();
                     return res.json();
                 }).then((json) => {
-                    if (json?.data?.parseText == null) basicQueryError();
+                    if (json?.data?.parseText == null) { basicQueryResultCheck(null,true); return; }
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
                     if (sessionSaveName != null) sessionSet(sessionSaveName,sToParse);
                 }).catch((e) => {if (e.name != 'AbortError') throw e; } );
@@ -1638,9 +1667,9 @@ function getForumMainElem() {
             replyFormTA.dispatchEvent(new Event('input'));
         }
         
-        replyForm.addEventListener('submit',(e) => {
-            onSubmit(e);
-            if (sessionSaveName != null) sessionRem(sessionSaveName);
+        replyForm.addEventListener('submit',async (e) => {
+            const res = await onSubmit(e);
+            if (sessionSaveName != null && res === true) sessionRem(sessionSaveName);
         });
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
@@ -1698,10 +1727,10 @@ function getForumMainElem() {
                 }
             }
             }`).then((res) => {
-                if (!res.ok) basicQueryError();
+                if (!res.ok) basicQueryResultCheck();
                 return res.json();
             }).then((json) => {
-                if (json?.data?.viewer?.emojis?.edges == null) basicQueryError();
+                if (json?.data?.viewer?.emojis?.edges == null) basicQueryResultCheck();
                 const emojis = json.data.viewer.emojis;
                 const categories = {};
                 for (const edge of emojis.edges) {

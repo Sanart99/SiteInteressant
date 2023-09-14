@@ -163,19 +163,16 @@ function getConnexionForm() {
                 }
             }
         }`,{username:username,password:password}).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             else return res.json();
         }).then(async (json) => {
-            if (json?.data?.loginUser?.success == null) basicQueryError();
-            if (json.data.loginUser.success === true) {
-                location.reload();
-            } else {
-                let msg = 'Nom et/ou mot de passe incorrect(s).';
-                if (await isServerInTestMode() == true) msg = `[\${json.data.loginUser.resultCode}] ` + msg;
-                alert(msg);
+            if (!basicQueryResultCheck(json?.data?.loginUser,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
-            }
+                return;
+            };
+
+            location.reload();
         });
     });
     invite.addEventListener('submit', (event) => {
@@ -194,17 +191,16 @@ function getConnexionForm() {
                 resultMessage
             }
         }`,{code:code},null,'ProcessInviteCode').then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             else return res.json();
         }).then((json) => {
-            if (json?.data?.processInviteCode?.success == null) basicQueryError();
-            if (json.data.processInviteCode.success === true) {
-                connexionForm.openTo('#connexionForm_register');
-            } else {
-                alert('Code non valide.');
+            if (!basicQueryResultCheck(json?.data?.processInviteCode,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
+                return;
             }
+            
+            connexionForm.openTo('#connexionForm_register');
         });
     });
     register.addEventListener('submit', (event) => {
@@ -224,19 +220,17 @@ function getConnexionForm() {
                 resultMessage
             }
         }`,{username:username, password:password},null,'RegisterUser').then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             else return res.json();
         }).then((json) => {
-            if (json?.data?.registerUser?.success == null) basicQueryError();
+            if (!basicQueryResultCheck(json?.data?.registerUser,true)) {
+                submit.value = submitOldValue;
+                submit.disabled = false;
+                return;
+            };
             
-            submit.value = submitOldValue;
-            submit.disabled = false;
-            if (json.data.registerUser.success === true) {
-                alert('Vous pouvez maintenant vous connecter !');
-                connexionForm.openTo('#connexionForm_connect');
-            } else {
-                alert('Nom et/ou mot de passe incorrect(s).');
-            }
+            alert('Vous pouvez maintenant vous connecter !');
+            connexionForm.openTo('#connexionForm_connect');
         });
     });
 
@@ -305,10 +299,10 @@ function getDisconnectElem() {
                 resultMessage
             }
         }`).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             else return res.json();
         }).then((json) => {
-            if (json?.data?.logoutUser?.success == null) basicQueryError();
+            if (!basicQueryResultCheck(json?.data?.logoutUser,true)) return;
             location.reload();
         });
     });
@@ -349,11 +343,11 @@ function getEditAvatar() {
             credentials: 'include'
         }
         fetch("{$_SERVER['LD_LINK_GRAPHQL']}",options).then((res) => {
-            if (!res.ok) basicQueryError();
+            if (!res.ok) basicQueryResultCheck();
             else return res.json();
         }).then((json) => {
-            if (json?.data?.uploadAvatar?.success == null) basicQueryError();
-            if (json.data.uploadAvatar.success == true) location.reload();
+            if (!basicQueryResultCheck(json?.data?.uploadAvatar)) return;
+            location.reload();
         });
     })
 
