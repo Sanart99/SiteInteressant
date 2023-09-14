@@ -4,7 +4,7 @@ namespace LDLib\User;
 use Ds\Set;
 use LDLib\Forum\ThreadPermission;
 use LDLib\Database\LDPDO;
-use LDLib\General\ErrorType;
+use LDLib\General\{ErrorType,OperationResult,SuccessType};
 
 abstract class User {
     public readonly int $id;
@@ -54,14 +54,14 @@ class UserSettings {
     }
 }
 
-function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateTimeInterface $dt = null) {
+function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateTimeInterface $dt = null):OperationResult {
     $notification = $conn->query("SELECT * FROM notifications WHERE user_id=$userId AND number=$number")->fetch(\PDO::FETCH_ASSOC);
-    if ($notification == false) return ErrorType::NOTFOUND;
+    if ($notification == false) return new OperationResult(ErrorType::NOT_FOUND, "The notification doesn't exist.");
     if ($notification['read_date'] != null) return true;
     
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
     // $conn->query("UPDATE notifications SET read_date='$sNow' WHERE user_id=$userId AND number=$number");
     $conn->query("DELETE FROM notifications WHERE user_id=$userId AND number=$number LIMIT 1");
-    return true;
+    return new OperationResult(SuccessType::SUCCESS);
 }
 ?>

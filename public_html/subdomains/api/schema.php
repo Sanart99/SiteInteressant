@@ -17,13 +17,15 @@ dotenv();
 use Ds\Set;
 use GraphQL\Error\{Error, InvariantViolation};
 use GraphQL\Language\AST\{Node, StringValueNode};
-use GraphQL\Type\Definition\{InterfaceType, Type, ObjectType, PhpEnumType, ResolveInfo, ScalarType, UnionType};
+use GraphQL\Type\Definition\{InterfaceType, Type, ObjectType, PhpEnumType, ScalarType, UnionType};
 use GraphQL\Utils\Utils;
 use LDLib\Database\LDPDO;
 use LDLib\General\{
     ErrorType,
     PageInfo,
-    TypedException
+    SuccessType,
+    TypedException,
+    OperationResult
 };
 use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSorting, TidComment, TidThread};
 use LDLib\User\RegisteredUser;
@@ -188,9 +190,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = create_thread(DBManager::getConnection(),$user,$args['title'],$args['tags'],$user->settings->defaultThreadPermission,$args['content']);
-                        return $v instanceof ErrorType ? $v : $v[0]->id;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return create_thread(DBManager::getConnection(),$user,$args['title'],$args['tags'],$user->settings->defaultThreadPermission,$args['content']);
                     }
                 ],
                 'forum_removeThread' => [
@@ -200,9 +201,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = remove_thread(DBManager::getConnection(),$user,$args['threadId']);
-                        return $v instanceof ErrorType ? $v : $v->id;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return remove_thread(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
                 'forum_kubeThread' => [
@@ -212,9 +212,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o, $args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = kube_thread(DBManager::getConnection(),$user,$args['threadId']);
-                        return $v instanceof ErrorType ? $v : $v->id;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return kube_thread(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
                 'forum_unkubeThread' => [
@@ -224,9 +223,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o, $args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = unkube_thread(DBManager::getConnection(),$user,$args['threadId']);
-                        return $v instanceof ErrorType ? $v : $v->id;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return unkube_thread(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
                 'forumThread_addComment' => [
@@ -237,9 +235,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = thread_add_comment(DBManager::getConnection(),$user,$args['threadId'],$args['content']);
-                        return $v instanceof ErrorType ? $v : true;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return thread_add_comment(DBManager::getConnection(),$user,$args['threadId'],$args['content']);
                     }
                 ],
                 'forumThread_editComment' => [
@@ -252,9 +249,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null);
-                        return $v instanceof ErrorType ? $v : true;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null);
                     }
                 ],
                 'forumThread_removeComment' => [
@@ -265,9 +261,8 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $v = thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
-                        return $v instanceof ErrorType ? $v : true;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
                     }
                 ],
                 'forumThread_markCommentAsRead' => [
@@ -278,7 +273,7 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_mark_comment_as_read(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
                     }
                 ],
@@ -289,7 +284,7 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_follow(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
@@ -300,7 +295,7 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_unfollow(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
@@ -311,26 +306,24 @@ class MutationType extends ObjectType {
                         'password' => Type::nonNull(Type::string())
                     ],
                     'resolve' => function($o,$args) {
-                        if (Context::getAuthenticatedUser() != null) return ErrorType::OPERATION_UNAUTHORIZED;
-                        $user = login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
-                        return $user instanceof ErrorType ? $user : $user->id;
+                        if (Context::getAuthenticatedUser() != null) return new OperationResult(ErrorType::CONTEXT_INVALID);
+                        return login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
                     }
                 ],
                 'logoutUser' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'resolve' => function ($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        $rowDeleted = logout_user(DBManager::getConnection(), $user->id);
-                        return "Row deleted: ".($rowDeleted === true ? 'true' : 'false');
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return logout_user(DBManager::getConnection(), $user->id);
                     }
                 ],
                 'logoutUserFromEverything' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'resolve' => function ($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        return 'Disconnected from '.(string)logout_user_from_everything(DBManager::getConnection(), $user->id).' device(s).';
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return logout_user_from_everything(DBManager::getConnection(), $user->id);
                     }
                 ],
                 'processInviteCode' => [
@@ -339,8 +332,7 @@ class MutationType extends ObjectType {
                         'code' => Type::nonNull(Type::string())
                     ],
                     'resolve' => function($o, $args) {
-                        $v = process_invite_code(DBManager::getConnection(), $args['code']);
-                        return $v instanceof ErrorType ? $v : true;
+                        return process_invite_code(DBManager::getConnection(), $args['code']);
                     }
                 ],
                 'registerUser' => [
@@ -351,9 +343,10 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o, $args) {
                         $authUser = Context::getAuthenticatedUser();
-                        if ($authUser != null || !isset($_COOKIE['invite_sid'])) return ErrorType::OPERATION_UNAUTHORIZED;
-                        $user = register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
-                        return $user instanceof ErrorType ? $user : $user->id;
+                        if ($authUser != null) return new OperationResult(ErrorType::CONTEXT_INVALID, "A user is currently authenticated.");
+                        else if (!isset($_COOKIE['invite_sid'])) return new OperationResult(ErrorType::CONTEXT_INVALID, "Cookie 'invite_sid' not set.");
+
+                        return register_user(DBManager::getConnection(), $args['username'], $args['password'], $_COOKIE['invite_sid']);
                     }
                 ],
                 'setNotificationToRead' => [
@@ -364,7 +357,9 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null || $user->id != $args['userId']) return ErrorType::OPERATION_UNAUTHORIZED;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        else if ($user->id != $args['userId']) return new OperationResult(ErrorType::CONTEXT_INVALID);
+
                         return set_notification_to_read(DBManager::getConnection(),$args['userId'],$args['number']);
                     }
                 ],
@@ -372,21 +367,25 @@ class MutationType extends ObjectType {
                     'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnRegisteredUser')),
                     'resolve' => function() {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null) return ErrorType::USER_INVALID;
-                        if (!isset($_FILES['imgAvatar'])) return ErrorType::NOTFOUND;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        if (!isset($_FILES['imgAvatar'])) return new OperationResult(ErrorType::CONTEXT_INVALID, "Image file not found.");
                         $file = $_FILES['imgAvatar'];
-                        if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK || $file['size'] > 20000000) return ErrorType::INVALID;
+
+                        if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK) return new OperationResult(ErrorType::CONTEXT_INVALID, "Image file error.");
+                        else if ($file['size'] > 20000000) return new OperationResult(ErrorType::CONTEXT_INVALID, "File size must not be greater than 20MB.");
+
                         $ext = array_search(mime_content_type($file['tmp_name']),[
                             'jpg' => 'image/jpeg',
                             'gif' => 'image/gif',
                             'png' => 'image/png'
                         ], true);
-                        if ($ext === false) return ErrorType::INVALID;
+                        if ($ext === false) return new OperationResult(ErrorType::INVALID, "Invalid image type.");
                         
                         $avatarName = "{$user->id}-".sha1_file($file['tmp_name']).".$ext";
                         $v = move_uploaded_file($file['tmp_name'],Context::$avatarsDir."/$avatarName");
-                        if ($v === false) return ErrorType::UNKNOWN;
-                        if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return ErrorType::DATABASE_ERROR;
+                        if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
+                        if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
                         return $user->id;
                     }
                 ],
@@ -397,11 +396,12 @@ class MutationType extends ObjectType {
                     ],
                     'resolve' => function($o, $args) {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null || !$user->titles->contains('Administrator')) return ErrorType::OPERATION_UNAUTHORIZED;
-                        if (!isset($_FILES['smileysJSON'])) return ErrorType::NOTFOUND;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        else if (!$user->titles->contains('Administrator')) return new OperationResult(ErrorType::NOT_ENOUGH_PRIVILEGES);
+                        if (!isset($_FILES['smileysJSON'])) return new OperationResult(ErrorType::CONTEXT_INVALID, "JSON missing.");
 
                         $tidDir = __DIR__.'/../res/emojis/tid';
-                        if (!file_exists($tidDir)) if (!mkdir($tidDir)) return ErrorType::UNKNOWN;
+                        if (!file_exists($tidDir)) if (!mkdir($tidDir)) return new OperationResult(ErrorType::FILE_OPERATION_ERROR);
                         $tidDir = realpath($tidDir);
 
                         $json = json_decode(file_get_contents($_FILES['smileysJSON']['tmp_name']),true);
@@ -412,7 +412,7 @@ class MutationType extends ObjectType {
                         foreach ($json as $category => $smData) {
                             $category = htmlspecialchars($category);
                             $dirCategory = "$tidDir/$category";
-                            if (!file_exists($dirCategory)) if (!mkdir($dirCategory)) return ErrorType::UNKNOWN;
+                            if (!file_exists($dirCategory)) if (!mkdir($dirCategory)) return new OperationResult(ErrorType::FILE_OPERATION_ERROR);
                             foreach ($smData as $sm) {
                                 if (preg_match('/\/([^\/]*)$/',$sm['src'],$m) == 0 || !is_array($sm['txts']) ) continue;
                                 $name = $m[1];
@@ -462,8 +462,9 @@ class MutationType extends ObjectType {
                     'type' => fn() => Types::SimpleOperation(),
                     'resolve' => function() {
                         $user = Context::getAuthenticatedUser();
-                        if ($user == null || !$user->titles->contains('Administrator')) return ErrorType::OPERATION_UNAUTHORIZED;
-                        if (!isset($_FILES['threads'])) return ErrorType::NOTFOUND;
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        else if (!$user->titles->contains('Administrator')) return new OperationResult(ErrorType::NOT_ENOUGH_PRIVILEGES);
+                        if (!isset($_FILES['threads'])) return new OperationResult(ErrorType::CONTEXT_INVALID, "JSON missing.");
                         ini_set('memory_limit','300M');
                         $threads = json_decode(file_get_contents($_FILES['threads']['tmp_name']),true)['threads'];
                         $conn = DBManager::getConnection();
@@ -535,7 +536,7 @@ class NodeType extends InterfaceType {
                     case (preg_match('/^forum_tid_\d+$/',$id,$m) > 0): $s = 'TidThread'; break;
                     case (preg_match('/^forum_\d+-\d+$/',$id,$m) > 0): $s = 'Comment'; break;
                     case (preg_match('/^forum_tid_\d+-\d+$/',$id,$m) > 0): $s = 'TidComment'; break;
-                    default: throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOTFOUND);
+                    default: throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOT_FOUND);
                 }
 
                 if (isset($s)) try {
@@ -543,7 +544,7 @@ class NodeType extends InterfaceType {
                     return $rm->invoke(null);
                 } catch (\Exception $e) { }
                 
-                throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOTFOUND);
+                throw new TypedException("Couldn't find a node with id '$id'.", ErrorType::NOT_FOUND);
             }
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -556,15 +557,15 @@ class OperationType extends InterfaceType {
             'fields' => [
                 'success' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
-                    'resolve' => fn($o) => !($o instanceof ErrorType)
+                    'resolve' => fn($o) => $o->resultType instanceof SuccessType
                 ],
                 'resultCode' => [
                     'type' => fn() => Type::nonNull(Type::string()),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? $o->name : 'no_problem'
+                    'resolve' => fn($o) => $o->resultType->name
                 ],
                 'resultMessage' => [
                     'type' => fn() => Type::nonNull(Type::string()),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : 'No problem detected.'
+                    'resolve' => fn($o) => $o->resultMsg 
                 ]
             ]
         ];
@@ -642,10 +643,7 @@ class SimpleOperationType extends ObjectType {
             'fields' => [
                 Types::Operation()->getField('success'),
                 Types::Operation()->getField('resultCode'),
-                'resultMessage' => [
-                    'type' => fn() => Type::nonNull(Type::string()),
-                    'resolve' => fn($o) => $o instanceof ErrorType ? 'Something went wrong.' : (is_string($o) ? $o : 'No problem detected.')
-                ]
+                Types::Operation()->getField('resultMessage')
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -1610,15 +1608,17 @@ class Generator {
     public static function genQuickOperation(string $name, array $fieldsKV) {
         if (preg_match('/^\w+$/',$name) === 0) throw new \Exception("genOperation error: $name");
         $sFields = '';
+        $iKV = 0;
         foreach ($fieldsKV as $k => $v)
             if (preg_match('/^\w+$/',$k) === 0 || preg_match('/^[\w:\(\)$]+$/',$v) === 0) throw new \Exception("genOperation error: [$k=>$v]");
             else {
                 $sFields .= <<<PHP
                 '$k' => [
                     'type' => $v,
-                    'resolve' => fn(\$o) => \$o instanceof ErrorType ? null : \$o
+                    'resolve' => fn(\$o) => \$o->fieldsData[$iKV]??null
                 ],
                 PHP;
+                $iKV++;
             }
 
         eval(<<<PHP

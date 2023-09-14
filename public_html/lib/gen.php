@@ -73,33 +73,26 @@ class PageInfo {
     }
 }
 
+enum SuccessType {
+    case SUCCESS;
+}
+
 enum ErrorType {
-    case USER_INVALID;
-    case USERNAME_INVALID;
-    case PASSWORD_INVALID;
-    case EMAIL_INVALID;
-    case EMAIL_DUPLICATE;
-
-    case INVITECODE_INVALID;
-    case INVITECODE_EXPIRED;
-    case INVITECODE_LIMITREACHED;
-    case INVITECODE_NOTFOUND;
-    case INVITECODE_ALREADYPROCESSED;
-
-    case TITLE_TOOLONG;
-    case MESSAGE_TOOSHORT;
-    case MESSAGE_TOOLONG;
-    case TAG_INVALID;
-
-    case DBLOCK_TAKEN;
-
-    case PROHIBITED;
+    case CONTEXT_INVALID;
     case DATABASE_ERROR;
-    case OPERATION_UNAUTHORIZED;
+    case DBLOCK_TAKEN;
     case DUPLICATE;
-    case NOTFOUND;
     case EXPIRED;
+    case FILE_OPERATION_ERROR;
     case INVALID;
+    case INVALID_DATA;
+    case LIMIT_REACHED;
+    case NOT_AUTHENTICATED;
+    case NOT_ENOUGH_PRIVILEGES;
+    case NOT_FOUND;
+    case PROHIBITED;
+    case USELESS;
+    
     case UNKNOWN;
 }
 
@@ -114,5 +107,19 @@ class TypedException extends \Exception implements \GraphQL\Error\ClientAware {
     public function getErrorType():ErrorType { return $this->errorType; }
 
     public function isClientSafe():bool { return true; }
+}
+
+class OperationResult {
+    public string $resultMsg = '';
+
+    public function __construct(public SuccessType|ErrorType $resultType, ?string $resultMsg = null, public array $fieldsData = [], public array $data = []) {
+        if ($resultMsg != null) $this->resultMsg = $resultMsg;
+        else switch ($resultType) {
+            case ErrorType::INVALID_DATA: $this->resultMsg = 'Invalid data.'; break;
+            case ErrorType::NOT_AUTHENTICATED: $this->resultMsg = 'User not authenticated.'; break;
+            case ErrorType::NOT_ENOUGH_PRIVILEGES: $this->resultMsg = 'User not authorized.'; break;
+            default: $this->resultMsg = $resultType instanceof ErrorType ? 'Something went wrong.' : 'No problem detected.'; break;
+        }
+    }
 }
 ?>

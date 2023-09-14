@@ -5,7 +5,10 @@ use DateTimeInterface;
 use LDLib\General\ErrorType;
 use LDLib\User\RegisteredUser;
 use LDLib\Database\LDPDO;
+use LDLib\General\OperationResult;
+use LDLib\General\SuccessType;
 use Schema\ForumBuffer;
+use Schema\OperationType;
 
 use function LDLib\Database\{get_lock,release_lock};
 use function LDLib\Parser\textToHTML;
@@ -155,11 +158,11 @@ class ForumSearchQuery {
     }
 }
 
-function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $tags, ThreadPermission $permission, string $msg) {
-    if (mb_strlen($title) > 175) return ErrorType::TITLE_TOOLONG;
-    if (mb_strlen($msg) === 0) return ErrorType::MESSAGE_TOOSHORT;
-    if (mb_strlen($msg) > 6000) return ErrorType::MESSAGE_TOOLONG;
-    foreach ($tags as $tag) if (!is_string($tag) || str_contains($tag,',')) return ErrorType::TAG_INVALID;
+function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $tags, ThreadPermission $permission, string $msg):OperationResult {
+    if (mb_strlen($title) > 175) return new OperationResult(ErrorType::INVALID_DATA, 'The title must be less than 175 characters.');
+    if (mb_strlen($msg) === 0) return new OperationResult(ErrorType::INVALID_DATA, 'The content must contain at least one character.');
+    if (mb_strlen($msg) > 6000) return new OperationResult(ErrorType::INVALID_DATA, 'The content must not contain more than 6000 characters.');
+    foreach ($tags as $tag) if (!is_string($tag) || str_contains($tag,',')) return new OperationResult(ErrorType::INVALID_DATA, 'One or multiple tags are invalid.');
 
     $conn->query('START TRANSACTION');
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
@@ -180,13 +183,13 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     ForumBuffer::storeComment($commentRow);
     $thread = Thread::initFromRow($threadRow);
     $comment = Comment::initFromRow($commentRow);
-    return [$thread,$comment];
+    return new OperationResult(SuccessType::SUCCESS, null, [$thread->id], [$thread,$comment]);
 }
 
-function remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+function remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
-    if (!check_can_remove_thread($conn,$user,$threadId,$now)) return ErrorType::PROHIBITED;
+    if (!check_can_remove_thread($conn,$user,$threadId,$now)) return new OperationResult(ErrorType::PROHIBITED, "Thread can't be deleted.");
 
     $conn->query('START TRANSACTION');
     $threadRow = $conn->query("DELETE FROM threads WHERE id=$threadId RETURNING *")->fetch(\PDO::FETCH_ASSOC);
@@ -197,19 +200,20 @@ function remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
 
     $thread = Thread::initFromRow($threadRow);
     $conn->query('COMMIT');
-    return $thread;
+    return new OperationResult(SuccessType::SUCCESS, null, [$thread->id], [$thread]);
 }
 
-function kube_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+function kube_thread(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
     
     $conn->query('START TRANSACTION');
     $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
-    if ($threadRow === false) return ErrorType::NOTFOUND;
+    if ($threadRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'Thread not found.');
     $thread = Thread::initFromRow($threadRow);
-    if (!$thread->isAccessibleToUser($user)) return ErrorType::PROHIBITED;
-    if ($conn->query("SELECT * FROM kubed_threads WHERE user_id={$user->id} AND thread_id={$thread->id}")->fetch() !== false) return ErrorType::DUPLICATE;
+    if (!$thread->isAccessibleToUser($user)) return new OperationResult(ErrorType::PROHIBITED, 'User unauthorized to access thread.');
+    if ($conn->query("SELECT * FROM kubed_threads WHERE user_id={$user->id} AND thread_id={$thread->id}")->fetch() !== false)
+        return new OperationResult(ErrorType::USELESS, 'Thread already kubed.', [$thread->id], [$thread]);
     
     $conn->query("INSERT INTO kubed_threads (user_id,thread_id,date) VALUES ({$user->id},{$thread->id},'$sNow')");
 
@@ -217,27 +221,27 @@ function kube_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
     $stmt->execute([$user->id,'forum','kubeThread',json_encode(['threadId' => $thread->id]),$sNow]);
     
     $conn->query('COMMIT');
-    return $thread;
+    return new OperationResult(SuccessType::SUCCESS, null, [$thread->id], [$thread]);
 }
 
-function unkube_thread(LDPDO $conn, RegisteredUser $user, int $threadId) {
+function unkube_thread(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
     
     $conn->query('START TRANSACTION');
     $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
-    if ($threadRow === false) return ErrorType::NOTFOUND;
+    if ($threadRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'Thread not found.');
     $thread = Thread::initFromRow($threadRow);
-    if (!$thread->isAccessibleToUser($user)) return ErrorType::PROHIBITED;
+    if (!$thread->isAccessibleToUser($user)) return new OperationResult(ErrorType::PROHIBITED, 'The user is unauthorized to access the thread.');
 
     $kThreadRow = $conn->query("DELETE FROM kubed_threads WHERE user_id={$user->id} AND thread_id={$thread->id} LIMIT 1 RETURNING *")->fetch(\PDO::FETCH_ASSOC);
-    if ($kThreadRow === false) return ErrorType::NOTFOUND;
+    if ($kThreadRow === false) return new OperationResult(ErrorType::USELESS, 'Thread isn\'t kubed.', [$thread->id], [$thread]);
 
     $stmt = $conn->prepare('INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)');
     $stmt->execute([$user->id,'forum','unkubeThread',json_encode(['threadId' => $thread->id]),$sNow]);
     
     $conn->query('COMMIT');
-    return $thread;
+    return new OperationResult(SuccessType::SUCCESS, null, [$thread->id], [$thread]);
 }
 
 function check_can_remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId, DateTimeInterface $currDate) {
@@ -247,9 +251,9 @@ function check_can_remove_thread(LDPDO $conn, RegisteredUser $user, int $threadI
     return $minutes < 1.5;
 }
 
-function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, string $msg) {
-    if (mb_strlen($msg) === 0) return ErrorType::MESSAGE_TOOSHORT;
-    if (mb_strlen($msg) > 6000) return ErrorType::MESSAGE_TOOLONG;
+function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, string $msg):OperationResult {
+    if (mb_strlen($msg) === 0) return new OperationResult(ErrorType::INVALID_DATA, 'The content must contain at least one character.');
+    if (mb_strlen($msg) > 6000) return new OperationResult(ErrorType::INVALID_DATA, 'The content must not contain more than 6000 characters.');
 
     $conn->query('START TRANSACTION');
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
@@ -282,7 +286,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
         $lockName = "siteinteressant_notif_$follId";
         $lockTry = 0;
         while (!in_array($lockName,$locks) && get_lock($conn,$lockName) == 0) {
-            if ($lockTry++ == 5) return ErrorType::DBLOCK_TAKEN;
+            if ($lockTry++ == 5) return new OperationResult(ErrorType::DBLOCK_TAKEN);
             usleep(250000);
         }
         $locks[] = $lockName;
@@ -316,17 +320,17 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
-    return $comment;
+    return new OperationResult(SuccessType::SUCCESS, null, [$comment->nodeId], [$comment]);
 }
 
-function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg, ?string $title = null) {
-    if (mb_strlen($msg) === 0) return ErrorType::MESSAGE_TOOSHORT;
-    if (mb_strlen($msg) > 6000) return ErrorType::MESSAGE_TOOLONG;
+function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg, ?string $title = null):OperationResult {
+    if (mb_strlen($msg) === 0) return new OperationResult(ErrorType::INVALID_DATA, 'The content must contain at least one character.');
+    if (mb_strlen($msg) > 6000) return new OperationResult(ErrorType::INVALID_DATA, 'The content must not contain more than 6000 characters.');
 
     $conn->query('START TRANSACTION');
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
-    if (!check_can_edit_comment($conn,$user,$threadId,$commNumber,$now)) return ErrorType::PROHIBITED;
+    if (!check_can_edit_comment($conn,$user,$threadId,$commNumber,$now)) return new OperationResult(ErrorType::PROHIBITED, "This comment can't be edited.");
 
     // Edit comment
     $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=?, read_by=? WHERE thread_id=? AND number=? LIMIT 1");
@@ -351,7 +355,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     $conn->query('COMMIT');
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
-    return $comment;
+    return new OperationResult(SuccessType::SUCCESS, null, [$comment->nodeId], [$comment]);
 }
 
 function check_can_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
@@ -362,11 +366,11 @@ function check_can_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId
     return (($maxN === $commRow['number'] && $minutes < 10) || $minutes < 1.5);
 }
 
-function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
+function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber):OperationResult {
     $conn->query('START TRANSACTION');
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');
-    if (!check_can_remove_comment($conn,$user,$threadId,$commNumber,$now)) return ErrorType::PROHIBITED;
+    if (!check_can_remove_comment($conn,$user,$threadId,$commNumber,$now)) return new OperationResult(ErrorType::PROHIBITED, "Can't remove this comment.");
 
     $stmt = $conn->query("DELETE FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1 RETURNING *");
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -377,7 +381,7 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     $conn->query('COMMIT');
     $comment = Comment::initFromRow($commentRow);
     ForumBuffer::forgetComment($comment->nodeId);
-    return $comment;
+    return new OperationResult(SuccessType::SUCCESS, null, [$comment->nodeId], [$comment]);
 }
 
 function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
@@ -388,31 +392,31 @@ function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $thread
     return $minutes < 1.5;
 }
 
-function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber) {
+function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber):OperationResult {
     $comment = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-    if ($comment == false) return ErrorType::NOTFOUND;
+    if ($comment == false) return new OperationResult(ErrorType::NOT_FOUND, 'Comment not found.');
     $readBy = json_decode($comment['read_by']);
     if (in_array($user->id,$readBy)) return true;
     $readBy[] = $user->id;
     
     $stmt = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number=$commNumber LIMIT 1");
     $stmt->execute([json_encode($readBy)]);
-    return true;
+    return new OperationResult(SuccessType::SUCCESS);
 }
 
-function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId) {
+function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
     $ids->add($user->id);
     $stmt = $conn->prepare('UPDATE threads SET following_ids=? WHERE id=?');
     $stmt->execute([json_encode($ids),$threadId]);
-    return true;
+    return new OperationResult(SuccessType::SUCCESS);
 }
 
-function thread_unfollow(LDPDO $conn, RegisteredUser $user, int $threadId) {
+function thread_unfollow(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
     $ids->remove($user->id);
     $stmt = $conn->prepare('UPDATE threads SET following_ids=? WHERE id=?');
     $stmt->execute([json_encode($ids),$threadId]);
-    return true;
+    return new OperationResult(SuccessType::SUCCESS);
 }
 ?>
