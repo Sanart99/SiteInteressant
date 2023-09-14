@@ -352,15 +352,12 @@ class MutationType extends ObjectType {
                 'setNotificationToRead' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
-                        'userId' => Type::nonNull(Type::int()),
                         'number' => Type::nonNull(Type::int())
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
-                        else if ($user->id != $args['userId']) return new OperationResult(ErrorType::CONTEXT_INVALID);
-
-                        return set_notification_to_read(DBManager::getConnection(),$args['userId'],$args['number']);
+                        return set_notification_to_read(DBManager::getConnection(),$user->id,$args['number']);
                     }
                 ],
                 'uploadAvatar' => [

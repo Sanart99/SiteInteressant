@@ -202,14 +202,14 @@ function getIndexElems() {
                     node.classList.remove('new');
                     loadPage(node.href,StateAction.PushState).then(() => {
                         if (alreadyRead) return;
-                        sendQuery(`mutation SetNotificationToRead(\$userId:Int!,\$number:Int!) {
-                            f:setNotificationToRead(userId:\$userId,number:\$number) {
+                        sendQuery(`mutation SetNotificationToRead(\$number:Int!) {
+                            f:setNotificationToRead(number:\$number) {
                                 __typename
                                 success
                                 resultCode
                                 resultMessage
                             }
-                        }`,{userId:userId,number:notification.number}).then((res) => {
+                        }`,{number:notification.number}).then((res) => {
                             if (!res.ok) basicQueryResultCheck();
                             return res.json();
                         }).then((json) => {
