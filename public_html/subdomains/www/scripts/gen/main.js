@@ -2017,6 +2017,69 @@ function getForumMainElem() {
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         display: block;
     }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule {
+        margin: 20px 0px;
+        padding: 10px;
+        min-width: 180px;
+        border: 1px solid rgba(255,255,255, 0.1);
+        border-top: 0px;
+        border-radius: 3px;
+        box-shadow: 1px 1px 3px black;
+        box-shadow: 1px 1px 3px rgba(0,0,0, 0.5);
+        background-color: #dddbd8;
+        background-image: url(https://data.twinoid.com/img/design/gripWhite.png);
+        background-position: center top;
+        background-repeat: repeat-x;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionLine {
+        opacity: 0.85;
+        padding: 15px;
+        border-bottom: 1px dashed rgba(0,0,0,0.15);
+        color: black;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults {
+        display: block;
+        float: right;
+        min-width: 170px;
+        max-width: 190px;
+        margin-left: 15px;
+        margin-bottom: 10px;
+        white-space: nowrap;
+        text-align: right;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults .tid_value {
+        vertical-align: middle;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_button.tid_mini.tid_bVote {
+        display:none;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barBG {
+        height: 15px;
+        display: inline-block;
+        vertical-align: middle;
+        width: 150px;
+        height: 15px;
+        overflow: hidden;
+        border-radius: 3px;
+        box-shadow: inset 0px 0px 8px rgba(0,0,0,0.3);
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barInner {
+        background-color: #fe7d00;
+        height: 100%;
+        box-shadow: inset 0px -8px 0px rgba(0,0,0,0.15), inset 1px 0px 2px #5B1E00;
+    }
+    #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_footer {
+        margin-left: -10px;
+        margin-right: -10px;
+        margin-top: 0px;
+        margin-bottom: 0px;
+        padding: 15px 15px;
+        opacity: 0.6;
+        font-weight: bold;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0px -4px 4px rgba(0,0,0,0.15);
+        display: none;
+    }
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_user {
         background-image: url(https://data.twinoid.com/img/icons/notContact.png);
         background-repeat: no-repeat;
