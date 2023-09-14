@@ -1630,7 +1630,7 @@ function getForumMainElem() {
     );
     
     let savedCategories = null;
-    function setupReplyForm(replyFormDiv, onSubmit, sessionSaveName=null) {
+    function setupReplyForm(replyFormDiv, onSubmit, contentSaveName=null) {
         const replyForm = replyFormDiv.querySelector('.replyForm');
         const replyFormTA = replyFormDiv.querySelector('textarea');
         let acReplyForm = null;
@@ -1650,7 +1650,7 @@ function getForumMainElem() {
                 }).then((json) => {
                     if (json?.data?.parseText == null) { basicQueryResultCheck(null,true); return; }
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
-                    if (sessionSaveName != null) sessionSet(sessionSaveName,sToParse);
+                    if (contentSaveName != null) sessionSet(contentSaveName,sToParse);
                 }).catch((e) => {if (e.name != 'AbortError') throw e; } );
             },100);
         });
@@ -1664,14 +1664,14 @@ function getForumMainElem() {
             replyFormTA.selectionStart = replyFormTA.selectionEnd = start+v.length;
             replyFormTA.dispatchEvent(new Event('input'));
         });
-        if (sessionSaveName != null) {
-            replyFormTA.value = sessionGet(sessionSaveName)??'';
+        if (contentSaveName != null) {
+            replyFormTA.value = sessionGet(contentSaveName)??'';
             replyFormTA.dispatchEvent(new Event('input'));
         }
         
         replyForm.addEventListener('submit',async (e) => {
             const res = await onSubmit(e);
-            if (sessionSaveName != null && res === true) sessionRem(sessionSaveName);
+            if (contentSaveName != null && res === true) sessionRem(contentSaveName);
         });
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
