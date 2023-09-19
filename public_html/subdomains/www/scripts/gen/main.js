@@ -1315,7 +1315,7 @@ function getForumMainElem() {
         </div>
         <form id="searchForm">
             <div class="parameters">
-                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords"/>
+                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords" pattern="^[\\\\w\\\\+\\\\~\\\\-,\\\\s]+$"/>
                 <label for="search_threadType">Type de topic :</label><div>
                     <input id="searchForm_threadType_standard" name="threadType" type="radio" value="Standard" checked="true"/><label for="searchForm_threadType_standard">SiteInteressant</label>
                     <input id="searchForm_threadType_twinoid" name="threadType" type="radio" value="Twinoid"/><label for="searchForm_threadType_twinoid">Twinoid</label>
@@ -1916,6 +1916,9 @@ function getForumMainElem() {
         border: 0;
         box-shadow: inset 0px 2px 2px #c7c5c0;
         padding: 0.1rem 0px 0.1rem 0px;
+    }
+    #mainDiv_forum .inputText1:invalid {
+        color: red;
     }
     #mainDiv_forum .replyFormDiv {
         margin: 2.2rem 0px;
