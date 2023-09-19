@@ -1,0 +1,209 @@
+name: Test
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Apt-get update
+        run: sudo apt -y update
+
+      - name: Install Apache
+        run: sudo apt -y install apache2
+      
+      - name: Install PHP
+        run: sudo apt -y install php8.1 libapache2-mod-php php-mysql
+
+      - name: Install and Setup MariaDB
+        run: |
+          sudo apt -y install mariadb-server
+          sudo mariadb -e "
+            CREATE DATABASE test_siteinteressant;
+            ALTER USER 'root'@'localhost' IDENTIFIED BY 'LwgaHpJjWpDg7L8QR2';
+            FLUSH PRIVILEGES;
+          "
+      
+      - name: Install Composer
+        run: |
+          cd /usr/local/bin/
+          php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+          php composer-setup.php
+          php -r "unlink('composer-setup.php');"
+          mv composer.phar composer
+
+      - name: Install and enable Apache modules
+        run: |
+          sudo apt -y install libapache2-mod-fcgid
+          sudo a2enmod cgi
+          sudo a2enmod rewrite
+          sudo a2enmod headers
+      
+      - name: Fetch repo
+        uses: actions/checkout@v4
+
+      - name: Create folders and set permissions
+        run: |
+          sudo mkdir /var/www/siteinteressant
+          sudo chown -R $USER:$USER /etc/apache2/conf-available
+          sudo chown -R $USER:$USER /etc/apache2/sites-available
+          sudo chown -R $USER:$USER /etc/php/8.1/apache2
+          sudo chown -R $USER:$USER /var/www/siteinteressant
+          sudo chown $USER:$USER /etc/hosts
+          sudo chmod -R 777 /etc/apache2/conf-available
+          sudo chmod -R 777 /etc/apache2/sites-available
+          sudo chmod -R 777 /etc/php/8.1/apache2
+          sudo chmod -R 777 /var/www/siteinteressant
+          sudo chmod 777 /etc/hosts
+
+      - name: Config server
+        run: |
+          mv -f .serv/linux/php.ini /etc/php/8.1/apache2/php.ini
+
+          sudo cat <<- 'EOF' > /etc/apache2/conf-available/siteinteressant.conf
+            <Directory /var/www/>
+              Options Indexes FollowSymLinks
+              AllowOverride All
+              Require all granted
+            </Directory>
+          EOF
+          sudo cat <<- 'EOF' > /etc/apache2/sites-available/siteinteressant.conf
+            <VirtualHost 127.0.1.1:80>
+              DocumentRoot "/var/www/siteinteressant/public_html/"
+              ServerName local_siteinteressant.net
+
+              <Directory "/">
+                  AllowOverride All
+                  Require all granted
+              </Directory>
+
+              ErrorLog ${APACHE_LOG_DIR}/error.log
+              CustomLog ${APACHE_LOG_DIR}/access.log combined
+              ScriptLog ${APACHE_LOG_DIR}/cgi.log
+              LogLevel error fcgid_module:trace8
+              LogLevel alert rewrite:trace3
+            </VirtualHost>
+
+            <VirtualHost 127.0.1.1:80>
+                DocumentRoot "/var/www/siteinteressant/public_html/subdomains/api"
+                ServerName api.local_siteinteressant.net
+
+                <Directory "/">
+                    AllowOverride All
+                    Require all granted
+                </Directory>
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+                ScriptLog ${APACHE_LOG_DIR}/cgi.log
+                LogLevel error fcgid_module:trace8
+                LogLevel alert rewrite:trace3
+            </VirtualHost>
+
+            <VirtualHost 127.0.1.1:80>
+                DocumentRoot "/var/www/siteinteressant/public_html/subdomains/res"
+                ServerName res.local_siteinteressant.net
+
+                <Directory "/">
+                    AllowOverride All
+                    Require all granted
+                </Directory>
+
+                ErrorLog ${APACHE_LOG_DIR}/error.log
+                CustomLog ${APACHE_LOG_DIR}/access.log combined
+                ScriptLog ${APACHE_LOG_DIR}/cgi.log
+                LogLevel error fcgid_module:trace8
+                LogLevel alert rewrite:trace3
+            </VirtualHost>
+          EOF
+
+          cat <<- 'EOF' > /etc/hosts
+          127.0.0.1 localhost
+          127.0.1.1 local_siteinteressant.net api.local_siteinteressant.net res.local_siteinteressant.net
+          EOF
+          
+          sudo a2enconf siteinteressant.conf
+          sudo a2ensite siteinteressant
+          sudo a2dissite 000-default
+          sudo mariadb --password=LwgaHpJjWpDg7L8QR2 -e "SHOW DATABASES;"
+
+      - name: Setup website files
+        run: |
+          cp -r public_html -t /var/www/siteinteressant/
+          
+          sudo cat <<- 'EOF' > /var/www/siteinteressant/.env
+            LD_DEBUG="1"
+            LD_LOCAL="1"
+            LD_TEST="1"
+
+            LD_DB_HOST="127.0.0.1"
+            LD_DB_NAME=""
+            LD_DB_USER="root"
+            LD_DB_PWD="LwgaHpJjWpDg7L8QR2"
+            TEST_LD_DB_NAME="test_siteinteressant"
+
+            LD_LINK_DOMAIN="local_siteinteressant.net"
+            LD_LINK_ROOT="http://local_siteinteressant.net"
+            LD_LINK_RES="http://res.local_siteinteressant.net"
+            LD_LINK_API="http://api.local_siteinteressant.net"
+            LD_LINK_GRAPHQL="http://api.local_siteinteressant.net/graphql.php"
+
+            LD_CRYPT_PASSWORD="$2y$05$ssssssssssssssssssssss$"
+            TEST_LD_CRYPT_PASSWORD="$2y$05$salTsalTsalTsalTsalTsA$"
+          EOF
+
+          cd /var/www/siteinteressant/public_html
+          composer update
+      
+      - name: Verify and start server
+        run: |
+          sudo apache2ctl configtest
+          sudo systemctl start apache2
+          curl -I localhost
+          curl -I 127.0.1.1
+          curl -I local_siteinteressant.net
+          curl -I api.local_siteinteressant.net/graphql
+          curl -I res.local_siteinteressant.net
+
+      - name: Install and Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0.x'
+      
+      - name: Install and Setup Firefox
+        uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: '117.0'
+      
+      - name: Install and Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: '840002'
+    
+      - name: Fetch Tester
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{secrets.GH_ACCESS_TESTER}}
+          repo: Sanart99/SiteInteressantTester
+          workflow: build.yml
+          branch: to-v0.3
+          path: .etc/tester/
+      
+      - name: Run Tester
+        run: |
+          sudo chown -R $USER:$USER .etc/tester/release
+          sudo chmod -R 777 .etc/tester/release
+          cd .etc/tester/release/
+          dotnet SiteInteressantTester.dll -all --db-name=test_siteinteressant --db-password=LwgaHpJjWpDg7L8QR2 -log -width=1000 -height=1000 -headless
+      
+      - name: Upload logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: logs
+          path: .etc/tester/release/logs
