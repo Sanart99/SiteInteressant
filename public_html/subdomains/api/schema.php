@@ -649,7 +649,7 @@ class SimpleOperationType extends ObjectType {
 
 class ConnectionType extends ObjectType {
     public static function getEmptyConnection() {
-        return ['data' => null, 'metadata' => ['pageInfo' => new PageInfo(null,null,false,false,null,null)]];
+        return ['data' => [], 'metadata' => ['pageInfo' => new PageInfo(null,null,false,false,1,1)]];
     }
 
     public function __construct(callable $edgeType, array $config2 = null) {
