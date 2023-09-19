@@ -881,7 +881,6 @@ function getForumMainElem() {
                         </div>`)[0];
                         e.querySelector('#askDelete_cancel').addEventListener('click',() => { popupDiv.close(); e.remove(); });
                         const delBut = e.querySelector('#askDelete_delete');
-                        delBut.disabled = true;
                         delBut.addEventListener('click',() => {
                             if (comment.node.number == 0) {
                                 sendQuery(`mutation RemoveThread (\$threadId:Int!) {
