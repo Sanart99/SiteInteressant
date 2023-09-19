@@ -246,8 +246,11 @@ function unkube_thread(LDPDO $conn, RegisteredUser $user, int $threadId):Operati
 }
 
 function check_can_remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId, DateTimeInterface $currDate) {
+    if ($user->isAdministrator()) return true;
+
     $row = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
-    if ($row === false || ($user->id != $row['author_id'] && !$user->isAdministrator())) return false;
+    if ($row === false || ($user->id != $row['author_id'])) return false;
+    
     $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($row['creation_date']))->getTimestamp()) / 60;
     return $minutes < 1.5;
 }
@@ -360,8 +363,12 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
 }
 
 function check_can_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
+    if ($user->isAdministrator()) return true;
+
     $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-    if ($user->id != $commRow['author_id'] && !$user->isAdministrator()) return false;
+    if ($commRow === false || $user->id != $commRow['author_id']) return false;
+    if ($commRow['number'] === 0) return true;
+
     $maxN = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0];
     $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($commRow['creation_date']))->getTimestamp()) / 60;
     return (($maxN === $commRow['number'] && $minutes < 10) || $minutes < 1.5);
@@ -386,9 +393,12 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
 }
 
 function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, DateTimeInterface $currDate):bool {
-    if ($commNumber == 0) return false;
+    if ($commNumber <= 0) return false;
+    if ($user->isAdministrator()) return true;
+
     $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-    if ($user->id != $commRow['author_id'] && !$user->isAdministrator()) return false;
+    if ($commRow === false || $user->id != $commRow['author_id']) return false;
+
     $minutes = ($currDate->getTimestamp() - (new \DateTimeImmutable($commRow['creation_date']))->getTimestamp()) / 60;
     return $minutes < 1.5;
 }
