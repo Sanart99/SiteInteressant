@@ -2595,7 +2595,8 @@ function getVersionHistoryElem() {
         <div id="versions">
             <button>0.1</button><!--
             --><button>0.1b</button><!--
-            --><button>0.2</button>
+            --><button>0.2</button><!--
+            --><button>0.3</button>
         </div>
         <div id="versionDescription"></div>
     </div>
@@ -2715,6 +2716,43 @@ function getVersionHistoryElem() {
                         </section>
                     </div>`.trim();
                 break;
+            case '0.3':
+                div.innerHTML = `
+                    <h2>Version 0.3 <span>Sortie : 19 Septembre 2023</span></h2>
+                    <p class="subheader">— On peut enfin kuber, citer, éditer et supprimer. La fonction recherche fonctionne mieux et le développement du site peut être suivi via Github. Le chiffre 4 porte malheur donc la prochaine version sera la 1.0. Faisons une super 1.0 avant la disparition de Twinoid qui a été annoncé pour début Novembre...</p>
+                    <div class="main">
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>La fonction recherche a été grandement améliorée.</li>
+                                    <li>Ajout du bouton citer, éditer et supprimer sur les messages.</li>
+                                    <li>Vous pouvez kuber et voir qui a kubé.</li>
+                                    <li>Ajout d'un bouton pour échapper les caractères spéciaux automatiquement lors d'une action "coller".</li>
+                                    <li>Et autres bugfixs et améliorations.</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Github</h3>
+                            <section>
+                                <h4>Code disponible</h4>
+                                <p>Le code du site est maintenant disponible sur Github à cette adresse : <a href="https://github.com/Sanart99/SiteInteressant">https://github.com/Sanart99/SiteInteressant</a>. (Vous verrez une erreur 404 tant que vous n'avez pas la permission de le voir.)</p>
+                                <p>C'est pas documenté et vous aurez très probablement besoin d'explications pour comprendre comment tout colle mais je le rends dispo quand même avant d'avoir fini de tout nettoyer.</p>
+                                <p>Si vous voulez proposer des fonctionnalités ou signaler un bug vous pouvez créer un "problème" dans Github pour chaque proposition/bug pour que ce soit bien visible. Un topic dédié peut suffir bien sûr, on pourra ensuite reporter ça dans Github.</p>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Autres améliorations</h3>
+                            <section>
+                                <h4>Messages d'erreurs</h4>
+                                <p>A partir de maintenant les messages d'erreur "Erreur Interne" sont beaucoup plus rare et vous aurez plutôt quelque chose de plus descriptif.</p>
+                                <p>Si vous tombez encore sur ce genre d'erreurs pendant une utilisation normale du site hésitez pas à me le dire car maintenant c'est très probablement quelque chose que j'ai zappé.</p>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
         }
     }
     buttons[buttons.length-1].click();
@@ -2786,6 +2824,9 @@ function getVersionHistoryElem() {
     #versionDescription h4 {
         font-size: 1.25rem;
         margin: 1em 0px 0.3em 0px;
+    }
+    #versionDescription h3 ~ section > p {
+        margin: 0.5em 0px;
     }
     CSS];
 }
