@@ -7,6 +7,7 @@ use LDLib\User\RegisteredUser;
 use LDLib\Database\LDPDO;
 use LDLib\General\OperationResult;
 use LDLib\General\SuccessType;
+use LDLib\General\TypedException;
 use Schema\ForumBuffer;
 use Schema\OperationType;
 
@@ -139,7 +140,7 @@ class ForumSearchQuery {
     public readonly ?array $userIds;
 
     public function __construct(ThreadType $threadType, string $keywords, SearchSorting $sortBy, ?\DateTimeInterface $startDate = null, ?\DateTimeInterface $endDate = null, ?array $userIds = null) {
-        if (preg_match('/^[\w\+\~\-,\s]+$/', $keywords) == 0) throw new \Exception('Invalid keywords.');
+        if (preg_match('/^[\w\+\~\-,\s]+$/', $keywords) == 0) throw new TypedException('Invalid keywords.',ErrorType::INVALID_DATA);
         $this->threadType = $threadType;
         $this->keywords = $keywords;
         $this->sortBy = $sortBy;

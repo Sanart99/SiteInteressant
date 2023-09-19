@@ -136,7 +136,13 @@ class QueryType extends ObjectType {
                         if ($user == null) return ConnectionType::getEmptyConnection();
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                         $pag->skipPages = $args['skipPages'];
-                        $fsq = new ForumSearchQuery($args['threadsType'], $args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
+                        
+                        try {
+                            $fsq = new ForumSearchQuery($args['threadsType'], $args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
+                        } catch (TypedException $e) {
+                            if ($e->getErrorType() == ErrorType::INVALID_DATA) return ConnectionType::getEmptyConnection();
+                            else throw $e;
+                        }
                         ForumBuffer::requestSearch($fsq,$pag);
                         return quickReactPromise(function() use($fsq,$pag) {
                             return ForumBuffer::getSearch($fsq,$pag);
