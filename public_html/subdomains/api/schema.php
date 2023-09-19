@@ -1116,7 +1116,7 @@ class ThreadType extends ObjectType {
                     'resolve' => fn($o) => self::process($o,fn($row) => ThreadPermission::from($row['data']['permission']))
                 ],
                 'followingIds' => [
-                    'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
+                    'type' => fn() => Type::listOf(Type::nonNull(Type::int())),
                     'resolve' => fn($o) => self::process($o,fn($row) => json_decode($row['data']['following_ids']) ),
                 ],
                 'kubedBy' => [
