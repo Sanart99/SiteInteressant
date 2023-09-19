@@ -187,7 +187,7 @@ class BufferManager {
             } else $stmt = $conn->query("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
 
             $before=null;
-            $whereCondAfterCurs = "AND $whereCond";
+            $whereCondAfterCurs = "AND ($whereCond)";
         } else { // otherwise do as normal
             if ($after != null) {
                 $vCurs = $decodeCursor($after);
@@ -201,9 +201,9 @@ class BufferManager {
                 $sql .= is_callable($cursorRow) ? $cursorRow($vCurs,2) : "$cursorRow<$vCurs";
             }
             
-            $whereCondAfterCurs = ($after == null && $before == null) ? "WHERE $whereCond" : "AND $whereCond";
+            $whereCondAfterCurs = ($after == null && $before == null) ? "WHERE $whereCond" : "AND ($whereCond)";
             $sql .= " $whereCondAfterCurs";
-            if ($pag->skipPages > 0) $whereCondAfterCurs = " AND $whereCond";
+            if ($pag->skipPages > 0) $whereCondAfterCurs = " AND ($whereCond)";
 
             if ($first != null && $first > 0) {
                 $n = $first;
@@ -295,7 +295,7 @@ class BufferManager {
                     $vCurs2 = $decodeCursor($encodeCursor($data));
                     if (is_string($vCurs)) $vCurs2 = "'$vCurs2'";
 
-                    $s = is_callable($cursorRow) ? "$whereCond AND ".$cursorRow($vCurs2,5) : "$whereCond AND $cursorRow<=$vCurs2";
+                    $s = is_callable($cursorRow) ? "($whereCond) AND ".$cursorRow($vCurs2,5) : "($whereCond) AND $cursorRow<=$vCurs2";
                     
                     if ($executeValsWhereOnly != null) {
                         $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $s");
