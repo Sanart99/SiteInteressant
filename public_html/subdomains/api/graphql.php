@@ -19,6 +19,7 @@ header("Access-Control-Allow-Origin: {$_SERVER['LD_LINK_ROOT']}");
 header('Access-Control-Allow-Headers: Cache-Control, Content-Type');
 header('Access-Control-Allow-Credentials: true');
 
+// Get query
 $rawInput = file_get_contents('php://input');
 if (!empty($rawInput)) $input = json_decode($rawInput, true);
 else if (isset($_POST['gqlQuery'])) $input = json_decode($_POST['gqlQuery'], true);
@@ -27,7 +28,17 @@ else { http_response_code(200); echo "..."; return; }
 if ($input == null) { http_response_code(400); echo "JSON ERROR."; return; }
 else if (!is_array($input) || !array_key_exists('query',$input)) { http_response_code(400); echo "Bad request : $input"; return;  }
 
-$variableValues = isset($input['variables']) ? (is_array($input['variables']) ? $input['variables'] : json_decode($input['variables'],true)) : null;
+// Get query variables
+$rawVariables = null;
+if (isset($input['variables'])) $rawVariables = $input['variables'];
+else if (isset($_POST['gqlVariables'])) $rawVariables = $_POST['gqlVariables'];
+$queryVariables = null;
+if ($rawVariables != null) {
+    if (is_array($rawVariables)) $queryVariables = $rawVariables;
+    else $queryVariables = json_decode($rawVariables,true, 512, JSON_THROW_ON_ERROR);
+}
+
+
 $operationName = (isset($input['operationName']) && is_string($input['operationName'])) ? $input['operationName'] : null;
 
 Context::init();
@@ -77,7 +88,7 @@ $errorFormatter = function(Error $err) {
 $errorHandler = function (array $errors, callable $formatter) { return array_map($formatter,$errors); };
 
 try {
-    $promise = GraphQL::promiseToExecute(new ReactPromiseAdapter(), $schema, $input['query'], null, Context::$a, $variableValues, $operationName, $defaultResolver);
+    $promise = GraphQL::promiseToExecute(new ReactPromiseAdapter(), $schema, $input['query'], null, Context::$a, $queryVariables, $operationName, $defaultResolver);
     $promise->then(function(ExecutionResult $result) use(&$output, &$isDebug, $errorFormatter, $errorHandler) {
         $output = $result->setErrorFormatter($errorFormatter)->setErrorsHandler($errorHandler)->toArray($isDebug ? DebugFlag::INCLUDE_DEBUG_MESSAGE : (DebugFlag::NONE));
         if ($isDebug) {
