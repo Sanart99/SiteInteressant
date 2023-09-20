@@ -32,6 +32,7 @@ use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
 use LdLib\Records\ActionGroup;
+use LDLib\User\UserSettings;
 
 use function LDLib\Auth\{
     get_user_from_sid,
@@ -879,7 +880,11 @@ class RegisteredUserType extends ObjectType {
                             return $row;
                         });
                     })
-                ]
+                ],
+                'settings' => [
+                    'type' => fn() => Types::UserSettings(),
+                    'resolve' => fn($o,$args) => self::process($o, fn($o) => $o)
+                ],
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -915,6 +920,34 @@ class TidUserType extends ObjectType {
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class UserSettingsType extends ObjectType {
+    public static function process(mixed $o, callable $f) {
+        if (!($o instanceof RegisteredUser)) {
+            try {
+                $o = RegisteredUser::initFromRow($o);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        $authUser = Context::getAuthenticatedUser();
+        if ($o->id == $authUser->id || $authUser->isAdministrator()) return $f($o);
+        else return null;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'notificationsEnabled' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notificationsEnabled)
                 ]
             ]
         ];
@@ -1840,6 +1873,10 @@ class Types {
 
     public static function AnyUser():AnyUserType {
         return self::$types['AnyUser'] ??= new AnyUserType();
+    }
+
+    public static function UserSettings():UserSettingsType {
+        return self::$types['UserSettings'] ??= new UserSettingsType();
     }
 
     public static function Record():RecordType {

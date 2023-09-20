@@ -40,6 +40,7 @@ class RegisteredUser extends User {
 
 class UserSettings {
     public readonly ThreadPermission $defaultThreadPermission;
+    public readonly bool $notificationsEnabled;
 
     public function __construct(?array $settings) {
         if ($settings != null && isset($settings['forum'])) {
@@ -50,7 +51,9 @@ class UserSettings {
             }
         }
         
+        
         if (!isset($this->defaultThreadPermission)) $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS;
+        $this->notificationsEnabled = (bool)($settings['notificationsEnabled']??false);
     }
 }
 
