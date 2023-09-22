@@ -52,12 +52,12 @@ jobs:
           sudo mkdir /var/www/siteinteressant
           sudo chown -R $USER:$USER /etc/apache2/conf-available
           sudo chown -R $USER:$USER /etc/apache2/sites-available
-          sudo chown -R $USER:$USER /etc/php/8.1/apache2
+          sudo chown -R $USER:$USER /etc/php/8.1
           sudo chown -R $USER:$USER /var/www/siteinteressant
           sudo chown $USER:$USER /etc/hosts
           sudo chmod -R 777 /etc/apache2/conf-available
           sudo chmod -R 777 /etc/apache2/sites-available
-          sudo chmod -R 777 /etc/php/8.1/apache2
+          sudo chmod -R 777 /etc/php/8.1
           sudo chmod -R 777 /var/www/siteinteressant
           sudo chmod 777 /etc/hosts
 
@@ -121,6 +121,12 @@ jobs:
                 LogLevel alert rewrite:trace3
             </VirtualHost>
           EOF
+
+          sudo cat <<- 'EOF' >> /etc/php/8.1/cli/php.ini
+          [custom]
+          extension=sodium
+          EOF
+          cat /etc/php/8.1/cli/php.ini
 
           cat <<- 'EOF' > /etc/hosts
           127.0.0.1 localhost
