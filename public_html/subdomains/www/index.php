@@ -47,8 +47,8 @@ header('Content-Type: text/html');
         
         loadPage("<?php echo $loadPageURL; ?>",StateAction.ReplaceState);
         addEventListener("popstate", (event) => {
-            let url = history.state.pageUrl;
-            loadPage(url);
+            let url = history.state?.pageUrl;
+            loadPage(url == null ? window.location : url);
         });
 
         <?= getPopupDiv()['js']; ?>
