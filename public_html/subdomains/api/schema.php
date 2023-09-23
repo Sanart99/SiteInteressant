@@ -52,7 +52,7 @@ use function LDLib\Forum\{
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
-use function LDLib\Net\curl_fetch;
+use function LDLib\Net\{curl_fetch, send_push_notification};
 use function LdLib\User\set_notification_to_read;
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
@@ -391,6 +391,58 @@ class MutationType extends ObjectType {
                         if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
                         return $user->id;
+                    }
+                ],
+                'registerPushSubscription' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'endpoint' => Type::nonNull(Type::string()),
+                        'expirationTime' => ['type' => Type::int(), 'defaultValue' => null],
+                        'userVisibleOnly'=> Type::nonNull(Type::boolean()),
+                        'publicKey' => Type::nonNull(Type::string()),
+                        'authToken' => Type::nonNull(Type::string()),
+                        'subscriptionDate' => Type::nonNull(Types::DateTime())
+                    ],
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        $sNow = (new \DateTime('now'))->format('Y-m-d H:i:s');
+                        $conn = DBManager::getConnection();
+
+                        $stmt = $conn->prepare("SELECT * FROM push_subscriptions WHERE user_id=? AND endpoint=?");
+                        $stmt->execute([$user->id,$args['endpoint']]);
+                        if ($stmt->fetch() !== false) return new OperationResult(ErrorType::DUPLICATE);
+                        
+                        $stmt = $conn->prepare(<<<SQL
+                            INSERT INTO push_subscriptions (user_id,remote_public_key,date,subscription_date,endpoint,expiration_time,user_visible_only,auth_token)
+                            VALUES (:userId,:remotePublicKey,:date,:subscriptionDate,:endpoint,:expirationTime,:userVisibleOnly,:authToken)
+                            SQL
+                        );
+                        $res = $stmt->execute([
+                            ':userId' => $user->id,
+                            ':endpoint' => $args['endpoint'],
+                            ':expirationTime' => $args['expirationTime'],
+                            ':userVisibleOnly' => $args['userVisibleOnly'],
+                            ':remotePublicKey' => $args['publicKey'],
+                            ':authToken' => $args['authToken'],
+                            ':subscriptionDate' => $args['subscriptionDate']->format('Y-m-d H:i:s'),
+                            ':date' => $sNow
+                        ]);
+                        return new OperationResult($res === true ? SuccessType::SUCCESS : ErrorType::DATABASE_ERROR);
+                    }
+                ],
+                'sendPush' => [
+                    'type' => fn() => Types::getOperationObjectType("OnPush"),
+                    'args' => [
+                        'userId' => Type::nonNull(Type::int()),
+                        'title' => Type::nonNull(Type::string()),
+                        'body' => ['type' => Type::string(), 'defaultValue' => null]
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        if ($user->isAdministrator() !== true) return new OperationResult(ErrorType::OPERATION_UNAUTHORIZED);
+                        return send_push_notification(DBManager::getConnection(),$user->id,$args['title'],$args['body']);
                     }
                 ],
                 'uploadTidEmojis' => [
@@ -1432,6 +1484,32 @@ class EmojiType extends ObjectType {
     }
 }
 
+class PushReportType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'success' => [
+                    'type' => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => $o->isSuccess()
+                ],
+                'endpoint' => [
+                    'type' => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o->getEndpoint()
+                ],
+                'reason' => [
+                    'type' => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o->getReason()
+                ],
+                'statusCode' => [
+                    'type' => Type::nonNull(Type::int()),
+                    'resolve' => fn($o) => $o->getResponse()?->getStatusCode()
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Notifications *****/
 
 class RecordType extends ObjectType {
@@ -1599,6 +1677,7 @@ class Generator {
 
        self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
        self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
+       self::genQuickOperation('OnPush',['reports' => 'Type::nonNull(Type::listOf(Type::nonNull(Types::PushReport())))']);
     }
 
     public static function genConnection(string $objectType) {
@@ -1659,7 +1738,7 @@ class Generator {
 
         eval(<<<PHP
         namespace Schema;
-        use GraphQL\Type\Definition\ObjectType;
+        use GraphQL\Type\Definition\{ObjectType, Type};
         use LDLib\General\ErrorType;
 
         class Operation{$name}Type extends ObjectType {
@@ -1921,6 +2000,10 @@ class Types {
 
     public static function Emoji():EmojiType {
         return self::$types['Emoji'] ??= new EmojiType();
+    }
+
+    public static function PushReport():PushReportType {
+        return self::$types['PushReport'] ??= new PushReportType();
     }
 
     /***** Notifications *****/

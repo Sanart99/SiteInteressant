@@ -10,6 +10,7 @@ $trimRegex = '/^(.*)\.php$/';
 echo <<<JAVASCRIPT
 const swName = 'sw1_v1.0';
 const __feat_cacheStorage = 'caches' in self;
+const __feat_notifications = 'body' in Notification?.prototype;
 
 self.addEventListener('install', (event) => {
     if (!__feat_cacheStorage) return;
@@ -61,6 +62,23 @@ self.addEventListener('fetch', (event) => {
             else res = await c.match(url.pathname);
             return res == null ? fetch(url.href) : res;
         })());
+    }
+});
+
+self.addEventListener('push', (event) => {
+    if (!__feat_notifications || Notification.permission !== 'granted') return;
+
+    let data = null;
+    try { data = event.data?.json(); }
+    catch (e) { console.error(e); return; }
+
+    if (data?.notifications != null && Array.isArray(data.notifications)) for (const notif of data?.notifications) {
+        const options = {};
+        if (notif?.title == null) continue;
+        if (notif?.body != null) options.body = notif.body;
+
+        try { self.registration.showNotification(notif.title, options); }
+        catch (e) { console.error(e); continue; }
     }
 });
 JAVASCRIPT;
