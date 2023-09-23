@@ -8,6 +8,7 @@ header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 var __debug = $debug;
 var __feat_serviceWorker = false;
+var __feat_notifications = 'body' in Notification?.prototype;
 
 (async () => {
     if ("serviceWorker" in navigator) {
