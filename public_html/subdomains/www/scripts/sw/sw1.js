@@ -1,10 +1,10 @@
 <?php
 header('Content-Type: text/javascript');
 
-$urlRegex1 = '/^\/(?:(?:index|forum|home|versionhistory)(?:\.php)?|style\.css|styleReset\.css)$/';
-$urlRegex2 = '/^\/scripts\/(?:init|load|quick|router|storage)\.js$/';
+$urlRegex1 = '/^\/(?:(?:index|forum|home|usersettings|versionhistory)(?:\.php)?|style\.css|styleReset\.css)$/';
+$urlRegex2 = '/^\/scripts\/(?:init|load|quick|router|storage|settings|(?:sw\/manager))\.js$/';
 $urlRegex3 = '/^\/scripts\/gen\/(?:main|popup)\.js$/';
-$urlRegex4 = '/^\/pages\/(?:forum|home|versionhistory)(?:\.php)?$/';
+$urlRegex4 = '/^\/pages\/(?:forum|home|usersettings|versionhistory)(?:\.php)?$/';
 $trimRegex = '/^(.*)\.php$/';
 
 echo <<<JAVASCRIPT
@@ -19,19 +19,23 @@ self.addEventListener('install', (event) => {
         caches.open(swName).then(c => c.addAll([
             '/pages/forum',
             '/pages/home',
+            '/pages/usersettings',
             '/pages/versionhistory',
             '/scripts/gen/main.js',
             '/scripts/gen/popup.js',
+            '/scripts/sw/manager.js',
             '/scripts/init.js',
             '/scripts/load.js',
             '/scripts/quick.js',
             '/scripts/router.js',
+            '/scripts/settings.js',
             '/scripts/storage.js',
             '/index',
             '/style.css',
             '/styleReset.css',
             '/forum',
             '/home',
+            '/usersettings',
             '/versionhistory'
         ])).then(() => self.skipWaiting());
     })());
