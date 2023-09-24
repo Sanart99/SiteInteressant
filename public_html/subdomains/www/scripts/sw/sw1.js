@@ -15,24 +15,26 @@ const __feat_notifications = 'body' in Notification?.prototype;
 
 self.addEventListener('install', (event) => {
     if (!__feat_cacheStorage) return;
-    event.waitUntil(caches.open(swName).then(c => c.addAll([
-        '/pages/forum',
-        '/pages/home',
-        '/pages/versionhistory',
-        '/scripts/gen/main.js',
-        '/scripts/gen/popup.js',
-        '/scripts/init.js',
-        '/scripts/load.js',
-        '/scripts/quick.js',
-        '/scripts/router.js',
-        '/scripts/storage.js',
-        '/index',
-        '/style.css',
-        '/styleReset.css',
-        '/forum',
-        '/home',
-        '/versionhistory'
-    ])));
+    event.waitUntil((async () => {
+        caches.open(swName).then(c => c.addAll([
+            '/pages/forum',
+            '/pages/home',
+            '/pages/versionhistory',
+            '/scripts/gen/main.js',
+            '/scripts/gen/popup.js',
+            '/scripts/init.js',
+            '/scripts/load.js',
+            '/scripts/quick.js',
+            '/scripts/router.js',
+            '/scripts/storage.js',
+            '/index',
+            '/style.css',
+            '/styleReset.css',
+            '/forum',
+            '/home',
+            '/versionhistory'
+        ])).then(() => self.skipWaiting());
+    })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -44,7 +46,11 @@ self.addEventListener('activate', (event) => {
         const promises = [];
         for (const k of keys) for (const s of keep) if (k != s) promises.push(caches.delete(k));
         await Promise.all(promises);
-    })());    
+        console.info("Name: "+swName);
+        self.clients.matchAll({type: 'window'}).then((tabs) => {
+            for (const tab of tabs) tab.navigate(tab.url);
+        });
+    })());
 });
 
 self.addEventListener('fetch', (event) => {
