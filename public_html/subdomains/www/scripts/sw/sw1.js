@@ -9,6 +9,7 @@ $trimRegex = '/^(.*)\.php$/';
 
 echo <<<JAVASCRIPT
 const swName = 'sw1_v1.0';
+const permissions = {};
 const __feat_cacheStorage = 'caches' in self;
 const __feat_notifications = 'body' in Notification?.prototype;
 
@@ -66,7 +67,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-    if (!__feat_notifications || Notification.permission !== 'granted') return;
+    if (!__feat_notifications || Notification.permission !== 'granted' || permissions?.notifications !== true || permissions?.device_notifications !== true) return;
 
     let data = null;
     try { data = event.data?.json(); }
@@ -79,6 +80,18 @@ self.addEventListener('push', (event) => {
 
         try { self.registration.showNotification(notif.title, options); }
         catch (e) { console.error(e); continue; }
+    }
+});
+
+self.addEventListener('message',(event) => {
+    let data = null;
+    try { data = JSON.parse(event.data); }
+    catch (e) { console.error(e); return; }
+
+    if (data?.setPermissions != null) for (const k in data.setPermissions) {
+        const v = data.setPermissions[k];
+        permissions[k] = v;
+        console.info('Permission set: ' + k + '=' + v);
     }
 });
 JAVASCRIPT;

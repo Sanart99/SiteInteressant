@@ -32,6 +32,7 @@ function getIndexElems() {
         <div id="rightBar_optionsDiv">
             <a id="rightBar_optionsDiv_editAvatar" href="#" onclick="return false;"><p>Changer d'avatar</p></a>
             <a id="rightBar_optionsDiv_forum" href="$root/forum"><p>Forum</p></a>
+            <a id="rightBar_optionsDiv_userSettings" href="$root/usersettings" onclick="return false;"><p>Paramètres</p></a>
             <a href="$root/versionhistory"><p>Historique versions</p></a>
             <a id="rightBar_optionsDiv_disconnect" href="#" onclick="return false;"><p>Se Déconnecter</p></a>
         </div>
@@ -247,7 +248,8 @@ function getIndexElems() {
     document.querySelector('#rightBar_optionsDiv_forum').addEventListener('click',(e) => {
         e.preventDefault();
         loadPage("$root/forum",StateAction.PushState);
-    });    
+    });
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/usersettings",StateAction.PushState));  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS
@@ -2813,5 +2815,150 @@ function getVersionHistoryElem() {
         margin: 0.5em 0px;
     }
     CSS];
+}
+
+function getUserSettings() {
+    global $isAuth;
+    return ['html' => <<<HTML
+    <div id="mainDiv_userSettings" class="authPadded" data-is-auth="$isAuth">
+        <form id="settingsForm" class="main">
+            <section>
+                <h2>Notifications</h2>
+                <div class="sectionContent">
+                    <ul>
+                        <li>
+                            <input id="settings_notif" type="checkbox" disabled><label for="settings_notif">Activer les notifications</label>
+                            <ul>
+                                <li><input id="settings_device_notif" type="checkbox" disabled><label for="settings_device_notif">Activer pour cet appareil</label></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <input id="settings_submit" type="submit" value="Enregistrer" disabled/>
+        </form>
+    </div>
+
+    HTML,'js' => <<<JAVASCRIPT
+    const settingsForm = document.querySelector('#settingsForm');
+    const eNotif = document.querySelector('#settings_notif');
+    const eDeviceNotif = document.querySelector('#settings_device_notif');
+    const allInputs = document.querySelectorAll('#mainDiv_userSettings input');
+    const allSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input');
+    toggleInputs(false);
+    waitForSettingsSync();
+
+    function toggleInputs(enable) {
+        for (const e of allInputs) e.disabled = enable === null ? !e.disabled : !enable;
+        if (enable) {
+            for (const e1 of allSettings) for (const e2 of e1.parentElement.querySelectorAll('input')) {
+                if (e2 != e1) e2.disabled = !e1.checked;
+            }
+        }
+    }
+    function waitForSettingsSync() {
+        if (__settingsSynced) setupInputs();
+        else setTimeout(waitForSettingsSync,250);
+    }
+    function setupInputs() {
+        eNotif.checked = localGet('settings_notifications') === 'true';
+        eDeviceNotif.checked = localGet('settings_device_notifications') === 'true';
+        toggleInputs(true);
+        eDeviceNotif.addEventListener('change',() => {
+            if (eDeviceNotif.checked) Notification.requestPermission();
+        });
+    }
+    // save global settings first, then local settings if successful (temp behavior, should save local settings without internet)
+    async function saveGlobalSettings() {
+        if (eDeviceNotif.checked && Notification.permission !== 'granted') {
+            alert('You didn\'t grant notification permission.');
+            Notification.requestPermission();
+            return;
+        }
+
+        const vals = [];
+        vals.push({name:'notifications', value:eNotif.checked ? '1' : '0'});
+        
+        return sendQuery(`mutation ChangeSetting(\$vals:[SettingInput!]!) {
+            changeSetting(vals:\$vals) {
+                success
+                resultCode
+                resultMessage
+            }
+        }`,{vals:vals}).then((res) => {
+            toggleInputs(true);
+            if (!res.ok) basicQueryResultCheck();
+            return res.json();
+        }).then((json) => {
+            basicQueryResultCheck(json?.data?.changeSetting);
+
+            return initGlobalSettings().then(() => {
+                saveLocalSettings();
+                syncSettingsWithServiceWorker();
+                toggleInputs(true);
+                return true;
+            });
+        });
+    }
+    function saveLocalSettings() {
+        localSet('settings_device_notifications', eDeviceNotif.checked);
+    }
+
+    for (const e1 of allInputs) {
+        e1.addEventListener('change',() => {
+            for (const e2 of e1.parentElement.querySelectorAll('input')) if (e2 != e1) e2.disabled = !e1.checked;
+        });
+    }
+    settingsForm.addEventListener('submit',(e) => {
+        e.preventDefault();
+        toggleInputs(false);
+        saveGlobalSettings().then((res) => res === true ? alert('Paramètres sauvegardés.') : alert('Un problème a été rencontré.'));
+    });
+
+    JAVASCRIPT, 'css' => <<<CSS
+    #mainDiv_userSettings {
+        background: var(--bg-gradient-1);
+        min-height: inherit;
+        overflow: auto;
+    }
+    #mainDiv_userSettings > .main {
+        margin: 2rem 8%;
+    }
+    #mainDiv_userSettings h2 {
+        color: var(--color-black-2);
+        font-size: 1.6rem;
+        border-bottom: 1px solid black;
+        margin: 0px 0px 0.7em 0px;
+        padding: 0px 0px 0.1em 0px;
+    }
+    #mainDiv_userSettings ul li {
+        margin: 0.5em 0px;
+    }
+    #mainDiv_userSettings ul > li > ul {
+        margin: 0px 0px 0px 1em;
+    }
+    #mainDiv_userSettings input[type="checkbox"] {
+        margin: 0px 0.5em 0px 0px;
+    }
+    #mainDiv_userSettings .sectionContent > ul > li > label {
+        font-weight: bold;
+    }
+    #mainDiv_userSettings input[type="submit"] {
+        background-color: var(--color-black-2);
+        border: 0;
+        border-top: 1px solid #6C7188;
+        outline: 1px solid var(--color-black-1);
+        padding: 0.2rem 0.4rem 0.2rem 0.4rem;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    #mainDiv_userSettings input[type="submit"]:hover {
+        background-color: #3b4151;
+        border-color: var(--color-black-1);
+    }
+    
+    CSS
+];
 }
 ?>

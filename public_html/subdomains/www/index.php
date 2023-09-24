@@ -17,7 +17,7 @@ foreach ($_GET as $k => $v) {
 }
 $loadPageURL = $loadPage.$qString;
 
-$scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/popup.js','sw/manager.js'];
+$scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','settings.js','gen/popup.js','sw/manager.js'];
 header('Content-Type: text/html');
 ?>
 <!DOCTYPE html>
@@ -42,6 +42,8 @@ header('Content-Type: text/html');
     </body>
 
     <script>
+        initLate();
+        
         const elem = document.querySelector('#bodyDiv');
         configRouter(elem);
         

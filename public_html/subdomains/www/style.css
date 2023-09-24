@@ -39,4 +39,6 @@ echo getHomeMainDiv()['css'];
 echo getForumMainElem()['css'];
 
 echo getVersionHistoryElem()['css'];
+
+echo getUserSettings()['css'];
 ?>
