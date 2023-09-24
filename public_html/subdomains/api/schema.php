@@ -31,6 +31,7 @@ use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSort
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
+use LDLib\Net\LDWebPush;
 use LdLib\Records\ActionGroup;
 use LDLib\User\UserSettings;
 
@@ -52,7 +53,7 @@ use function LDLib\Forum\{
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
-use function LDLib\Net\{curl_fetch, send_push_notification};
+use function LDLib\Net\{curl_fetch};
 use function LdLib\User\{set_notification_to_read, set_user_setting};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
@@ -461,7 +462,7 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         if ($user->isAdministrator() !== true) return new OperationResult(ErrorType::OPERATION_UNAUTHORIZED);
-                        return send_push_notification(DBManager::getConnection(),$user->id,$args['title'],$args['body']);
+                        return (new LDWebPush())->sendNotification(DBManager::getConnection(),$user->id,$args['title'],$args['body']);
                     }
                 ],
                 'uploadTidEmojis' => [
