@@ -2870,9 +2870,11 @@ function getUserSettings() {
     }
     // save global settings first, then local settings if successful (temp behavior, should save local settings without internet)
     async function saveGlobalSettings() {
+        toggleInputs(false);
         if (eDeviceNotif.checked && Notification.permission !== 'granted') {
             alert('You didn\'t grant notification permission.');
             Notification.requestPermission();
+            toggleInputs(true);
             return;
         }
 
@@ -2911,7 +2913,6 @@ function getUserSettings() {
     }
     settingsForm.addEventListener('submit',(e) => {
         e.preventDefault();
-        toggleInputs(false);
         saveGlobalSettings().then((res) => res === true ? alert('Paramètres sauvegardés.') : alert('Un problème a été rencontré.'));
     });
 
