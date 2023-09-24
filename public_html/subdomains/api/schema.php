@@ -451,7 +451,7 @@ class MutationType extends ObjectType {
                         return new OperationResult($res === true ? SuccessType::SUCCESS : ErrorType::DATABASE_ERROR);
                     }
                 ],
-                'sendPush' => [
+                'sendNotification' => [
                     'type' => fn() => Types::getOperationObjectType("OnPush"),
                     'args' => [
                         'userId' => Type::nonNull(Type::int()),
