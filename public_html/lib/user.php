@@ -31,6 +31,19 @@ class RegisteredUser extends User {
         return $this->titles->contains('Administrator');
     }
 
+    public function saveSettings(LDPDO $conn):bool {
+        $stmt = $conn->prepare("UPDATE users SET settings=:settings WHERE id=:userId LIMIT 1");
+        $stmt->execute([
+            ':userId' => $this->id,
+            ':settings' => json_encode([
+                'defaultThreadPermission' => $this->settings->defaultThreadPermission,
+                'notifications' => $this->settings->notificationsEnabled
+            ],JSON_THROW_ON_ERROR)
+        ]);
+
+        return true;
+    }
+
     public static function initFromRow(array $row) {
         $data = array_key_exists('data',$row) && array_key_exists('metadata',$row) ? $row['data'] : $row;
         $settings = new UserSettings(json_decode($data['settings'],true));
@@ -39,8 +52,8 @@ class RegisteredUser extends User {
 }
 
 class UserSettings {
-    public readonly ThreadPermission $defaultThreadPermission;
-    public readonly bool $notificationsEnabled;
+    public ThreadPermission $defaultThreadPermission;
+    public bool $notificationsEnabled;
 
     public function __construct(?array $settings) {
         if ($settings != null && isset($settings['forum'])) {
@@ -53,8 +66,26 @@ class UserSettings {
         
         
         if (!isset($this->defaultThreadPermission)) $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS;
-        $this->notificationsEnabled = (bool)($settings['notificationsEnabled']??false);
+        $this->notificationsEnabled = (bool)($settings['notifications']??false);
     }
+}
+
+function set_user_setting(LDPDO $conn, int $userId, array $names, array $values):OperationResult {
+    $userRow = $conn->query("SELECT * FROM users WHERE id=$userId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($userRow == false) return new OperationResult(ErrorType::NOT_FOUND, "User not found.");
+    $user = RegisteredUser::initFromRow($userRow);
+
+    for ($i=0; $i<count($names) || $i<count($values); $i++) {
+        try {
+            switch ($names[$i]) {
+                case 'defaultThreadPermission': $user->settings->defaultThreadPermission = ThreadPermission::from($values[$i]); break;
+                case 'notifications': $user->settings->notificationsEnabled = (bool)$values[$i]; break;
+                default: throw new \Exception("");
+            }
+        } catch (\Throwable $e) { return new OperationResult(ErrorType::INVALID_DATA, "Setting '{$names[$i]}' is either invalid or was set to an invalid value."); }
+    }
+    
+    return $user->saveSettings($conn) ? new OperationResult(SuccessType::SUCCESS) : new OperationResult(ErrorType::UNKNOWN);
 }
 
 function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateTimeInterface $dt = null):OperationResult {

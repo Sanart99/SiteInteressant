@@ -17,7 +17,7 @@ dotenv();
 use Ds\Set;
 use GraphQL\Error\{Error, InvariantViolation};
 use GraphQL\Language\AST\{Node, StringValueNode};
-use GraphQL\Type\Definition\{InterfaceType, Type, ObjectType, PhpEnumType, ScalarType, UnionType};
+use GraphQL\Type\Definition\{InputObjectType, InterfaceType, Type, ObjectType, PhpEnumType, ScalarType, UnionType};
 use GraphQL\Utils\Utils;
 use LDLib\Database\LDPDO;
 use LDLib\General\{
@@ -53,7 +53,7 @@ use function LDLib\Forum\{
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
 use function LDLib\Net\{curl_fetch, send_push_notification};
-use function LdLib\User\set_notification_to_read;
+use function LdLib\User\{set_notification_to_read, set_user_setting};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -391,6 +391,25 @@ class MutationType extends ObjectType {
                         if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
                         return $user->id;
+                    }
+                ],
+                'changeSetting' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'vals' => Type::nonNull(Type::listOf(Type::nonNull(Types::SettingInput())))
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $names = [];
+                        $values = [];
+                        foreach ($args['vals'] as $v) {
+                            $names[] = $v['name'];
+                            $values[] = $v['value'];
+                        }
+
+                        return set_user_setting(DBManager::getConnection(), $user->id, $names, $values);
                     }
                 ],
                 'registerPushSubscription' => [
@@ -1510,6 +1529,18 @@ class PushReportType extends ObjectType {
     }
 }
 
+class SettingInputType extends InputObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'name' => fn() => Type::nonNull(Type::string()),
+                'value' => fn() => Type::nonNull(Type::string())
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Notifications *****/
 
 class RecordType extends ObjectType {
@@ -2004,6 +2035,10 @@ class Types {
 
     public static function PushReport():PushReportType {
         return self::$types['PushReport'] ??= new PushReportType();
+    }
+
+    public static function SettingInput():SettingInputType {
+        return self::$types['SettingInput'] ??= new SettingInputType();
     }
 
     /***** Notifications *****/
