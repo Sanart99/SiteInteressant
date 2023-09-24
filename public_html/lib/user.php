@@ -31,8 +31,8 @@ class RegisteredUser extends User {
         return $this->titles->contains('Administrator');
     }
 
-    public static function initFromRow($row) {
-        $data = $row['data'];
+    public static function initFromRow(array $row) {
+        $data = array_key_exists('data',$row) && array_key_exists('metadata',$row) ? $row['data'] : $row;
         $settings = new UserSettings(json_decode($data['settings'],true));
         return new self($data['id'],new Set(explode(',',$data['titles'])),$data['name'],new \DateTimeImmutable($data['registration_date']),$settings);
     }
