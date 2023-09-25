@@ -99,11 +99,13 @@ self.addEventListener('message',(event) => {
 });
 
 async function emptyCache() {
+    return;
     const cache = await caches.open(swName);
     for (const key of (await cache.keys())) cache.delete(key);
 }
 
 async function replenishCache() {
+    return;
     const cache = await caches.open(swName);
     if ((await cache.keys()).length > 2) return;  
     return cache.addAll([
