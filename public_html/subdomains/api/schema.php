@@ -1677,7 +1677,11 @@ class Context {
         ];
         foreach (getallheaders() as $k => $v) self::$headers[strtolower($k)] = $v;
 
-        if (isset($_COOKIE['sid'])) self::$a['authenticatedUser'] = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
+        if (isset($_COOKIE['sid'])) {
+            $user = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
+            self::$a['authenticatedUser'] = $user;
+            if ($user == null) delete_cookie('sid');
+        }
     }
 
     public static function addLog(string $name, string $msg) {

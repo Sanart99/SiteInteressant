@@ -16,6 +16,14 @@ function stringToNodes(s) {
 }
 
 function basicQueryResultCheck(operationResult, preventThrow = false) {
+    if (!__online) { alert('No internet connection detected.'); return false; }
+    if (__authenticated && operationResult == null) {
+        sendQuery('query { viewer { id } }').then((json) => {
+            if (json?.data?.viewer == null) switchToNotAuthenticated();
+            return;
+        });
+    }
+
     if (operationResult == null) {
         alert('Erreur interne.');
         if (preventThrow != true) throw new Error('Internal error.');
@@ -47,10 +55,7 @@ function getDateAsString(date) {
 }
 
 async function isServerInTestMode() {
-    return await sendQuery(`query { testMode }`).then((res) => {
-        if (!res.ok) basicQueryResultCheck();
-        else return res.json();
-    }).then((json) => json?.data?.testMode == true);
+    return await sendQuery(`query { testMode }`).then((json) => json?.data?.testMode == true);
 }
 
 JAVASCRIPT;

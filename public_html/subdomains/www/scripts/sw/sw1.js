@@ -10,35 +10,14 @@ $trimRegex = '/^(.*)\.php$/';
 echo <<<JAVASCRIPT
 const swName = 'sw1_v1.0';
 const permissions = {};
+let authenticated = true; //?
+let online = false; //?
 const __feat_cacheStorage = 'caches' in self;
 const __feat_notifications = 'body' in Notification?.prototype;
 
 self.addEventListener('install', (event) => {
     if (!__feat_cacheStorage) return;
-    event.waitUntil((async () => {
-        caches.open(swName).then(c => c.addAll([
-            '/pages/forum',
-            '/pages/home',
-            '/pages/usersettings',
-            '/pages/versionhistory',
-            '/scripts/gen/main.js',
-            '/scripts/gen/popup.js',
-            '/scripts/sw/manager.js',
-            '/scripts/init.js',
-            '/scripts/load.js',
-            '/scripts/quick.js',
-            '/scripts/router.js',
-            '/scripts/settings.js',
-            '/scripts/storage.js',
-            '/index',
-            '/style.css',
-            '/styleReset.css',
-            '/forum',
-            '/home',
-            '/usersettings',
-            '/versionhistory'
-        ])).then(() => self.skipWaiting());
-    })());
+    event.waitUntil(replenishCache().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -103,6 +82,52 @@ self.addEventListener('message',(event) => {
         permissions[k] = v;
         console.info('Permission set: ' + k + '=' + v);
     }
+    if (data?.setParam != null) for (const k in data.setParam) switch (k) {
+        case 'authenticated':
+            authenticated = data.setParam[k];
+            break;
+        case 'online':
+            online = data.setParam[k];
+            break;
+        default:
+            break;
+    }
+    if (data?.action != null) for (const k in data.action) switch (k) {
+        case 'emptyCache': emptyCache(); break;
+        case 'replenishCache': replenishCache(); break;
+    }
 });
+
+async function emptyCache() {
+    const cache = await caches.open(swName);
+    for (const key of (await cache.keys())) cache.delete(key);
+}
+
+async function replenishCache() {
+    const cache = await caches.open(swName);
+    if ((await cache.keys()).length > 2) return;  
+    return cache.addAll([
+        '/pages/forum',
+        '/pages/home',
+        '/pages/usersettings',
+        '/pages/versionhistory',
+        '/scripts/gen/main.js',
+        '/scripts/gen/popup.js',
+        '/scripts/sw/manager.js',
+        '/scripts/init.js',
+        '/scripts/load.js',
+        '/scripts/quick.js',
+        '/scripts/router.js',
+        '/scripts/settings.js',
+        '/scripts/storage.js',
+        '/index',
+        '/style.css',
+        '/styleReset.css',
+        '/forum',
+        '/home',
+        '/usersettings',
+        '/versionhistory'
+    ]);
+}
 JAVASCRIPT;
 ?>

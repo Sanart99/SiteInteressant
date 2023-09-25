@@ -17,7 +17,7 @@ foreach ($_GET as $k => $v) {
 }
 $loadPageURL = $loadPage.$qString;
 
-$scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','settings.js','gen/popup.js','sw/manager.js'];
+$scriptsToLoad = ['storage.js','sw/manager.js','load.js','init.js','quick.js','router.js','settings.js','gen/popup.js'];
 header('Content-Type: text/html');
 ?>
 <!DOCTYPE html>

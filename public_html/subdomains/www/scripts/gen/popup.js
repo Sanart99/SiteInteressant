@@ -162,16 +162,14 @@ function getConnexionForm() {
                     name
                 }
             }
-        }`,{username:username,password:password}).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            else return res.json();
-        }).then(async (json) => {
+        }`,{username:username,password:password}).then(async (json) => {
             if (!basicQueryResultCheck(json?.data?.loginUser,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
                 return;
             };
 
+            switchToAuthenticated();
             location.reload();
         });
     });
@@ -190,10 +188,7 @@ function getConnexionForm() {
                 resultCode
                 resultMessage
             }
-        }`,{code:code},null,'ProcessInviteCode').then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            else return res.json();
-        }).then((json) => {
+        }`,{code:code},null,'ProcessInviteCode').then((json) => {
             if (!basicQueryResultCheck(json?.data?.processInviteCode,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
@@ -219,10 +214,7 @@ function getConnexionForm() {
                 resultCode
                 resultMessage
             }
-        }`,{username:username, password:password},null,'RegisterUser').then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            else return res.json();
-        }).then((json) => {
+        }`,{username:username, password:password},null,'RegisterUser').then((json) => {
             if (!basicQueryResultCheck(json?.data?.registerUser,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
@@ -298,10 +290,7 @@ function getDisconnectElem() {
                 resultCode
                 resultMessage
             }
-        }`).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            else return res.json();
-        }).then((json) => {
+        }`).then((json) => {
             if (!basicQueryResultCheck(json?.data?.logoutUser,true)) return;
             location.reload();
         });
@@ -342,10 +331,7 @@ function getEditAvatar() {
             body: fd,
             credentials: 'include'
         }
-        fetch("{$_SERVER['LD_LINK_GRAPHQL']}",options).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            else return res.json();
-        }).then((json) => {
+        fetch("{$_SERVER['LD_LINK_GRAPHQL']}",options).then((json) => {
             if (!basicQueryResultCheck(json?.data?.uploadAvatar)) return;
             location.reload();
         });
