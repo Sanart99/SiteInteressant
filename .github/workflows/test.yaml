@@ -173,6 +173,8 @@ jobs:
             LD_LOCAL="1"
             LD_TEST="1"
 
+            LD_SERVER_ADMIN_EMAIL="test@test.com"
+
             LD_DB_HOST="127.0.0.1"
             LD_DB_NAME=""
             LD_DB_USER="root"
@@ -187,6 +189,9 @@ jobs:
 
             LD_CRYPT_PASSWORD="$2y$05$ssssssssssssssssssssss$"
             TEST_LD_CRYPT_PASSWORD="$2y$05$salTsalTsalTsalTsalTsA$"
+
+            LD_VAPID_PUBLIC_KEY="BMeHTt64Safzj3XvXYQUATUHumHnnY2ENsB85wFu-y4BjyLc0NQEsljuvfCfI0v4cge8pKJDZb9AnRHjHITDs0c"
+            LD_VAPID_PRIVATE_KEY="n6DCH63w7mqr2KRKjgnGMNTlvReONtCJkGEOTZNh8w4"
           EOF
 
           cd /var/www/siteinteressant/public_html
