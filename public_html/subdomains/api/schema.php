@@ -1713,7 +1713,7 @@ class Generator {
 
        self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
        self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
-       self::genQuickOperation('OnPush',['reports' => 'Type::nonNull(Type::listOf(Type::nonNull(Types::PushReport())))']);
+       self::genQuickOperation('OnPush',['reports' => 'Type::listOf(Type::nonNull(Types::PushReport()))']);
     }
 
     public static function genConnection(string $objectType) {
