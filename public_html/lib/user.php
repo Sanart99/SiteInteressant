@@ -36,7 +36,9 @@ class RegisteredUser extends User {
         $stmt->execute([
             ':userId' => $this->id,
             ':settings' => json_encode([
-                'defaultThreadPermission' => $this->settings->defaultThreadPermission,
+                'forum' => [
+                    'defaultThreadPermission' => $this->settings->defaultThreadPermission
+                ],
                 'notifications' => $this->settings->notificationsEnabled
             ],JSON_THROW_ON_ERROR)
         ]);
