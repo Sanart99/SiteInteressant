@@ -417,11 +417,10 @@ class MutationType extends ObjectType {
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'endpoint' => Type::nonNull(Type::string()),
-                        'expirationTime' => ['type' => Type::int(), 'defaultValue' => null],
+                        'expirationTime' => ['type' => Type::float(), 'defaultValue' => null],
                         'userVisibleOnly'=> Type::nonNull(Type::boolean()),
                         'publicKey' => Type::nonNull(Type::string()),
-                        'authToken' => Type::nonNull(Type::string()),
-                        'subscriptionDate' => Type::nonNull(Types::DateTime())
+                        'authToken' => Type::nonNull(Type::string())
                     ],
                     'resolve' => function ($o,$args) {
                         $user = Context::getAuthenticatedUser();
@@ -434,8 +433,8 @@ class MutationType extends ObjectType {
                         if ($stmt->fetch() !== false) return new OperationResult(ErrorType::DUPLICATE);
                         
                         $stmt = $conn->prepare(<<<SQL
-                            INSERT INTO push_subscriptions (user_id,remote_public_key,date,subscription_date,endpoint,expiration_time,user_visible_only,auth_token)
-                            VALUES (:userId,:remotePublicKey,:date,:subscriptionDate,:endpoint,:expirationTime,:userVisibleOnly,:authToken)
+                            INSERT INTO push_subscriptions (user_id,remote_public_key,date,endpoint,expiration_time,user_visible_only,auth_token)
+                            VALUES (:userId,:remotePublicKey,:date,:endpoint,:expirationTime,:userVisibleOnly,:authToken)
                             SQL
                         );
                         $res = $stmt->execute([
@@ -445,7 +444,6 @@ class MutationType extends ObjectType {
                             ':userVisibleOnly' => $args['userVisibleOnly'],
                             ':remotePublicKey' => $args['publicKey'],
                             ':authToken' => $args['authToken'],
-                            ':subscriptionDate' => $args['subscriptionDate']->format('Y-m-d H:i:s'),
                             ':date' => $sNow
                         ]);
                         return new OperationResult($res === true ? SuccessType::SUCCESS : ErrorType::DATABASE_ERROR);
