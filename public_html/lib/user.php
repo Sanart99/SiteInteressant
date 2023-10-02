@@ -36,10 +36,12 @@ class RegisteredUser extends User {
         $stmt->execute([
             ':userId' => $this->id,
             ':settings' => json_encode([
+                'notifications' => $this->settings->notificationsEnabled,
                 'forum' => [
-                    'defaultThreadPermission' => $this->settings->defaultThreadPermission
-                ],
-                'notifications' => $this->settings->notificationsEnabled
+                    'defaultThreadPermission' => $this->settings->defaultThreadPermission,
+                    'notif_newThread' => $this->settings->notif_newThread,
+                    'notif_newCommentOnFollowedThread' => $this->settings->notif_newCommentOnFollowedThread
+                ]
             ],JSON_THROW_ON_ERROR)
         ]);
 
@@ -56,19 +58,25 @@ class RegisteredUser extends User {
 class UserSettings {
     public ThreadPermission $defaultThreadPermission;
     public bool $notificationsEnabled;
+    public bool $notif_newThread;
+    public bool $notif_newCommentOnFollowedThread;
 
     public function __construct(?array $settings) {
+        $this->notificationsEnabled = (bool)($settings['notifications']??false);
+        
         if ($settings != null && isset($settings['forum'])) {
             $a = $settings['forum'];
             if (isset($a['defaultThreadPermission'])) switch ($a['defaultThreadPermission']) {
                 case 'current_users': $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS; break;
                 case 'all_users': $this->defaultThreadPermission = ThreadPermission::ALL_USERS; break;
             }
+            $this->notif_newThread = (bool)($a['notif_newThread']??false);
+            $this->notif_newCommentOnFollowedThread = (bool)($a['notif_newCommentOnFollowedThread']??false);
         }
         
-        
-        if (!isset($this->defaultThreadPermission)) $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS;
-        $this->notificationsEnabled = (bool)($settings['notifications']??false);
+        $this->defaultThreadPermission ??= ThreadPermission::CURRENT_USERS;
+        $this->notif_newThread ??= false;
+        $this->notif_newCommentOnFollowedThread ??= false;
     }
 }
 
@@ -82,6 +90,8 @@ function set_user_setting(LDPDO $conn, int $userId, array $names, array $values)
             switch ($names[$i]) {
                 case 'defaultThreadPermission': $user->settings->defaultThreadPermission = ThreadPermission::from($values[$i]); break;
                 case 'notifications': $user->settings->notificationsEnabled = (bool)$values[$i]; break;
+                case 'notif_newThread': $user->settings->notif_newThread = (bool)$values[$i]; break;
+                case 'notif_newCommentOnFollowedThread': $user->settings->notif_newCommentOnFollowedThread = (bool)$values[$i]; break;
                 default: throw new \Exception("");
             }
         } catch (\Throwable $e) { return new OperationResult(ErrorType::INVALID_DATA, "Setting '{$names[$i]}' is either invalid or was set to an invalid value."); }

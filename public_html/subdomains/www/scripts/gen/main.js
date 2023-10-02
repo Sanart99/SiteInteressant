@@ -2765,9 +2765,15 @@ function getUserSettings() {
                 <div class="sectionContent">
                     <ul>
                         <li>
-                            <input id="settings_notif" type="checkbox" disabled><label for="settings_notif">Activer les notifications</label>
+                            <input id="settings_notif" name="notifications" type="checkbox" disabled><label for="settings_notif">Activer les notifications push</label>
                             <ul>
                                 <li><input id="settings_device_notif" class="local" type="checkbox" disabled><label for="settings_device_notif">Activer pour cet appareil</label></li>
+                            </ul>
+                            <ul>
+                                <br/>
+                                <p>Envoyer une notification push quand :</p>
+                                <li><input id="settings_notif_newThread" name="notif_newThread" type="checkbox" disabled><label for="settings_notif_newThread">Un nouveau topic est créé</label></li>
+                                <li><input id="settings_notif_newCommentOnFollowedThread" name="notif_newCommentOnFollowedThread" type="checkbox" disabled><label for="settings_notif_newCommentOnFollowedThread">Un topic que vous suivez a un nouveau commentaire</label></li>
                             </ul>
                         </li>
                     </ul>
@@ -2779,11 +2785,15 @@ function getUserSettings() {
 
     HTML,'js' => <<<JAVASCRIPT
     const settingsForm = document.querySelector('#settingsForm');
-    const eNotif = document.querySelector('#settings_notif');
-    const eDeviceNotif = document.querySelector('#settings_device_notif');
     const allInputs = document.querySelectorAll('#mainDiv_userSettings input');
     const allSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input');
     const globalSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input:not(.local)');
+
+    const eNotif = document.querySelector('#settings_notif');
+    const eDeviceNotif = document.querySelector('#settings_device_notif');
+    const eNotifNewThread = document.querySelector('#settings_notif_newThread');
+    const eNotifNewCommentOnFollowedThread = document.querySelector('#settings_notif_newCommentOnFollowedThread');
+
     toggleInputs(false);
     initAfterSettingsSync();
 
@@ -2810,6 +2820,8 @@ function getUserSettings() {
     function loadInputVals() {
         eNotif.checked = localGet('settings_notifications') === 'true';
         eDeviceNotif.checked = localGet('settings_device_notifications') === 'true';
+        eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
+        eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
     }
     
     settingsForm.addEventListener('submit',(e) => {
@@ -2829,7 +2841,7 @@ function getUserSettings() {
 
         if (__online) {
             const vals = [];
-            vals.push({name:'notifications', value:eNotif.checked ? '1' : '0'});
+            for (const e of globalSettings) vals.push({name:e.name, value:e.checked ? '1' : '0'});
 
             sendQuery(`mutation ChangeSetting(\$vals:[SettingInput!]!) {
                 changeSetting(vals:\$vals) {

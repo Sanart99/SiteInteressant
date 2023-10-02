@@ -8,6 +8,7 @@ use LDLib\Database\LDPDO;
 use LDLib\General\OperationResult;
 use LDLib\General\SuccessType;
 use LDLib\General\TypedException;
+use LDLib\Net\LDWebPush;
 use Schema\ForumBuffer;
 use Schema\OperationType;
 
@@ -180,6 +181,11 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $stmt->execute([$user->id,'forum','addThread',json_encode(['threadId' => $threadRow['id']]),$sNow]);
 
     $conn->query('COMMIT');
+
+    $wp = new LDWebPush();
+    $stmt = $conn->query("SELECT id FROM users WHERE id!={$user->id} AND JSON_CONTAINS(settings,'true','$.notifications')=1 AND JSON_CONTAINS(settings,'true','$.forum.notif_newThread')=1");
+    while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) $wp->sendNotification($conn,$row['id'],"Nouveau topic de $user->username",$title);
+
     ForumBuffer::storeThread($threadRow);
     ForumBuffer::storeComment($commentRow);
     $thread = Thread::initFromRow($threadRow);
@@ -321,6 +327,11 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     $conn->query('COMMIT');
     foreach ($locks as $lock) release_lock($conn, $lock);
+
+    // push notifications
+    $wp = new LDWebPush();
+    $sTitle = mb_strlen($rowThread['title']) > 60 ? substr($rowThread['title'],0,57).'...' : $rowThread['title'];
+    foreach ($followingIds as $id) $wp->sendNotification($conn,$id,"Nouveau commentaire de $user->username",$sTitle);
 
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
