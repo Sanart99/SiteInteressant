@@ -15,6 +15,10 @@ function stringToNodes(s) {
     return tpl.content.cloneNode(true).childNodes;
 }
 
+function doubleToFloat(v) {
+    return new Float32Array([v])[0];
+}
+
 function basicQueryResultCheck(operationResult, preventThrow = false) {
     if (!__online) { alert('No internet connection detected.'); return false; }
     if (__authenticated && operationResult == null) {
