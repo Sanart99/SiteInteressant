@@ -35,8 +35,17 @@ __authenticated ? switchToAuthenticated() : switchToNotAuthenticated();
 
 function initLate() {
     if (__authenticated) {
-        if (__online) loadGlobalSettings().then(() => { syncSettingsWithServiceWorker(); __settingsInitialized = true; });
-        else __settingsInitialized = true;
+        if (__online) {
+            loadGlobalSettings().then(() => {
+                if (__feat_serviceWorker) {
+                    syncSettingsWithServiceWorker();
+                    initPushSubscription();
+                }
+                __settingsInitialized = true;
+            });
+        } else {
+            __settingsInitialized = true;
+        }
     }
 }
 JAVASCRIPT;
