@@ -75,6 +75,7 @@ class PageInfo {
 
 enum SuccessType {
     case SUCCESS;
+    case PARTIAL_SUCCESS;
 }
 
 enum ErrorType {

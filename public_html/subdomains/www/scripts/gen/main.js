@@ -32,6 +32,7 @@ function getIndexElems() {
         <div id="rightBar_optionsDiv">
             <a id="rightBar_optionsDiv_editAvatar" href="#" onclick="return false;"><p>Changer d'avatar</p></a>
             <a id="rightBar_optionsDiv_forum" href="$root/forum"><p>Forum</p></a>
+            <a id="rightBar_optionsDiv_userSettings" href="$root/usersettings" onclick="return false;"><p>Paramètres</p></a>
             <a href="$root/versionhistory"><p>Historique versions</p></a>
             <a id="rightBar_optionsDiv_disconnect" href="#" onclick="return false;"><p>Se Déconnecter</p></a>
         </div>
@@ -121,11 +122,8 @@ function getIndexElems() {
                     }
                 }
             }
-        }`).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            return res.json();
-        }).then((json) => {
-            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) basicQueryResultCheck();
+        }`).then((json) => {
+            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) { basicQueryResultCheck(); return; }
             gettingEvents = false;
             const records = json.data.records;
             const notifications = json.data.viewer.notifications;
@@ -209,10 +207,7 @@ function getIndexElems() {
                                 resultCode
                                 resultMessage
                             }
-                        }`,{number:notification.number}).then((res) => {
-                            if (!res.ok) basicQueryResultCheck();
-                            return res.json();
-                        }).then((json) => {
+                        }`,{number:notification.number}).then((json) => {
                             if (!basicQueryResultCheck(json?.data?.f)) return;
                             
                             node.classList.remove('new');
@@ -247,7 +242,8 @@ function getIndexElems() {
     document.querySelector('#rightBar_optionsDiv_forum').addEventListener('click',(e) => {
         e.preventDefault();
         loadPage("$root/forum",StateAction.PushState);
-    });    
+    });
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/usersettings",StateAction.PushState));  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS
@@ -257,30 +253,11 @@ function getIndexElems() {
     if ($isAuth === 1) {
         topBar.style.display = rightBar.style.display = '';
 
-        sendQuery(`query { viewer { name avatarURL } }`).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            return res.json();
-        }).then((json) => {
-            if (json?.data?.viewer?.name == null) basicQueryResultCheck();
+        sendQuery(`query { viewer { name avatarURL } }`).then((json) => {
+            if (json?.data?.viewer?.name == null) { basicQueryResultCheck(); return; }
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
-
-        if (globalMap['notifInterval'] != true) {
-            getRecentEvents().then(() => {
-                globalMap['notifInterval'] = true;
-                let nError = 0;
-                let i = setInterval(async () => {
-                    try { if (rightBar.getAttribute('open') != 1) await getRecentEvents(); }
-                    catch (e) {
-                        console.error(`Couldn't display notifications.`);
-                        console.error(e);
-                        // clearInterval(i);
-                        globalMap['notifInterval'] = false;
-                    }
-                },5000);
-            });
-        }
     }
 
     JAVASCRIPT,
@@ -543,11 +520,8 @@ function getForumMainElem() {
                     }
                 }
             }
-        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            return res.json();
-        }).then((json) => {
-            if (json?.data?.forum?.threads?.edges == null) basicQueryResultCheck();
+        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((json) => {
+            if (json?.data?.forum?.threads?.edges == null) { basicQueryResultCheck(); return; }
             const tBody = document.querySelector('#forum_threads tbody');
             const threads = json.data.forum.threads;
             tBody.innerHTML = '';
@@ -645,11 +619,8 @@ function getForumMainElem() {
                     }
                 }
             }
-        }`,{threadId:threadId,first:first,last:last,after:after,before:before,skipPages:skipPages,toFirstUnreadComment:toFirstUnreadComment}).then((res) => {
-            if (!res.ok) basicQueryResultCheck();
-            return res.json();
-        }).then((json) => {
-            if (json?.data?.node?.comments?.edges == null) basicQueryResultCheck();
+        }`,{threadId:threadId,first:first,last:last,after:after,before:before,skipPages:skipPages,toFirstUnreadComment:toFirstUnreadComment}).then((json) => {
+            if (json?.data?.node?.comments?.edges == null) { basicQueryResultCheck(); return; }
             currThreadId = threadId;
             highlightThread(currThreadId);
             const threadDbId = json.data.node.comments.edges[0].node.threadId;
@@ -715,10 +686,7 @@ function getForumMainElem() {
                             }
                         }
                     }
-                }`,{threadId:threadDbId}).then((res) => {
-                    if (!res.ok) basicQueryResultCheck();
-                    return res.json();
-                }).then((json) => {
+                }`,{threadId:threadDbId}).then((json) => {
                     bKubing = false;
                     eAddKube.innerHTML = oldS;
                     if (!basicQueryResultCheck(json?.data?.f)) return;
@@ -745,10 +713,7 @@ function getForumMainElem() {
                             }
                         }
                     }
-                }`,{threadId:threadDbId}).then((res) => {
-                    if (!res.ok) basicQueryResultCheck();
-                    return res.json();
-                }).then((json) => {
+                }`,{threadId:threadDbId}).then((json) => {
                     bUnkubing = false;
                     eRemKube.innerHTML = oldS;
                     if (!basicQueryResultCheck(json?.data?.f)) return;
@@ -847,10 +812,7 @@ function getForumMainElem() {
                                             resultCode
                                             resultMessage
                                         }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((res) => {
-                                        if (!res.ok) basicQueryResultCheck();
-                                        return res.json();
-                                    }).then((json) => {
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((json) => {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
@@ -890,10 +852,7 @@ function getForumMainElem() {
                                         resultCode
                                         resultMessage
                                     }
-                                }`,{threadId:threadDbId}).then((res) => {
-                                    if (!res.ok) basicQueryResultCheck();
-                                    return res.json();
-                                }).then((json) => {
+                                }`,{threadId:threadDbId}).then((json) => {
                                     if (!basicQueryResultCheck(json?.data?.f)) return;
                                     location.href = "$root/forum";
                                 });
@@ -906,10 +865,7 @@ function getForumMainElem() {
                                             resultMessage
                                         }
                                     }
-                                `,{threadId:threadDbId,commNumber:comment.node.number}).then((res) => {
-                                    if (!res.ok) basicQueryResultCheck();
-                                    return res.json();
-                                }).then((json) => {
+                                `,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                                     if(!basicQueryResultCheck(json?.data?.f)) return;
                                     location.reload();
                                 });
@@ -958,10 +914,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`.trim(),{threadId:json.data.node.dbId,commNumber:comment.node.number}).then((res) => {
-                        if (!res.ok) basicQueryResultCheck();
-                        return res.json();
-                    }).then((json) => {
+                    }`.trim(),{threadId:json.data.node.dbId,commNumber:comment.node.number}).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
 
                         commentNode.classList.remove('new');
@@ -972,11 +925,8 @@ function getForumMainElem() {
                                     isRead
                                 }
                             }
-                        }`,{threadId:threadId}).then((res) => {
-                            if (!res.ok) basicQueryResultCheck();
-                            return res.json();
-                        }).then((json) => {
-                            if (json?.data?.node?.isRead == null) basicQueryResultCheck();
+                        }`,{threadId:threadId}).then((json) => {
+                            if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                             if (json.data.node.isRead == false) return;
                             const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
                             if (e != null) {
@@ -1050,10 +1000,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((res) => {
-                        if (!res.ok) basicQueryResultCheck();
-                        return res.json();
-                    }).then((json) => {
+                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
                         loadThread(threadId,0,10);
                         return true;
@@ -1093,10 +1040,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`,{threadId:json.data.node.dbId},null,'Follow').then((res) => {
-                        if (!res.ok) basicQueryResultCheck();
-                        return res.json();
-                    }).then((json) => {
+                    }`,{threadId:json.data.node.dbId},null,'Follow').then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) {
                             for (const e of buttons) e.disabled = false;
                             return;
@@ -1119,10 +1063,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`,{threadId:json.data.node.dbId},null,'Unfollow').then((res) => {
-                        if (!res.ok) basicQueryResultCheck();
-                        return res.json();
-                    }).then((json) => {
+                    }`,{threadId:json.data.node.dbId},null,'Unfollow').then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) {
                             for (const e of buttons) e.disabled = false;
                             return;
@@ -1286,10 +1227,7 @@ function getForumMainElem() {
                         followingIds
                     }
                 }
-            }`,{title:data.get('title'),tags:[],msg:data.get('msg')}).then((res) => {
-                if (!res.ok) basicQueryResultCheck();
-                return res.json();
-            }).then((json) => {
+            }`,{title:data.get('title'),tags:[],msg:data.get('msg')}).then((json) => {
                 if (json?.data?.f?.thread?.id == null) {
                     basicQueryResultCheck(null,true);
                     submitButton.disabled = false;
@@ -1471,14 +1409,8 @@ function getForumMainElem() {
                         currPage
                     }
                 }
-            }`,{keywords:keywords,first:first,last:last,after:after,before:before,sortBy:sortBy,startDate:startDate,endDate:endDate,userIds:userIds,threadType:threadType,skipPages:skipPages}).then((res) => {
-                if (!res.ok) basicQueryResultCheck();
-                return res.json();
-            }).then((json) => {
-                if (json?.data?.search?.edges == null) {
-                    basicQueryResultCheck(null,true);
-                    return;
-                }
+            }`,{keywords:keywords,first:first,last:last,after:after,before:before,sortBy:sortBy,startDate:startDate,endDate:endDate,userIds:userIds,threadType:threadType,skipPages:skipPages}).then((json) => {
+                if (json?.data?.search?.edges == null) { basicQueryResultCheck(null,true); return; }
 
                 searchFormResults.innerHTML = '';
                 for (const edge of json.data.search.edges) {
@@ -1561,11 +1493,8 @@ function getForumMainElem() {
                         }
                     }
                 }
-            }`,{twinoidUsers:twinoidUsers}).then((res) => {
-                if (!res.ok) basicQueryResultCheck();
-                return res.json();
-            }).then((json) => {
-                if (json?.data?.userlist?.edges == null) basicQueryResultCheck();
+            }`,{twinoidUsers:twinoidUsers}).then((json) => {
+                if (json?.data?.userlist?.edges == null) { basicQueryResultCheck(); return; }
 
                 const eUserlist = document.querySelector('#dl_userlist');
                 eUserlist.innerHTML = '<option></option>';
@@ -1642,11 +1571,8 @@ function getForumMainElem() {
                 const sToParse = replyFormTA.value;
                 sendQuery(`query ParseText(\$msg:String!) {
                     parseText(text:\$msg)
-                }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((res) => {
+                }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((json) => {
                     acReplyForm = null;
-                    if (!res.ok) basicQueryResultCheck();
-                    return res.json();
-                }).then((json) => {
                     if (json?.data?.parseText == null) { basicQueryResultCheck(null,true); return; }
                     replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
                     if (contentSaveName != null) sessionSet(contentSaveName,sToParse);
@@ -1727,11 +1653,9 @@ function getForumMainElem() {
                     }
                 }
             }
-            }`).then((res) => {
-                if (!res.ok) basicQueryResultCheck();
-                return res.json();
-            }).then((json) => {
-                if (json?.data?.viewer?.emojis?.edges == null) basicQueryResultCheck();
+            }`).then((json) => {
+                if (json?.data?.viewer?.emojis?.edges == null) { basicQueryResultCheck(); return; }
+
                 const emojis = json.data.viewer.emojis;
                 const categories = {};
                 for (const edge of emojis.edges) {
@@ -2829,5 +2753,181 @@ function getVersionHistoryElem() {
         margin: 0.5em 0px;
     }
     CSS];
+}
+
+function getUserSettings() {
+    global $isAuth;
+    return ['html' => <<<HTML
+    <div id="mainDiv_userSettings" class="authPadded" data-is-auth="$isAuth">
+        <form id="settingsForm" class="main">
+            <section>
+                <h2>Notifications</h2>
+                <div class="sectionContent">
+                    <ul>
+                        <li>
+                            <input id="settings_notif" name="notifications" type="checkbox" disabled><label for="settings_notif">Activer les notifications push</label>
+                            <ul>
+                                <li><input id="settings_device_notif" class="local" type="checkbox" disabled><label for="settings_device_notif">Activer pour cet appareil</label></li>
+                            </ul>
+                            <ul>
+                                <br/>
+                                <p>Envoyer une notification push quand :</p>
+                                <li><input id="settings_notif_newThread" name="notif_newThread" type="checkbox" disabled><label for="settings_notif_newThread">Un nouveau topic est créé</label></li>
+                                <li><input id="settings_notif_newCommentOnFollowedThread" name="notif_newCommentOnFollowedThread" type="checkbox" disabled><label for="settings_notif_newCommentOnFollowedThread">Un topic que vous suivez a un nouveau commentaire</label></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <input id="settings_submit" type="submit" value="Enregistrer" disabled/>
+        </form>
+    </div>
+
+    HTML,'js' => <<<JAVASCRIPT
+    const settingsForm = document.querySelector('#settingsForm');
+    const allInputs = document.querySelectorAll('#mainDiv_userSettings input');
+    const allSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input');
+    const globalSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input:not(.local)');
+
+    const eNotif = document.querySelector('#settings_notif');
+    const eDeviceNotif = document.querySelector('#settings_device_notif');
+    const eNotifNewThread = document.querySelector('#settings_notif_newThread');
+    const eNotifNewCommentOnFollowedThread = document.querySelector('#settings_notif_newCommentOnFollowedThread');
+
+    toggleInputs(false);
+    initAfterSettingsSync();
+
+    function initAfterSettingsSync() {
+        if (__settingsInitialized) {
+            loadInputVals();
+            eDeviceNotif.addEventListener('change',() => { if (eDeviceNotif.checked) Notification.requestPermission(); });
+            for (const e1 of allSettings) e1.addEventListener('change',() => {
+                for (const e2 of e1.parentElement.querySelectorAll('input')) if (e2 != e1) e2.disabled = !e1.checked;
+            });
+            toggleInputs(true);
+        }
+        else setTimeout(initAfterSettingsSync,250);
+    }
+    function toggleInputs(enable) {
+        for (const e of allInputs) e.disabled = !enable;
+        if (!__feat_notifications) eDeviceNotif.disabled = true;
+
+        if (enable) {
+            // Disable children elements if parent unchecked
+            for (const e1 of allSettings) if (e1.disabled) for (const e2 of e1.parentElement.querySelectorAll('input')) {
+                if (e2 != e1) e2.disabled = true;
+            }
+        }
+    }
+    function loadInputVals() {
+        eNotif.checked = localGet('settings_notifications') === 'true';
+        eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
+        eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
+        eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
+    }
+    
+    settingsForm.addEventListener('submit',(e) => {
+        e.preventDefault();
+        toggleInputs(false);
+
+        function saveLocalSettings() {
+            localSet('settings_device_notifications', eDeviceNotif.checked);
+        }
+
+        if (eDeviceNotif.checked && Notification.permission !== 'granted') {
+            alert('You didn\'t grant notification permission.');
+            Notification.requestPermission();
+            toggleInputs(true);
+            return;
+        }
+
+        if (__online) {
+            const vals = [];
+            for (const e of globalSettings) vals.push({name:e.name, value:e.checked ? '1' : '0'});
+
+            sendQuery(`mutation ChangeSetting(\$vals:[SettingInput!]!) {
+                changeSetting(vals:\$vals) {
+                    success
+                    resultCode
+                    resultMessage
+                }
+            }`,{vals:vals}).then((json) => {
+                if (!basicQueryResultCheck(json?.data?.changeSetting,true)) {
+                    toggleInputs(true);
+                    return;
+                }
+
+                saveLocalSettings();
+                loadGlobalSettings().then(() => {                    
+                    syncSettingsWithServiceWorker();
+                    toggleInputs(true);
+                });
+                alert('Paramètres sauvegardés.');
+            });
+        } else {
+            saveLocalSettings();
+            syncSettingsWithServiceWorker();
+            alert('Paramètres sauvegardés.');
+            toggleInputs(true);
+        }
+    });
+
+    if (!globalMap.has('ev_settings_conn')) {
+        globalMap['ev_settings_conn'] = true;
+        addEventListener('offline',() => {
+            loadInputVals();
+            toggleInputs(true);
+            for (const e of globalSettings) { e.disabled = true; }
+        });
+        addEventListener('online',() => {
+            for (const e of globalSettings) { e.disabled = false; }
+        });
+    }
+
+    JAVASCRIPT, 'css' => <<<CSS
+    #mainDiv_userSettings {
+        background: var(--bg-gradient-1);
+        min-height: inherit;
+        overflow: auto;
+    }
+    #mainDiv_userSettings > .main {
+        margin: 2rem 8%;
+    }
+    #mainDiv_userSettings h2 {
+        color: var(--color-black-2);
+        font-size: 1.6rem;
+        border-bottom: 1px solid black;
+        margin: 0px 0px 0.7em 0px;
+        padding: 0px 0px 0.1em 0px;
+    }
+    #mainDiv_userSettings ul li {
+        margin: 0.5em 0px;
+    }
+    #mainDiv_userSettings ul > li > ul {
+        margin: 0px 0px 0px 1em;
+    }
+    #mainDiv_userSettings input[type="checkbox"] {
+        margin: 0px 0.5em 0px 0px;
+    }
+    #mainDiv_userSettings .sectionContent > ul > li > label {
+        font-weight: bold;
+    }
+    #mainDiv_userSettings input[type="submit"] {
+        background-color: var(--color-black-2);
+        border: 0;
+        border-top: 1px solid #6C7188;
+        outline: 1px solid var(--color-black-1);
+        padding: 0.2rem 0.4rem 0.2rem 0.4rem;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+    #mainDiv_userSettings input[type="submit"]:hover {
+        background-color: #3b4151;
+        border-color: var(--color-black-1);
+    }
+    
+    CSS
+];
 }
 ?>

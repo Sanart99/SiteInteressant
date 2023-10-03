@@ -17,7 +17,7 @@ dotenv();
 use Ds\Set;
 use GraphQL\Error\{Error, InvariantViolation};
 use GraphQL\Language\AST\{Node, StringValueNode};
-use GraphQL\Type\Definition\{InterfaceType, Type, ObjectType, PhpEnumType, ScalarType, UnionType};
+use GraphQL\Type\Definition\{InputObjectType, InterfaceType, Type, ObjectType, PhpEnumType, ScalarType, UnionType};
 use GraphQL\Utils\Utils;
 use LDLib\Database\LDPDO;
 use LDLib\General\{
@@ -31,7 +31,9 @@ use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSort
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
+use LDLib\Net\LDWebPush;
 use LdLib\Records\ActionGroup;
+use LDLib\User\UserSettings;
 
 use function LDLib\Auth\{
     get_user_from_sid,
@@ -51,8 +53,8 @@ use function LDLib\Forum\{
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
-use function LDLib\Net\curl_fetch;
-use function LdLib\User\set_notification_to_read;
+use function LDLib\Net\{curl_fetch};
+use function LdLib\User\{set_notification_to_read, set_user_setting};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -390,6 +392,75 @@ class MutationType extends ObjectType {
                         if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
                         return $user->id;
+                    }
+                ],
+                'changeSetting' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'vals' => Type::nonNull(Type::listOf(Type::nonNull(Types::SettingInput())))
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $names = [];
+                        $values = [];
+                        foreach ($args['vals'] as $v) {
+                            $names[] = $v['name'];
+                            $values[] = $v['value'];
+                        }
+
+                        return set_user_setting(DBManager::getConnection(), $user->id, $names, $values);
+                    }
+                ],
+                'registerPushSubscription' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'endpoint' => Type::nonNull(Type::string()),
+                        'expirationTime' => ['type' => Type::float(), 'defaultValue' => null],
+                        'userVisibleOnly'=> Type::nonNull(Type::boolean()),
+                        'publicKey' => Type::nonNull(Type::string()),
+                        'authToken' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        $sNow = (new \DateTime('now'))->format('Y-m-d H:i:s');
+                        $conn = DBManager::getConnection();
+
+                        $stmt = $conn->prepare("SELECT * FROM push_subscriptions WHERE user_id=? AND endpoint=?");
+                        $stmt->execute([$user->id,$args['endpoint']]);
+                        if ($stmt->fetch() !== false) return new OperationResult(ErrorType::DUPLICATE);
+                        
+                        $stmt = $conn->prepare(<<<SQL
+                            INSERT INTO push_subscriptions (user_id,remote_public_key,date,endpoint,expiration_time,user_visible_only,auth_token)
+                            VALUES (:userId,:remotePublicKey,:date,:endpoint,:expirationTime,:userVisibleOnly,:authToken)
+                            SQL
+                        );
+                        $res = $stmt->execute([
+                            ':userId' => $user->id,
+                            ':endpoint' => $args['endpoint'],
+                            ':expirationTime' => $args['expirationTime'],
+                            ':userVisibleOnly' => $args['userVisibleOnly'],
+                            ':remotePublicKey' => $args['publicKey'],
+                            ':authToken' => $args['authToken'],
+                            ':date' => $sNow
+                        ]);
+                        return new OperationResult($res === true ? SuccessType::SUCCESS : ErrorType::DATABASE_ERROR);
+                    }
+                ],
+                'sendNotification' => [
+                    'type' => fn() => Types::getOperationObjectType("OnPush"),
+                    'args' => [
+                        'userId' => Type::nonNull(Type::int()),
+                        'title' => Type::nonNull(Type::string()),
+                        'body' => ['type' => Type::string(), 'defaultValue' => null]
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        if ($user->isAdministrator() !== true) return new OperationResult(ErrorType::OPERATION_UNAUTHORIZED);
+                        return (new LDWebPush())->sendNotification(DBManager::getConnection(),$user->id,$args['title'],$args['body']);
                     }
                 ],
                 'uploadTidEmojis' => [
@@ -879,7 +950,11 @@ class RegisteredUserType extends ObjectType {
                             return $row;
                         });
                     })
-                ]
+                ],
+                'settings' => [
+                    'type' => fn() => Types::UserSettings(),
+                    'resolve' => fn($o,$args) => self::process($o, fn($o) => $o)
+                ],
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -915,6 +990,42 @@ class TidUserType extends ObjectType {
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class UserSettingsType extends ObjectType {
+    public static function process(mixed $o, callable $f) {
+        if (!($o instanceof RegisteredUser)) {
+            try {
+                $o = RegisteredUser::initFromRow($o);
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+
+        $authUser = Context::getAuthenticatedUser();
+        if ($o->id == $authUser->id || $authUser->isAdministrator()) return $f($o);
+        else return null;
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'notificationsEnabled' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notificationsEnabled)
+                ],
+                'notif_newThread' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notif_newThread)
+                ],
+                'notif_newCommentOnFollowedThread' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notif_newCommentOnFollowedThread)
                 ]
             ]
         ];
@@ -1399,6 +1510,44 @@ class EmojiType extends ObjectType {
     }
 }
 
+class PushReportType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'success' => [
+                    'type' => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => $o->isSuccess()
+                ],
+                'endpoint' => [
+                    'type' => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o->getEndpoint()
+                ],
+                'reason' => [
+                    'type' => Type::nonNull(Type::string()),
+                    'resolve' => fn($o) => $o->getReason()
+                ],
+                'statusCode' => [
+                    'type' => Type::nonNull(Type::int()),
+                    'resolve' => fn($o) => $o->getResponse()?->getStatusCode()
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class SettingInputType extends InputObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'name' => fn() => Type::nonNull(Type::string()),
+                'value' => fn() => Type::nonNull(Type::string())
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Notifications *****/
 
 class RecordType extends ObjectType {
@@ -1534,7 +1683,11 @@ class Context {
         ];
         foreach (getallheaders() as $k => $v) self::$headers[strtolower($k)] = $v;
 
-        if (isset($_COOKIE['sid'])) self::$a['authenticatedUser'] = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
+        if (isset($_COOKIE['sid'])) {
+            $user = get_user_from_sid(DBManager::getConnection(), $_COOKIE['sid']);
+            self::$a['authenticatedUser'] = $user;
+            if ($user == null) delete_cookie('sid');
+        }
     }
 
     public static function addLog(string $name, string $msg) {
@@ -1566,6 +1719,7 @@ class Generator {
 
        self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
        self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
+       self::genQuickOperation('OnPush',['reports' => 'Type::listOf(Type::nonNull(Types::PushReport()))']);
     }
 
     public static function genConnection(string $objectType) {
@@ -1626,7 +1780,7 @@ class Generator {
 
         eval(<<<PHP
         namespace Schema;
-        use GraphQL\Type\Definition\ObjectType;
+        use GraphQL\Type\Definition\{ObjectType, Type};
         use LDLib\General\ErrorType;
 
         class Operation{$name}Type extends ObjectType {
@@ -1660,7 +1814,7 @@ class DateTimeType extends ScalarType {
     }
 
     public function parseValue($value) {
-        if (!is_string($value) || preg_match('/^\d\d\d\d-\d\d-\d\d(?: \d\d:\d\d:\d\d)?$/', $value) == 0)
+        if (!is_string($value) || preg_match('/^(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:.\d{3})?Z|\d{4}-\d\d-\d\d(?: \d\d:\d\d:\d\d)?)$/', $value) == 0)
             throw new Error("Cannot represent following value as DateTime: ".Utils::printSafeJson($value));
         
         try {
@@ -1677,7 +1831,7 @@ class DateTimeType extends ScalarType {
             throw new Error('Query error: Can only parse strings got: '.$valueNode->kind, [$valueNode]);
 
         $s = $valueNode->value;
-        if (preg_match('/^\d\d\d\d-\d\d-\d\d(?: \d\d:\d\d:\d\d)?$/', $s) == 0) throw new Error("Not a valid datetime: '$s'", [$valueNode]);
+        if (preg_match('/^(?:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:.\d{3})?Z|\d{4}-\d\d-\d\d(?: \d\d:\d\d:\d\d)?)$/', $s) == 0) throw new Error("Not a valid datetime: '$s'", [$valueNode]);
         try { $v = new \DateTimeImmutable($s); } catch (\Exception $e) { throw new Error("Not a valid datetime: '$s'", [$valueNode]); }
 
         return $v;
@@ -1842,6 +1996,10 @@ class Types {
         return self::$types['AnyUser'] ??= new AnyUserType();
     }
 
+    public static function UserSettings():UserSettingsType {
+        return self::$types['UserSettings'] ??= new UserSettingsType();
+    }
+
     public static function Record():RecordType {
         return self::$types['Record'] ??= new RecordType();
     }
@@ -1884,6 +2042,14 @@ class Types {
 
     public static function Emoji():EmojiType {
         return self::$types['Emoji'] ??= new EmojiType();
+    }
+
+    public static function PushReport():PushReportType {
+        return self::$types['PushReport'] ??= new PushReportType();
+    }
+
+    public static function SettingInput():SettingInputType {
+        return self::$types['SettingInput'] ??= new SettingInputType();
     }
 
     /***** Notifications *****/

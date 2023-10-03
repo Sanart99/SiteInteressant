@@ -31,27 +31,73 @@ class RegisteredUser extends User {
         return $this->titles->contains('Administrator');
     }
 
-    public static function initFromRow($row) {
-        $data = $row['data'];
+    public function saveSettings(LDPDO $conn):bool {
+        $stmt = $conn->prepare("UPDATE users SET settings=:settings WHERE id=:userId LIMIT 1");
+        $stmt->execute([
+            ':userId' => $this->id,
+            ':settings' => json_encode([
+                'notifications' => $this->settings->notificationsEnabled,
+                'forum' => [
+                    'defaultThreadPermission' => $this->settings->defaultThreadPermission,
+                    'notif_newThread' => $this->settings->notif_newThread,
+                    'notif_newCommentOnFollowedThread' => $this->settings->notif_newCommentOnFollowedThread
+                ]
+            ],JSON_THROW_ON_ERROR)
+        ]);
+
+        return true;
+    }
+
+    public static function initFromRow(array $row) {
+        $data = array_key_exists('data',$row) && array_key_exists('metadata',$row) ? $row['data'] : $row;
         $settings = new UserSettings(json_decode($data['settings'],true));
         return new self($data['id'],new Set(explode(',',$data['titles'])),$data['name'],new \DateTimeImmutable($data['registration_date']),$settings);
     }
 }
 
 class UserSettings {
-    public readonly ThreadPermission $defaultThreadPermission;
+    public ThreadPermission $defaultThreadPermission;
+    public bool $notificationsEnabled;
+    public bool $notif_newThread;
+    public bool $notif_newCommentOnFollowedThread;
 
     public function __construct(?array $settings) {
+        $this->notificationsEnabled = (bool)($settings['notifications']??false);
+        
         if ($settings != null && isset($settings['forum'])) {
             $a = $settings['forum'];
             if (isset($a['defaultThreadPermission'])) switch ($a['defaultThreadPermission']) {
                 case 'current_users': $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS; break;
                 case 'all_users': $this->defaultThreadPermission = ThreadPermission::ALL_USERS; break;
             }
+            $this->notif_newThread = (bool)($a['notif_newThread']??false);
+            $this->notif_newCommentOnFollowedThread = (bool)($a['notif_newCommentOnFollowedThread']??false);
         }
         
-        if (!isset($this->defaultThreadPermission)) $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS;
+        $this->defaultThreadPermission ??= ThreadPermission::CURRENT_USERS;
+        $this->notif_newThread ??= false;
+        $this->notif_newCommentOnFollowedThread ??= false;
     }
+}
+
+function set_user_setting(LDPDO $conn, int $userId, array $names, array $values):OperationResult {
+    $userRow = $conn->query("SELECT * FROM users WHERE id=$userId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($userRow == false) return new OperationResult(ErrorType::NOT_FOUND, "User not found.");
+    $user = RegisteredUser::initFromRow($userRow);
+
+    for ($i=0; $i<count($names) || $i<count($values); $i++) {
+        try {
+            switch ($names[$i]) {
+                case 'defaultThreadPermission': $user->settings->defaultThreadPermission = ThreadPermission::from($values[$i]); break;
+                case 'notifications': $user->settings->notificationsEnabled = (bool)$values[$i]; break;
+                case 'notif_newThread': $user->settings->notif_newThread = (bool)$values[$i]; break;
+                case 'notif_newCommentOnFollowedThread': $user->settings->notif_newCommentOnFollowedThread = (bool)$values[$i]; break;
+                default: throw new \Exception("");
+            }
+        } catch (\Throwable $e) { return new OperationResult(ErrorType::INVALID_DATA, "Setting '{$names[$i]}' is either invalid or was set to an invalid value."); }
+    }
+    
+    return $user->saveSettings($conn) ? new OperationResult(SuccessType::SUCCESS) : new OperationResult(ErrorType::UNKNOWN);
 }
 
 function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateTimeInterface $dt = null):OperationResult {

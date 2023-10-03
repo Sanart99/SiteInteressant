@@ -17,7 +17,7 @@ foreach ($_GET as $k => $v) {
 }
 $loadPageURL = $loadPage.$qString;
 
-$scriptsToLoad = ['init.js','quick.js','router.js','load.js','storage.js','gen/popup.js'];
+$scriptsToLoad = ['storage.js','sw/manager.js','load.js','init.js','quick.js','router.js','settings.js','gen/popup.js'];
 header('Content-Type: text/html');
 ?>
 <!DOCTYPE html>
@@ -42,13 +42,15 @@ header('Content-Type: text/html');
     </body>
 
     <script>
+        initLate();
+        
         const elem = document.querySelector('#bodyDiv');
         configRouter(elem);
         
         loadPage("<?php echo $loadPageURL; ?>",StateAction.ReplaceState);
         addEventListener("popstate", (event) => {
-            let url = history.state.pageUrl;
-            loadPage(url);
+            let url = history.state?.pageUrl;
+            loadPage(url == null ? window.location : url);
         });
 
         <?= getPopupDiv()['js']; ?>

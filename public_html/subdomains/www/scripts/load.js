@@ -4,6 +4,7 @@ require_once $libDir.'/utils/utils.php';
 dotenv();
 
 $graphql = $_SERVER['LD_LINK_GRAPHQL'];
+$root = get_root_link();
 
 header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
@@ -84,7 +85,44 @@ function sendQuery(query, variables, headers, operationName, moreOptions) {
         credentials: 'include',
         ...moreOptions
     }
-    return fetch("$graphql",options);
+
+    return fetch("$graphql",options).then((res) => {
+        if (!res.ok) return (async () => {});
+        else return res.json();
+    }).catch(async (e) => {
+        if (!navigator.onLine) { await switchToOffline(); return new Response('{}', {status:503}); }
+        throw e;
+    });
 }
+
+function switchToOffline() {
+    if (!__online) return;
+    console.log('You are offline.');
+    __online = false;
+    getActiveServiceWorker()?.then((res) => res.postMessage(JSON.stringify({ setParam:{ 'online':__online } })));
+}
+
+function switchToOnline() {
+    if (__online) return;
+    console.log('You are online.');
+    __online = true;
+    getActiveServiceWorker()?.then((res) => res.postMessage(JSON.stringify({ setParam:{ 'online':__online }, action:{ replenishCache:null } })));
+}
+
+function switchToAuthenticated() {
+    if (__authenticated) return;
+    __authenticated = true;
+    getActiveServiceWorker()?.then((res) => res.postMessage(JSON.stringify({ setParam:{ 'authenticated':__authenticated }, action:{ replenishCache:null } })));
+}
+
+function switchToNotAuthenticated() {
+    if (!__authenticated) return;
+    __authenticated = false;
+    getActiveServiceWorker()?.then((res) => res.postMessage(JSON.stringify({ setParam:{ 'authenticated':__authenticated }, action:{ emptyCache:null } })));
+    if (location.href != "$root/home") location.href = "$root/home";
+}
+
+addEventListener('offline',() => switchToOffline());
+addEventListener('online',() => switchToOnline());
 JAVASCRIPT;
 ?>

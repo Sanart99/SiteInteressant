@@ -3,6 +3,7 @@
         "php-ds/php-ds": "1.4.*",
         "vlucas/phpdotenv": "5.5.*",
         "webonyx/graphql-php": "15.2.*",
-        "react/promise": "2.9.*"
+        "react/promise": "2.9.*",
+        "minishlink/web-push": "8.0.*"
     }
 }

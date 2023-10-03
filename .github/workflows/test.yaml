@@ -40,6 +40,7 @@ jobs:
       - name: Install and enable Apache modules
         run: |
           sudo apt -y install libapache2-mod-fcgid
+          sudo a2enmod ssl
           sudo a2enmod cgi
           sudo a2enmod rewrite
           sudo a2enmod headers
@@ -50,22 +51,29 @@ jobs:
       - name: Create folders and set permissions
         run: |
           sudo mkdir /var/www/siteinteressant
+          sudo mkdir /etc/apache2/ssl
           sudo chown -R $USER:$USER /etc/apache2/conf-available
           sudo chown -R $USER:$USER /etc/apache2/sites-available
-          sudo chown -R $USER:$USER /etc/php/8.1/apache2
+          sudo chown -R $USER:$USER /etc/apache2/ssl
+          sudo chown -R $USER:$USER /etc/php/8.1
           sudo chown -R $USER:$USER /var/www/siteinteressant
           sudo chown $USER:$USER /etc/hosts
           sudo chmod -R 777 /etc/apache2/conf-available
           sudo chmod -R 777 /etc/apache2/sites-available
-          sudo chmod -R 777 /etc/php/8.1/apache2
+          sudo chmod -R 777 /etc/apache2/ssl
+          sudo chmod -R 777 /etc/php/8.1
           sudo chmod -R 777 /var/www/siteinteressant
           sudo chmod 777 /etc/hosts
 
       - name: Config server
         run: |
           mv -f .serv/linux/php.ini /etc/php/8.1/apache2/php.ini
+          mv -f .serv/SSLCert.crt /etc/apache2/ssl/SSLCert.crt
+          mv -f .serv/SSLKey.key /etc/apache2/ssl/SSLKey.key
 
           sudo cat <<- 'EOF' > /etc/apache2/conf-available/siteinteressant.conf
+            DirectoryIndex index.php index.html
+
             <Directory /var/www/>
               Options Indexes FollowSymLinks
               AllowOverride All
@@ -74,6 +82,12 @@ jobs:
           EOF
           sudo cat <<- 'EOF' > /etc/apache2/sites-available/siteinteressant.conf
             <VirtualHost 127.0.1.1:80>
+              RewriteEngine On
+              RewriteCond %{HTTPS} !=on
+              RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
+            </VirtualHost>
+
+            <VirtualHost 127.0.1.1:443>
               DocumentRoot "/var/www/siteinteressant/public_html/"
               ServerName local_siteinteressant.net
 
@@ -82,6 +96,10 @@ jobs:
                   Require all granted
               </Directory>
 
+              SSLEngine On
+              SSLCertificateFile "/etc/apache2/ssl/SSLCert.crt"
+              SSLCertificateKeyFile "/etc/apache2/ssl/SSLKey.key"
+
               ErrorLog ${APACHE_LOG_DIR}/error.log
               CustomLog ${APACHE_LOG_DIR}/access.log combined
               ScriptLog ${APACHE_LOG_DIR}/cgi.log
@@ -89,7 +107,7 @@ jobs:
               LogLevel alert rewrite:trace3
             </VirtualHost>
 
-            <VirtualHost 127.0.1.1:80>
+            <VirtualHost 127.0.1.1:443>
                 DocumentRoot "/var/www/siteinteressant/public_html/subdomains/api"
                 ServerName api.local_siteinteressant.net
 
@@ -98,6 +116,10 @@ jobs:
                     Require all granted
                 </Directory>
 
+                SSLEngine On
+                SSLCertificateFile "/etc/apache2/ssl/SSLCert.crt"
+                SSLCertificateKeyFile "/etc/apache2/ssl/SSLKey.key"
+
                 ErrorLog ${APACHE_LOG_DIR}/error.log
                 CustomLog ${APACHE_LOG_DIR}/access.log combined
                 ScriptLog ${APACHE_LOG_DIR}/cgi.log
@@ -105,7 +127,7 @@ jobs:
                 LogLevel alert rewrite:trace3
             </VirtualHost>
 
-            <VirtualHost 127.0.1.1:80>
+            <VirtualHost 127.0.1.1:443>
                 DocumentRoot "/var/www/siteinteressant/public_html/subdomains/res"
                 ServerName res.local_siteinteressant.net
 
@@ -114,6 +136,10 @@ jobs:
                     Require all granted
                 </Directory>
 
+                SSLEngine On
+                SSLCertificateFile "/etc/apache2/ssl/SSLCert.crt"
+                SSLCertificateKeyFile "/etc/apache2/ssl/SSLKey.key"
+
                 ErrorLog ${APACHE_LOG_DIR}/error.log
                 CustomLog ${APACHE_LOG_DIR}/access.log combined
                 ScriptLog ${APACHE_LOG_DIR}/cgi.log
@@ -121,6 +147,12 @@ jobs:
                 LogLevel alert rewrite:trace3
             </VirtualHost>
           EOF
+
+          sudo cat <<- 'EOF' >> /etc/php/8.1/cli/php.ini
+          [custom]
+          extension=sodium
+          EOF
+          cat /etc/php/8.1/cli/php.ini
 
           cat <<- 'EOF' > /etc/hosts
           127.0.0.1 localhost
@@ -141,6 +173,8 @@ jobs:
             LD_LOCAL="1"
             LD_TEST="1"
 
+            LD_SERVER_ADMIN_EMAIL="test@test.com"
+
             LD_DB_HOST="127.0.0.1"
             LD_DB_NAME=""
             LD_DB_USER="root"
@@ -148,13 +182,16 @@ jobs:
             TEST_LD_DB_NAME="test_siteinteressant"
 
             LD_LINK_DOMAIN="local_siteinteressant.net"
-            LD_LINK_ROOT="http://local_siteinteressant.net"
-            LD_LINK_RES="http://res.local_siteinteressant.net"
-            LD_LINK_API="http://api.local_siteinteressant.net"
-            LD_LINK_GRAPHQL="http://api.local_siteinteressant.net/graphql.php"
+            LD_LINK_ROOT="https://local_siteinteressant.net"
+            LD_LINK_RES="https://res.local_siteinteressant.net"
+            LD_LINK_API="https://api.local_siteinteressant.net"
+            LD_LINK_GRAPHQL="https://api.local_siteinteressant.net/graphql.php"
 
             LD_CRYPT_PASSWORD="$2y$05$ssssssssssssssssssssss$"
             TEST_LD_CRYPT_PASSWORD="$2y$05$salTsalTsalTsalTsalTsA$"
+
+            LD_VAPID_PUBLIC_KEY="BMeHTt64Safzj3XvXYQUATUHumHnnY2ENsB85wFu-y4BjyLc0NQEsljuvfCfI0v4cge8pKJDZb9AnRHjHITDs0c"
+            LD_VAPID_PRIVATE_KEY="n6DCH63w7mqr2KRKjgnGMNTlvReONtCJkGEOTZNh8w4"
           EOF
 
           cd /var/www/siteinteressant/public_html
@@ -164,11 +201,11 @@ jobs:
         run: |
           sudo apache2ctl configtest
           sudo systemctl start apache2
-          curl -I localhost
-          curl -I 127.0.1.1
-          curl -I local_siteinteressant.net
-          curl -I api.local_siteinteressant.net/graphql
-          curl -I res.local_siteinteressant.net
+          curl --insecure -I localhost
+          curl --insecure -I 127.0.1.1
+          curl --insecure -I https://local_siteinteressant.net
+          curl --insecure -I https://api.local_siteinteressant.net/graphql
+          curl --insecure -I https://res.local_siteinteressant.net
 
       - name: Install and Setup dotnet
         uses: actions/setup-dotnet@v3
@@ -191,7 +228,7 @@ jobs:
           github_token: ${{secrets.GH_ACCESS_TESTER}}
           repo: Sanart99/SiteInteressantTester
           workflow: build.yml
-          branch: to-v0.3
+          branch: to/v1.0
           path: .etc/tester/
       
       - name: Run Tester
