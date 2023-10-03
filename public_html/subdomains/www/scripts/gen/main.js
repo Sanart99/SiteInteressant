@@ -2812,8 +2812,8 @@ function getUserSettings() {
         for (const e of allInputs) e.disabled = !enable;
         if (enable) {
             // Disable children elements if parent unchecked
-            for (const e1 of allSettings) for (const e2 of e1.parentElement.querySelectorAll('input')) {
-                if (e2 != e1) e2.disabled = !e1.checked;
+            for (const e1 of allSettings) if (e1.disabled) for (const e2 of e1.parentElement.querySelectorAll('input')) {
+                if (e2 != e1) e2.disabled = true;
             }
         }
     }
