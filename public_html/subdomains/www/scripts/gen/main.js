@@ -2810,6 +2810,8 @@ function getUserSettings() {
     }
     function toggleInputs(enable) {
         for (const e of allInputs) e.disabled = !enable;
+        if (!__feat_notifications) eDeviceNotif.disabled = true;
+
         if (enable) {
             // Disable children elements if parent unchecked
             for (const e1 of allSettings) if (e1.disabled) for (const e2 of e1.parentElement.querySelectorAll('input')) {
@@ -2819,7 +2821,7 @@ function getUserSettings() {
     }
     function loadInputVals() {
         eNotif.checked = localGet('settings_notifications') === 'true';
-        eDeviceNotif.checked = localGet('settings_device_notifications') === 'true';
+        eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
         eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
     }
