@@ -424,7 +424,7 @@ function getHomeMainDiv() {
 }
 
 function getForumMainElem() {
-    global $isAuth,$root;
+    global $isAuth,$root,$res;
     return ['html' => <<<HTML
     <div id="mainDiv_forum" class="authPadded" data-is-auth="$isAuth">
         <div id="forum_content">
@@ -433,9 +433,9 @@ function getForumMainElem() {
                     <div class="forum_mainBar_sub1"><p>Asile Intéressant</p></div>
                     <div class="forum_mainBar_sub2">
                         <div>
-                            <button class="searchLoader button1" type="button"><img src="https://data.twinoid.com/img/icons/search.png"/></button><!--
-                            --><button class="refreshThreads button1" type="button"><img src="https://data.twinoid.com/img/icons/refresh.png"/></button><!--
-                            --><button class="newThreadLoader button1" type="button"><img src="https://data.twinoid.com/img/icons/edit.png"/>Créer un topic</button>
+                            <button class="searchLoader button1" type="button"><img src="{$res}/icons/search.png"/></button><!--
+                            --><button class="refreshThreads button1" type="button"><img src="{$res}/icons/refresh.png"/></button><!--
+                            --><button class="newThreadLoader button1" type="button"><img src="{$res}/icons/edit.png"/>Créer un topic</button>
                         </div>
                     </div>
                 </div>
@@ -454,8 +454,8 @@ function getForumMainElem() {
                 <div class="forum_footer">
                     <div class="paginationDiv">
                         <div>
-                            <button class="button1 first" type="button"><img src="https://data.twinoid.com/img/icons/first.png"/></button><!--
-                            --><button class="button1 left" type="button"><img src="https://data.twinoid.com/img/icons/left.png"/></button>
+                            <button class="button1 first" type="button"><img src="{$res}/icons/first.png"/></button><!--
+                            --><button class="button1 left" type="button"><img src="{$res}/icons/left.png"/></button>
                         </div>
                         <div>
                             <button class="button1 pagination_details" type="button">
@@ -463,8 +463,8 @@ function getForumMainElem() {
                             </button>
                         </div>
                         <div>
-                            <button class="button1 right" type="button"><img src="https://data.twinoid.com/img/icons/right.png"/></button><!--
-                            --><button class="button1 last" ttype="button"><img src="https://data.twinoid.com/img/icons/last.png"/></button>
+                            <button class="button1 right" type="button"><img src="{$res}/icons/right.png"/></button><!--
+                            --><button class="button1 last" ttype="button"><img src="{$res}/icons/last.png"/></button>
                         </div>
                     </div>
                 </div>
@@ -547,7 +547,7 @@ function getForumMainElem() {
                     lastDelimiter = 'Date inconnue';
                 }
                 const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread \${edge.node.isRead ? '' : 'new'}">
-                    <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="https://data.twinoid.com/img/icons/selected.png"/></div></a></td>
+                    <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="{$res}/icons/selected.png"/></div></a></td>
                     <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
                     <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.number}</p><p class="author">\${comment.author.name}</p></a></td>
                 </tr>`)[0];
@@ -555,7 +555,7 @@ function getForumMainElem() {
                 for (const e of tr.querySelectorAll('a')) {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
                 }
-                if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="https://data.twinoid.com/img/icons/recent.png"/>');
+                if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="{$res}/icons/recent.png"/>');
             }
 
             const eNPage = document.querySelector('#forumL .nPage');
@@ -1013,7 +1013,7 @@ function getForumMainElem() {
             const actionsCont = document.querySelectorAll('#forumR .actions');
             for (const cont of actionsCont) {
                 cont.innerHTML = '';
-                const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+                const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="{$res}/icons/back.png"/></button>')[0];
                 cont.insertAdjacentElement('beforeend',back);
                 back.addEventListener('click', () => {
                     if (!mobileMode) return;
@@ -1021,7 +1021,7 @@ function getForumMainElem() {
                     forumL.style.display = '';
                 });
                 back.style.display = mobileMode ? '' : 'none';
-                const reply = stringToNodes('<button class="button1 reply" type="button"><img src="https://data.twinoid.com/img/icons/edit.png"/>Répondre</button>')[0];
+                const reply = stringToNodes('<button class="button1 reply" type="button"><img src="{$res}/icons/edit.png"/>Répondre</button>')[0];
                 cont.insertAdjacentElement('beforeend',reply);
                 reply.addEventListener('click', () => {
                     for (const e of document.querySelectorAll('#forum_comments .comment.selected')) e.classList.remove("selected");
@@ -1029,7 +1029,7 @@ function getForumMainElem() {
                 });
             }
             function getFollowButton() {
-                const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="https://data.twinoid.com/img/icons/mail.png" />Suivre</p></button>')[0];
+                const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="{$res}/icons/mail.png" />Suivre</p></button>')[0];
                 e.addEventListener('click',() => {
                     const buttons = document.querySelectorAll('#forumR .actions .follow');
                     for (const e of buttons) e.disabled = true;
@@ -1052,7 +1052,7 @@ function getForumMainElem() {
                 return e;
             }
             function getUnfollowButton() {
-                const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="https://data.twinoid.com/img/icons/remove.png" />Ne plus suivre</p></button>')[0];
+                const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="{$res}/icons/remove.png" />Ne plus suivre</p></button>')[0];
                 e.addEventListener('click',() => {
                     const buttons = document.querySelectorAll('#forumR .actions .follow');
                     for (const e of buttons) e.disabled = true;
@@ -1098,8 +1098,8 @@ function getForumMainElem() {
         if (eCont == null) {
             eCont = stringToNodes(`<div class="paginationDiv">
                 <div>
-                    <button class="button1 first" type="button"><img src="https://data.twinoid.com/img/icons/first.png"/></button><!--
-                    --><button class="button1 left" type="button"><img src="https://data.twinoid.com/img/icons/left.png"/></button>
+                    <button class="button1 first" type="button"><img src="{$res}/icons/first.png"/></button><!--
+                    --><button class="button1 left" type="button"><img src="{$res}/icons/left.png"/></button>
                 </div>
                 <div>
                     <button class="button1 pagination_details" type="button">
@@ -1107,8 +1107,8 @@ function getForumMainElem() {
                     </button>
                 </div>
                 <div>
-                    <button class="button1 right" type="button"><img src="https://data.twinoid.com/img/icons/right.png"/></button><!--
-                    --><button class="button1 last" type="button"><img src="https://data.twinoid.com/img/icons/last.png"/></button>
+                    <button class="button1 right" type="button"><img src="{$res}/icons/right.png"/></button><!--
+                    --><button class="button1 last" type="button"><img src="{$res}/icons/last.png"/></button>
                 </div>
             </div>`)[0];
         }
@@ -1198,7 +1198,7 @@ function getForumMainElem() {
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
         if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
 
-        const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+        const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="{$res}/icons/back.png"/></button>')[0];
         forumR.querySelector('.forum_mainBar_sub2 .actions').insertAdjacentElement('beforeend',back);
         back.addEventListener('click', () => {
             if (!mobileMode) return;
@@ -1278,7 +1278,7 @@ function getForumMainElem() {
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
         if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
         for (const cont of forumR.querySelectorAll('.actions')) {
-            const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="https://data.twinoid.com/img/icons/back.png"/></button>')[0];
+            const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="{$res}/icons/back.png"/></button>')[0];
             cont.insertAdjacentElement('beforeend',back);
             back.addEventListener('click', () => {
                 if (!mobileMode) return;
@@ -1902,7 +1902,7 @@ function getForumMainElem() {
     #mainDiv_forum #searchFormResults .content .spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil {
         cursor: help;
-        background-image: url(https://data.twinoid.com/img/design/spoiler.png);
+        background-image: url({$res}/design/spoiler.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt,
     #mainDiv_forum .comment .body .spoil .spoilTxt,
@@ -1914,7 +1914,7 @@ function getForumMainElem() {
     #mainDiv_forum .comment .body .spoil:hover,
     #mainDiv_forum #searchFormResults .content .spoil:hover,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil:hover {
-        background-image: url(https://data.twinoid.com/img/design/spoiler_hover.png);
+        background-image: url({$res}/design/spoiler_hover.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt,
     #mainDiv_forum .comment .body .spoil:hover .spoilTxt,
@@ -1926,7 +1926,7 @@ function getForumMainElem() {
     #mainDiv_forum .comment .body .rpTextSpeaker > p::before,
     #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay::before {
-        content: url(https://data.twinoid.com/img/icons/rp.png);
+        content: url({$res}/icons/rp.png);
         margin: 0px 0.2em 0px 0px;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker,
@@ -1944,7 +1944,7 @@ function getForumMainElem() {
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay::before {
         display: block;
         position:absolute;
-        content: url(https://data.twinoid.com/img/design/arrowUp.png);
+        content: url({$res}/design/arrowUp.png);
         transform: translate(0.5rem, -86%);
     }
     #mainDiv_forum .replyFormDiv .preview .rpText,
@@ -1986,7 +1986,7 @@ function getForumMainElem() {
         box-shadow: 1px 1px 3px black;
         box-shadow: 1px 1px 3px rgba(0,0,0, 0.5);
         background-color: #dddbd8;
-        background-image: url(https://data.twinoid.com/img/design/gripWhite.png);
+        background-image: url({$res}/design/gripWhite.png);
         background-position: center top;
         background-repeat: repeat-x;
     }
@@ -2040,7 +2040,7 @@ function getForumMainElem() {
         display: none;
     }
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_user {
-        background-image: url(https://data.twinoid.com/img/icons/notContact.png);
+        background-image: url({$res}/icons/notContact.png);
         background-repeat: no-repeat;
         background-position: top right;
         border-top: 1px solid #fe7d00;
@@ -2062,7 +2062,7 @@ function getForumMainElem() {
         border-radius: 4px;
         text-shadow: 0px 1px 0px #3b4151;
         color: white;
-        background-image: url(https://data.twinoid.com/img/design/announceBg.png);
+        background-image: url({$res}/design/announceBg.png);
         background-position: bottom left;
         background-repeat: no-repeat;
         background-color: #3b4151;
@@ -2361,7 +2361,7 @@ function getForumMainElem() {
     #searchForm {
         padding: 10px;
         margin-bottom: 10px;
-        background-image: url(https://data.twinoid.com/img/design/gripBg.png);
+        background-image: url({$res}/design/gripBg.png);
         background-repeat: repeat-x;
         border-radius: 4px;
         background-color: var(--color-black-2);
@@ -2394,7 +2394,7 @@ function getForumMainElem() {
     #searchFormResults .searchItem {
         padding: 10px;
         margin: 5px 0px;
-        background-image: url(https://data.twinoid.com/img/design/gripBg.png);
+        background-image: url({$res}/design/gripBg.png);
         background-repeat: repeat-x;
         border-radius: 4px;
         background-color: #F4F3F2;
