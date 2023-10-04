@@ -651,7 +651,7 @@ function getForumMainElem() {
                 a[0] = forumR.querySelector('.forum_mainBar_sub2');
                 a[1] = forumR.querySelector('.forum_footer');
                 for (const cont of a) {
-                    const paginationDiv = setupPagInput(null,() => loadThread(threadId,10),() => loadThread(threadId,null,10),
+                    const paginationDiv = setupPagInput(null,10,() => loadThread(threadId,10),() => loadThread(threadId,null,10),
                         (n,cursor,skipPages) => loadThread(threadId,null,n,null,cursor,skipPages),
                         (n,cursor,skipPages) => loadThread(threadId,n,null,cursor,null,skipPages)
                     );
@@ -1094,7 +1094,7 @@ function getForumMainElem() {
         if (e == null) return;
         e.dataset.selected = true;
     }
-    function setupPagInput(eCont,firstPage,lastPage,before,after) {
+    function setupPagInput(eCont,itemsPerPage,firstPage,lastPage,before,after) {
         if (eCont == null) {
             eCont = stringToNodes(`<div class="paginationDiv">
                 <div>
@@ -1122,8 +1122,8 @@ function getForumMainElem() {
         const right = eCont.querySelector('.right');
         const last = eCont.querySelector('.last');
         first.addEventListener('click',firstPage);
-        left.addEventListener('click',() => (getCurrPage() == 1 ? firstPage() : before(10,left.dataset.cursor,0)));
-        right.addEventListener('click',() => (getCurrPage() == getMaxPages() ? lastPage() : after(10,right.dataset.cursor,0)));
+        left.addEventListener('click',() => (getCurrPage() == 1 ? firstPage() : before(itemsPerPage,left.dataset.cursor,0)));
+        right.addEventListener('click',() => (getCurrPage() == getMaxPages() ? lastPage() : after(itemsPerPage,right.dataset.cursor,0)));
         last.addEventListener('click',lastPage);
         let pagDetailsInput = null;
         pagDetails.addEventListener('click',() => {
@@ -1149,8 +1149,8 @@ function getForumMainElem() {
                 if (v <= 1) { firstPage(); b = false; return; }
                 if (v >= nMaxPages) { lastPage(); b = false; return; }
 
-                if (v >= currPage) after(10,right.dataset.cursor,v-currPage-1); 
-                else if (v < currPage) before(10,left.dataset.cursor,currPage-v-1);
+                if (v >= currPage) after(itemsPerPage,right.dataset.cursor,v-currPage-1); 
+                else if (v < currPage) before(itemsPerPage,left.dataset.cursor,currPage-v-1);
                 b = false;
             }
             pagDetailsInput.addEventListener('blur',go);
@@ -1234,7 +1234,7 @@ function getForumMainElem() {
                     return false;
                 }
                 loadPage(`$root/forum/\${json.data.f.thread.dbId}`, StateAction.PushState);
-                loadThreads(10);
+                loadThreads(20);
                 return true;
             });
         },'forum_newThreadText');
@@ -1300,7 +1300,7 @@ function getForumMainElem() {
 
         const pagDivs = forumR.querySelectorAll('.pagDivDiv');
         for (const node of pagDivs) {
-            node.insertAdjacentElement('beforeend',setupPagInput(null,
+            node.insertAdjacentElement('beforeend',setupPagInput(null,10,
                 () => loadSearchResults(10),
                 () => loadSearchResults(0,10),
                 (n,cursor,skipPages) => loadSearchResults(null,n,null,cursor,skipPages),
@@ -1550,9 +1550,9 @@ function getForumMainElem() {
         return res;
     }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
-    setupPagInput(forumFooter,
-        () => loadThreads(10),
-        () => loadThreads(null,10),
+    setupPagInput(forumFooter,20,
+        () => loadThreads(20),
+        () => loadThreads(null,20),
         (n,cursor,skipPages) => loadThreads(null,n,null,cursor,skipPages),
         (n,cursor,skipPages) => loadThreads(n,null,cursor,null,skipPages)
     );
@@ -1739,13 +1739,13 @@ function getForumMainElem() {
     document.querySelector('.refreshThreads').addEventListener('click',() => {
         const pageNumber = parseInt(document.querySelector('#forumL .nPage').innerText);
         if (isNaN(pageNumber)) return;
-        loadThreads(10,null,null,null,pageNumber-1);
+        loadThreads(20,null,null,null,pageNumber-1);
     });
 
-    loadThreads(10);
+    loadThreads(20);
 
     const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
-    if (m != null) loadThread(`forum_\${m[1]}`,10);
+    if (m != null) loadThread(`forum_\${m[1]}`,20);
     _loadPageMidProcesses['forumMP'] = (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
         const m = new RegExp("^$root/forum/(\\\d+)").exec(displayedURL);
