@@ -636,13 +636,7 @@ function getForumMainElem() {
                     </div>
                 </div>
                 <div class="subheader">
-                    <div class="infos1">
-                        <div class="kubeDiv">
-                            <img class="kubeDiv_begin" src="$res/design/like_icon_none.png"/>
-                            <div class="kubeDiv_mid"><p>123</p></div>
-                            <img class="kubeDiv_end" src="$res/design/like_end.png" />
-                        </div>
-                    </div>
+                    <div class="infos1"></div>
                     <div class="infos2 hide">
                         <div class="main"></div>
                         <p><a class="infos2Msg" href="#" onclick="return false;">Plus d'informations...</a></p>
@@ -670,72 +664,42 @@ function getForumMainElem() {
             const eInfos1 = forumR.querySelector('.subheader .infos1');
             const eInfos2 = forumR.querySelector('.subheader .infos2');
             const eInfos2Main = eInfos2.querySelector('.main');
-            const kubeDiv = eInfos1.querySelector('.subheader .infos1 .kubeDiv');
-            const kubeButton = kubeDiv.querySelector('.kubeDiv_begin');
-            const eKubeCount = kubeDiv.querySelector('.kubeDiv_mid p');
-            const srcKubed = "$res/design/like_icon_on.png";
-            const srcNotKubed = "$res/design/like_icon.png";
-            const srcNoKubes = "$res/design/like_icon_none.png";
-            function noKubes(b = true) {
-                kubeDiv.querySelector('.kubeDiv_mid').style.display = b ? 'none' : '';
-                kubeDiv.querySelector('.kubeDiv_end').style.display = b ? 'none' : '';
-            }
-            noKubes();
-            if (kubersIds.length > 0) {
-                kubeButton.src = kubersIds.includes(viewerId) ? srcKubed : srcNotKubed;
-                noKubes(false);
-                eKubeCount.innerHTML = kubersIds.length;
-            }
-            let bKubeProcess = false;
-            kubeButton.addEventListener('click', () => {
-                if (bKubeProcess) return;
-                bKubeProcess = true;
 
-                if (kubeButton.src == srcNotKubed || kubeButton.src == srcNoKubes) {
-                    sendQuery(`mutation KubeThread (\$threadId:Int!) {
-                        f:forum_kubeThread(threadId:\$threadId) {
-                            success
-                            resultCode
-                            resultMessage
-                            thread {
-                                kubedBy {
-                                    name
-                                }
-                            }
+            const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeThread (\$threadId:Int!) {
+                f:forum_kubeThread(threadId:\$threadId) {
+                    success
+                    resultCode
+                    resultMessage
+                    thread {
+                        kubedBy {
+                            name
                         }
-                    }`,{threadId:threadDbId}).then((json) => {
-                        bKubeProcess = false;
-                        if (!basicQueryResultCheck(json?.data?.f)) return;
-
-                        kubeButton.src = srcKubed;
-                        eKubeCount.innerHTML =  json.data.f.thread.kubedBy.length;
-                        noKubes(false);
-                        reloadInfos2(json.data.f.thread);
-                    });
-                } else {
-                    sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
-                        f:forum_unkubeThread(threadId:\$threadId) {
-                            success
-                            resultCode
-                            resultMessage
-                            thread {
-                                kubedBy {
-                                    name
-                                }
-                            }
-                        }
-                    }`,{threadId:threadDbId}).then((json) => {
-                        bKubeProcess = false;
-                        if (!basicQueryResultCheck(json?.data?.f)) return;
-
-                        const nKubes = json.data.f.thread.kubedBy.length;
-                        if (nKubes == 0) { kubeButton.src = srcNoKubes; noKubes(); }
-                        else { kubeButton.src = srcNotKubed; noKubes(false); }
-                        eKubeCount.innerHTML = json.data.f.thread.kubedBy.length;
-                        reloadInfos2(json.data.f.thread);
-                    });
+                    }
                 }
-            });
+            }`,{threadId:threadDbId}).then((json) => {
+                if (!basicQueryResultCheck(json?.data?.f)) return null;
+
+                reloadInfos2(json.data.f.thread);
+                return json.data.f.thread.kubedBy.length;
+            }), async () => sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
+                f:forum_unkubeThread(threadId:\$threadId) {
+                    success
+                    resultCode
+                    resultMessage
+                    thread {
+                        kubedBy {
+                            name
+                        }
+                    }
+                }
+            }`,{threadId:threadDbId}).then((json) => {
+                if (!basicQueryResultCheck(json?.data?.f)) return;
+
+                reloadInfos2(json.data.f.thread);
+                return json.data.f.thread.kubedBy.length;
+            }));
+            kubeDiv.set(kubersIds.length,kubersIds.includes(viewerId));
+            eInfos1.insertAdjacentElement('beforeend',kubeDiv);
 
             function reloadInfos2(threadData) {
                 if (threadData == null) return;
@@ -1559,6 +1523,49 @@ function getForumMainElem() {
             }
         }
         return res;
+    }
+    function getKubeDiv(fKube, fUnkube) {
+        const kubeDiv = stringToNodes(`<div class="kubeDiv">
+            <img class="kubeDiv_begin" src="$res/design/like_icon_none.png"/>
+            <div class="kubeDiv_mid"><p>123</p></div>
+            <img class="kubeDiv_end" src="$res/design/like_end.png" />
+        </div>`)[0];
+        const kubeButton = kubeDiv.querySelector('.kubeDiv_begin');
+        const kubeDivMid = kubeDiv.querySelector('.kubeDiv_mid');
+        const kubeDivEnd = kubeDiv.querySelector('.kubeDiv_end')
+        const eKubeCount = kubeDiv.querySelector('.kubeDiv_mid p');
+        const srcKubed = "$res/design/like_icon_on.png";
+        const srcNotKubed = "$res/design/like_icon.png";
+        const srcNoKubes = "$res/design/like_icon_none.png";
+        function hideNumber(b = true) { kubeDivMid.style.display = kubeDivEnd.style.display = b ? 'none' : ''; }
+        hideNumber();
+        let bKubeProcess = false;
+        kubeButton.addEventListener('click', () => {
+            if (bKubeProcess) return;
+            bKubeProcess = true;
+
+            if (kubeButton.src == srcNotKubed || kubeButton.src == srcNoKubes) {
+                fKube().then((nKubes) => {
+                    bKubeProcess = false;
+                    if (nKubes == null) return;
+                    kubeDiv.set(nKubes,true);
+                });
+            } else {
+                fUnkube().then((nKubes) => {
+                    bKubeProcess = false;
+                    if (nKubes == null) return;
+                    kubeDiv.set(nKubes,false);
+                });
+            }
+        });
+
+        kubeDiv.set = (n,kubed) => {
+            if (n == 0) { hideNumber(); kubeButton.src = srcNoKubes; }
+            else { hideNumber(false); kubeButton.src = kubed ? srcKubed : srcNotKubed; }
+            eKubeCount.innerHTML = n;
+        };
+
+        return kubeDiv;
     }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
     setupPagInput(forumFooter,20,
