@@ -2373,7 +2373,7 @@ function getForumMainElem() {
         text-align: right;
         margin: 0.2em 0px 0px 0px;
     }
-    #forum_comments .footer *:not(last-child) {
+    #forum_comments .footer > *:not(:last-child) {
         margin: 0px 0px 0.1em 0px;
     }
     #forum_comments .footer .infos {
