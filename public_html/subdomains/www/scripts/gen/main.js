@@ -2518,8 +2518,9 @@ function getForumMainElem() {
         box-shadow: inset 0px 2px 3px 0px black;
     }
     #mainDiv_forum .kubeDiv {
-        display: flex;
+        display: inline-flex;
         align-items: center;
+        vertical-align: middle;
     }
     #mainDiv_forum .kubeDiv .kubeDiv_begin {
         cursor: pointer;
@@ -2528,9 +2529,11 @@ function getForumMainElem() {
         background-image: url($res/design/like_bg.png);
         background-repeat: repeat-x;
         height: 20px;
+        display: flex;
+        align-items: center;
     }
     #mainDiv_forum .kubeDiv .kubeDiv_mid p {
-        padding: 4px 5px 0px 7px;
+        padding: 0px 5px 0px 7px;
         font-size: 11px;
     }
     @media screen and (max-width: 800px) {
