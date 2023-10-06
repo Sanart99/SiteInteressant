@@ -598,6 +598,10 @@ function getForumMainElem() {
                                 isRead
                                 canEdit
                                 canRemove
+                                kubedBy {
+                                    dbId
+                                    name
+                                }
                                 author {
                                     id
                                     dbId
@@ -872,6 +876,43 @@ function getForumMainElem() {
                     textarea.focus();
                 });
                 aFooter.push(nodeCite);
+
+                // Footer : Kubes
+                const kubersIds = []; for (const o of comment.node.kubedBy) kubersIds.push(o.dbId);
+                const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeComment (\$threadId:Int!, \$commNumber:Int!) {
+                    f:forum_kubeComment(threadId:\$threadId,commNumber:\$commNumber) {
+                        success
+                        resultCode
+                        resultMessage
+                        comment {
+                            kubedBy {
+                                dbId
+                                name
+                            }
+                        }
+                    }
+                }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
+                    if (!basicQueryResultCheck(json?.data?.f)) return null;
+                    return json.data.f.comment.kubedBy.length;
+                }), async () => sendQuery(`mutation UnkubeComment (\$threadId:Int!,\$commNumber:Int!) {
+                    f:forum_unkubeComment(threadId:\$threadId,commNumber:\$commNumber) {
+                        success
+                        resultCode
+                        resultMessage
+                        comment {
+                            kubedBy {
+                                dbId
+                                name
+                            }
+                        }
+                    }
+                }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
+                    if (!basicQueryResultCheck(json?.data?.f)) return;
+                    return json.data.f.comment.kubedBy.length;
+                }));
+                kubeDiv.set(kubersIds.length,kubersIds.includes(viewerId));
+                aFooter.unshift(kubeDiv);
+
                 for (const n of aFooter) {
                     if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', ' - ');
                     footerP.insertAdjacentElement('beforeend',n);
