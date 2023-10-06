@@ -624,6 +624,7 @@ function getForumMainElem() {
             currThreadId = threadId;
             highlightThread(currThreadId);
             const threadDbId = json.data.node.comments.edges[0].node.threadId;
+            const viewerId = json.data.viewer.dbId;
 
             forumR.innerHTML = '';
             if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
@@ -635,7 +636,13 @@ function getForumMainElem() {
                     </div>
                 </div>
                 <div class="subheader">
-                    <div class="infos1"></div>
+                    <div class="infos1">
+                        <div class="kubeDiv">
+                            <img class="kubeDiv_begin" src="$res/design/like_icon_none.png"/>
+                            <div class="kubeDiv_mid"><p>123</p></div>
+                            <img class="kubeDiv_end" src="$res/design/like_end.png" />
+                        </div>
+                    </div>
                     <div class="infos2 hide">
                         <div class="main"></div>
                         <p><a class="infos2Msg" href="#" onclick="return false;">Plus d'informations...</a></p>
@@ -663,68 +670,72 @@ function getForumMainElem() {
             const eInfos1 = forumR.querySelector('.subheader .infos1');
             const eInfos2 = forumR.querySelector('.subheader .infos2');
             const eInfos2Main = eInfos2.querySelector('.main');
-            const eKubes = stringToNodes(`<p>Kubes : <span class="nKubes"></span> - <a href="#" onclick="return false;"></a></p>`)[0];
-            eKubes.querySelector('.nKubes').innerHTML = json.data.node.kubedBy.length;
-            const eAddKube = stringToNodes(`<a href="#" onclick="return false;">Kuber</a>`)[0];
-            const eRemKube = stringToNodes(`<a href="#" onclick="return false;">Dékuber</a>`)[0];
-            let bKubing = false;
-            let bUnkubing = false;
-            eAddKube.addEventListener('click',() => {
-                if (bKubing) return;
-                bKubing = true;
-                let oldS = eAddKube.innerHTML;
-                eAddKube.innerHTML = 'Kubage en cours...';
-                sendQuery(`mutation KubeThread (\$threadId:Int!) {
-                    f:forum_kubeThread(threadId:\$threadId) {
-                        __typename
-                        success
-                        resultCode
-                        resultMessage
-                        thread {
-                            kubedBy {
-                                name
+            const kubeDiv = eInfos1.querySelector('.subheader .infos1 .kubeDiv');
+            const kubeButton = kubeDiv.querySelector('.kubeDiv_begin');
+            const eKubeCount = kubeDiv.querySelector('.kubeDiv_mid p');
+            const srcKubed = "$res/design/like_icon_on.png";
+            const srcNotKubed = "$res/design/like_icon.png";
+            const srcNoKubes = "$res/design/like_icon_none.png";
+            function noKubes(b = true) {
+                kubeDiv.querySelector('.kubeDiv_mid').style.display = b ? 'none' : '';
+                kubeDiv.querySelector('.kubeDiv_end').style.display = b ? 'none' : '';
+            }
+            noKubes();
+            if (kubersIds.length > 0) {
+                kubeButton.src = kubersIds.includes(viewerId) ? srcKubed : srcNotKubed;
+                noKubes(false);
+                eKubeCount.innerHTML = kubersIds.length;
+            }
+            let bKubeProcess = false;
+            kubeButton.addEventListener('click', () => {
+                if (bKubeProcess) return;
+                bKubeProcess = true;
+
+                if (kubeButton.src == srcNotKubed || kubeButton.src == srcNoKubes) {
+                    sendQuery(`mutation KubeThread (\$threadId:Int!) {
+                        f:forum_kubeThread(threadId:\$threadId) {
+                            success
+                            resultCode
+                            resultMessage
+                            thread {
+                                kubedBy {
+                                    name
+                                }
                             }
                         }
-                    }
-                }`,{threadId:threadDbId}).then((json) => {
-                    bKubing = false;
-                    eAddKube.innerHTML = oldS;
-                    if (!basicQueryResultCheck(json?.data?.f)) return;
+                    }`,{threadId:threadDbId}).then((json) => {
+                        bKubeProcess = false;
+                        if (!basicQueryResultCheck(json?.data?.f)) return;
 
-                    eAddKube.replaceWith(eRemKube);
-                    eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
-                    reloadInfos2(json.data.f.thread);
-                });
-            });
-            eRemKube.addEventListener('click',() => {
-                if (bUnkubing) return;
-                bUnkubing = true;
-                let oldS = eRemKube.innerHTML;
-                eRemKube.innerHTML = 'Dékubage en cours...';
-                sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
-                    f:forum_unkubeThread(threadId:\$threadId) {
-                        __typename
-                        success
-                        resultCode
-                        resultMessage
-                        thread {
-                            kubedBy {
-                                name
+                        kubeButton.src = srcKubed;
+                        eKubeCount.innerHTML =  json.data.f.thread.kubedBy.length;
+                        noKubes(false);
+                        reloadInfos2(json.data.f.thread);
+                    });
+                } else {
+                    sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
+                        f:forum_unkubeThread(threadId:\$threadId) {
+                            success
+                            resultCode
+                            resultMessage
+                            thread {
+                                kubedBy {
+                                    name
+                                }
                             }
                         }
-                    }
-                }`,{threadId:threadDbId}).then((json) => {
-                    bUnkubing = false;
-                    eRemKube.innerHTML = oldS;
-                    if (!basicQueryResultCheck(json?.data?.f)) return;
+                    }`,{threadId:threadDbId}).then((json) => {
+                        bKubeProcess = false;
+                        if (!basicQueryResultCheck(json?.data?.f)) return;
 
-                    eRemKube.replaceWith(eAddKube);
-                    eKubes.querySelector('.nKubes').innerHTML = json.data.f.thread.kubedBy.length;
-                    reloadInfos2(json.data.f.thread);
-                });
+                        const nKubes = json.data.f.thread.kubedBy.length;
+                        if (nKubes == 0) { kubeButton.src = srcNoKubes; noKubes(); }
+                        else { kubeButton.src = srcNotKubed; noKubes(false); }
+                        eKubeCount.innerHTML = json.data.f.thread.kubedBy.length;
+                        reloadInfos2(json.data.f.thread);
+                    });
+                }
             });
-            eKubes.querySelector('a').replaceWith(kubersIds.includes(json.data.viewer.dbId) ? eRemKube : eAddKube);
-            eInfos1.insertAdjacentElement('beforeend', eKubes);
 
             function reloadInfos2(threadData) {
                 if (threadData == null) return;
@@ -2498,6 +2509,22 @@ function getForumMainElem() {
         text-align: center;
         border: 0;
         box-shadow: inset 0px 2px 3px 0px black;
+    }
+    #mainDiv_forum .kubeDiv {
+        display: flex;
+        align-items: center;
+    }
+    #mainDiv_forum .kubeDiv .kubeDiv_begin {
+        cursor: pointer;
+    }
+    #mainDiv_forum .kubeDiv .kubeDiv_mid {
+        background-image: url($res/design/like_bg.png);
+        background-repeat: repeat-x;
+        height: 20px;
+    }
+    #mainDiv_forum .kubeDiv .kubeDiv_mid p {
+        padding: 4px 5px 0px 7px;
+        font-size: 11px;
     }
     @media screen and (max-width: 800px) {
         #forumR, #forumL{
