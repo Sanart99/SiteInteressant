@@ -1874,8 +1874,9 @@ function getForumMainElem() {
         background-color: #F4F3F2;
         border-top: 1px solid rgba(0,0,0, 0.4);
         box-shadow: 0px 2px 2px rgb(0 0 0 / 15%);
-        font-size: 0.9rem;
-        padding: 0.6rem 0.6rem 0.6rem 5.9rem;
+        font-size: 0.83rem;
+        line-height: 1.15;
+        padding: 0.6rem 1rem 0.6rem 5.9rem;
         margin: 0px 0px 1rem 0px;
         white-space: pre-wrap;
     }
@@ -2165,17 +2166,17 @@ function getForumMainElem() {
         margin: 0.1em;
     }
     #forumL {
-        flex: 1 1 35%;
-        max-width: 35%;
+        flex: 1 1 37%;
+        max-width: 37%;
     }
     #forumR {
-        flex: 1 0 65%;
-        max-width: 65%;
+        flex: 1 0 63%;
+        max-width: 63%;
     }
     #forum_content {
         display: flex;
         gap: 2rem;
-        margin: 4rem auto 0px auto;
+        margin: 4rem auto 4rem auto;
         width: 980px;
         max-width: 99%;
         justify-content: center;
@@ -2190,8 +2191,8 @@ function getForumMainElem() {
         color: black;
         display: inline-block;
         width: 100%;
-        min-height: 100%;
-        height: 34px;
+        min-height: 1.9rem;
+        height: 100%;
     }
     #forum_threads thead {
         font-size: 0.6rem;
@@ -2205,8 +2206,8 @@ function getForumMainElem() {
         height: 100%;
     }
     #forum_threads tr.thread {
-        font-size: 0.9rem;
-        height: 2rem;
+        font-size: 0.8rem;
+        height: 1.9rem;
     }
     #forum_threads tr.thread:not(.new) p {
         opacity: 0.55;
@@ -2234,7 +2235,7 @@ function getForumMainElem() {
         background-color: #C4C5C8;
     }
     #forum_threads .statusIcons {
-        width: 10%;
+        width: 8%;
     }
     #forum_threads .statusIcons > a {
         display: flex;
@@ -2249,22 +2250,24 @@ function getForumMainElem() {
         height: 100%;
     }
     #forum_threads .quickDetails {
-        width: 20%;
+        min-width: 21%;
         text-align: end;
     }
     #forum_threads .quickDetails a {
         display: flex;
         flex-direction: column;
         justify-content: center;
-        padding: 0.2em 0.1em 0px 0px;
+        padding: 0px 0.1em 0px 0px;
     }
     #forum_threads .quickDetails .nAnswers {
         font-weight: bold;
         font-size: 1.1rem;
         line-height: 0.7;
+        margin: 0.2em 0px 0.1em 0px;
     }
     #forum_threads .quickDetails .author {
         font-size: 0.7rem;
+        padding: 0em 0px 0.2em 0px;
     }
     #forum_threads .title {
         background-color: #B2B4BA;
@@ -2273,12 +2276,12 @@ function getForumMainElem() {
     #forum_threads .title a {
         display: flex;
         align-items: center;
-        padding: 0.2em 0px 0.2em 0.2em;
+        padding: 0.3em 0.2em 0.3em 0.2em;
     }
     #forum_threads .delimiter {
         background-color: var(--color-black-2);
-        height: 0.85rem;
-        font-size: 0.75rem;
+        height: 0.75rem;
+        font-size: 0.7rem;
         color: white;
         text-align: center;
         font-weight: bold;
@@ -2329,8 +2332,9 @@ function getForumMainElem() {
         background-color: white;
         margin: 0px 0.2rem 2.3rem 0.3rem;
         box-shadow: 0px 0px min(3px,0.2rem) 0px #00000088;
-        padding: 0.6rem 0.4rem 0.4rem 5.9rem;
-        font-size: 0.9rem;
+        padding: 0.6rem 0.5rem 0.4rem 5.9rem;
+        font-size: 0.83rem;
+        line-height: 1.15;
         transition: box-shadow 0.25s;
         position: relative;
         z-index: 0;
@@ -2415,13 +2419,14 @@ function getForumMainElem() {
     }
     #mainDiv_forum .forum_mainBar {
         margin-bottom: 1rem;
+        box-shadow: 0px 0px 0.2rem rgba(0,0,0,0.35);
     }
     #mainDiv_forum .forum_mainBar_sub1 {
         background-color: #B63B00;
         font-size: 1rem;
         color: white;
         font-weight: bold;
-        padding: 0.1rem 0.3rem 0px 0.3rem;
+        padding: 0.1em 0.3em 0.1em 0.3em;
     }
     #mainDiv_forum .forum_mainBar_sub2 {
         display: flex;
@@ -2507,6 +2512,21 @@ function getForumMainElem() {
             border: 0;
             padding-top: 1.5%;
             border-top: 1px dashed black;
+        }
+        #forum_comments .avatar {
+            max-width: 75px;
+            max-height: 75px;
+        }
+        #forum_comments .avatarDiv {
+            width: 75px;
+            max-height: 75px;
+        }
+        #forum_comments .body {
+            padding: 0.6rem 0.5rem 0.4rem 1.2rem;
+            text-indent: 4.3rem;
+        }
+        #forum_threads tbody tr[data-selected="true"] .selectArrow {
+            display: none;
         }
     }
     CSS];

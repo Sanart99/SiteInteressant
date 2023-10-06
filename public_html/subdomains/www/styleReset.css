@@ -5,7 +5,7 @@ echo <<<CSS
 footer, header, hgroup, menu, nav, section) {
 	display: block;
 }
-*, *::before, *::after {
+:where(*, *::before, *::after) {
 	padding: 0;
 	margin: 0;
 	box-sizing: border-box;
@@ -37,7 +37,10 @@ footer, header, hgroup, menu, nav, section) {
 :where(input:disabled, button:disabled, select:disabled) {
 	opacity: 50%;
 }
-:where(button:active, select:active, button:focus, select:focus, textarea:focus) {
+:where(textarea:focus) {
+	outline: unset;
+}
+:where(button:active, select:active, button:focus, select:focus) {
 	border-style: unset;
 	outline: unset;
 }
