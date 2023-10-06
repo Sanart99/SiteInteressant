@@ -47,7 +47,7 @@ use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
     create_thread, remove_thread,
-    kube_thread, unkube_thread,
+    kube_thread, unkube_thread, kube_comment, unkube_comment,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
     thread_follow, thread_unfollow,
@@ -233,6 +233,30 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return unkube_thread(DBManager::getConnection(),$user,$args['threadId']);
+                    }
+                ],
+                'forum_kubeComment' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThreadComment')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'commNumber' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return kube_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commNumber']);
+                    }
+                ],
+                'forum_unkubeComment' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnThreadComment')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'commNumber' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return unkube_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commNumber']);
                     }
                 ],
                 'forumThread_addComment' => [
@@ -1442,6 +1466,15 @@ class CommentType extends ObjectType {
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['content'])
                 ],
+                'kubedBy' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Types::RegisteredUser())),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $stmt = DBManager::getConnection()->query("SELECT user_id FROM kubed_comments WHERE thread_id={$row['data']['thread_id']} AND comm_number={$row['data']['number']}");
+                        $res = [];
+                        while ($row = $stmt->fetch(\PDO::FETCH_NUM)) $res[] = $row[0];
+                        return $res;
+                    })
+                ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['read_by'])))
@@ -1719,6 +1752,7 @@ class Generator {
 
        self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
        self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
+       self::genQuickOperation('OnThreadComment',['thread' => 'Types::Thread()','comment' => 'Types::Comment()']);
        self::genQuickOperation('OnPush',['reports' => 'Type::listOf(Type::nonNull(Types::PushReport()))']);
     }
 
