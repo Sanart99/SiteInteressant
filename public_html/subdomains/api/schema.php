@@ -1814,6 +1814,36 @@ class Context {
     }
 }
 
+class Cache {
+    public static ?\Redis $redis = null;
+    private static bool $initialized = false;
+
+    public static function init() {
+        if (self::$initialized || !class_exists('\Redis')) return;
+        self::$initialized = true;
+
+        self::$redis = new \Redis();
+        try {
+            $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],1);
+            if ($res == false) {
+                self::$redis = null;
+                Context::addLog('Redis','Redis connection failure.');
+            }
+        } catch (\RedisException $e) {
+            self::$redis = null;
+            Context::addLog('Redis','Redis connection failure: '.$e->getMessage());
+        }
+    }
+    
+    public static function get(string $key) {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return null;
+
+        $v = self::$redis->get($key);
+        return $v === false ? null : $v;
+    }
+}
+
 class DBManager {
     private static ?LDPDO $conn = null;
 

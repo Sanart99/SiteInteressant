@@ -17,8 +17,8 @@ jobs:
       - name: Install Apache
         run: sudo apt -y install apache2
       
-      - name: Install PHP
-        run: sudo apt -y install php8.1 libapache2-mod-php php-mysql
+      - name: Install PHP, MySQL and PEAR
+        run: sudo apt -y install php8.1 libapache2-mod-php php-mysql php-pear
 
       - name: Install and Setup MariaDB
         run: |
@@ -28,6 +28,13 @@ jobs:
             ALTER USER 'root'@'localhost' IDENTIFIED BY 'LwgaHpJjWpDg7L8QR2';
             FLUSH PRIVILEGES;
           "
+      
+      - name: Install Redis
+        continue-on-error: true # For some reason always ends in segfault error after being installed correctly
+        run: |
+          sudo chown -R $USER:$USER /usr/lib/php
+          sudo chmod -R 777 /usr/lib/php
+          pecl install redis-5.3.7
       
       - name: Install Composer
         run: |
