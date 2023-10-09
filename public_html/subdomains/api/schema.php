@@ -939,6 +939,10 @@ class RegisteredUserType extends ObjectType {
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
                 ],
+                'titles' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Type::string())),
+                    'resolve' => fn($o) => self::process($o, fn($row) => explode(',',$row['data']['titles']))
+                ],
                 'avatarURL' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, function($o) {
