@@ -31,6 +31,7 @@ header('Content-Type: text/html');
         <title>Site Interessant</title>
 
         <?php foreach ($scriptsToLoad as $s) echo "<script src=\"$root/scripts/$s\"></script>" ?>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     </head>
 
     <body>
