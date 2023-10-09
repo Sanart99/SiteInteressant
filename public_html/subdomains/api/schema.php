@@ -991,6 +991,10 @@ class RegisteredUserType extends ObjectType {
                     'type' => fn() => Types::UserSettings(),
                     'resolve' => fn($o,$args) => self::process($o, fn($o) => $o)
                 ],
+                'stats' => [
+                    'type' => fn() => Types::RegisteredUserStats(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['id'])
+                ]
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -1026,6 +1030,70 @@ class TidUserType extends ObjectType {
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class RegisteredUserStatsType extends ObjectType {
+    public static function process(mixed $o, callable $f) {
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        return $f($o);
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'nThreads' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, function($userId) {
+                        $cacheKey = "userStats:{$userId}:nThreads";
+                        $vCache = Cache::get($cacheKey);
+                        if ($vCache != null) return $vCache;
+
+                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
+                            $conn = DBManager::getConnection();
+                            $v = $conn->query('SELECT COUNT(*) FROM threads WHERE author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
+
+                            $stmt = $conn->query("SELECT id_b FROM id_links WHERE id_a=$userId");
+                            $sqlWhere = '';
+                            while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                                if ($sqlWhere != '') $sqlWhere .= ' OR ';
+                                $sqlWhere .= "author_id={$row['id_b']}";
+                            }
+                            if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_threads WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+
+                            Cache::set($cacheKey,$v,600);
+                            return $v;
+                        });
+                    })
+                ],
+                'nComments' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, function($userId) {
+                        $cacheKey = "userStats:{$userId}:nComments";
+                        $vCache = Cache::get($cacheKey);
+                        if ($vCache != null) return $vCache;
+
+                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
+                            $conn = DBManager::getConnection();
+                            $v = $conn->query('SELECT COUNT(*) FROM comments WHERE author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
+
+                            $stmt = $conn->query("SELECT id_b FROM id_links WHERE id_a=$userId");
+                            $sqlWhere = '';
+                            while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                                if ($sqlWhere != '') $sqlWhere .= ' OR ';
+                                $sqlWhere .= "author_id={$row['id_b']}";
+                            }
+                            if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_comments WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+
+                            Cache::set($cacheKey,$v,600);
+                            return $v;
+                        });
+                    })
                 ]
             ]
         ];
@@ -2143,6 +2211,10 @@ class Types {
 
     public static function RegisteredUser():RegisteredUserType {
         return self::$types['RegisteredUser'] ??= new RegisteredUserType();
+    }
+
+    public static function RegisteredUserStats():RegisteredUserStatsType {
+        return self::$types['RegisteredUserStats'] ??= new RegisteredUserStatsType();
     }
 
     public static function TidUser():TidUserType {
