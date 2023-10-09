@@ -13,7 +13,7 @@ use GraphQL\Executor\ExecutionResult;
 use GraphQL\Language\SourceLocation;
 use GraphQL\Type\Schema;
 use LDLib\General\TypedException;
-use Schema\{Context,Types};
+use Schema\{Context,Cache,Types};
 
 header("Access-Control-Allow-Origin: {$_SERVER['LD_LINK_ROOT']}");
 header('Access-Control-Allow-Headers: Cache-Control, Content-Type');
@@ -97,7 +97,10 @@ try {
                 $i = 0;
                 foreach (Context::$logs as $err) $output['logs'][$i++] = $err;
             }
+            
             $output['cost'] = Context::$cost/100;
+
+            if (Cache::$setCount > 0 || Cache::$getCount > 0) $output['cache'] = ['get' => Cache::$getCount, 'set' => Cache::$setCount];
         }
     });
 } catch (\Exception $e) {

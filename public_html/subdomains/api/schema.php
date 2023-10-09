@@ -1817,6 +1817,8 @@ class Context {
 class Cache {
     public static ?\Redis $redis = null;
     private static bool $initialized = false;
+    public static int $getCount = 0;
+    public static int $setCount = 0;
 
     public static function init() {
         if (self::$initialized) return;
@@ -1840,6 +1842,7 @@ class Cache {
         if (!self::$initialized) Cache::init();
         if (self::$redis == null) return null;
 
+        self::$getCount++;
         $v = self::$redis->get($key);
         return $v === false ? null : $v;
     }
@@ -1848,6 +1851,7 @@ class Cache {
         if (!self::$initialized) Cache::init();
         if (self::$redis == null) return false;
 
+        self::$setCount++;
         return self::$redis->set($key, $value, $timeout);
     }
 }
