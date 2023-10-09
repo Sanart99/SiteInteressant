@@ -26,6 +26,7 @@ enum DataType {
     case ForumComment;
     case ForumTidThread;
     case ForumTidComment;
+    case Octohit;
     case ForumSearch;
     case FirstUnreadComment;
     case TidUser;
@@ -118,6 +119,7 @@ class BufferManager {
                     case DataType::ForumTidThread:
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
+                    case DataType::Octohit:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
                     case DataType::TidUser:
@@ -576,6 +578,10 @@ class ForumBuffer {
         return BufferManager::requestGroup(DataType::ForumTidComment,[$threadId,$pag]);
     }
 
+    public static function requestCommentOctohits(string $threadId, int $commNumber) {
+        return BufferManager::requestGroup(DataType::Octohit,[$threadId,$commNumber]);
+    }
+
     public static function requestSearch(ForumSearchQuery $fsq, PaginationVals $pag) {
         return BufferManager::requestGroup(DataType::ForumSearch,[$fsq,$pag]);
     }
@@ -617,6 +623,10 @@ class ForumBuffer {
 
     public static function getTidComments(int $threadId, PaginationVals $pag) {
         return BufferManager::get(['forum','tid_commentsM',$threadId,$pag->getString()]);
+    }
+
+    public static function getCommentOctohits(string $threadId, int $commNumber) {
+        return BufferManager::get(['forum','octohits',"{$threadId}_{$commNumber}"]);
     }
 
     public static function getSearch(ForumSearchQuery $fsq, PaginationVals $pag) {
@@ -840,6 +850,22 @@ class ForumBuffer {
                 }
 
                 array_push($toRemove, $v);
+            case DataType::Octohit:
+                $threadId = $v[1][0];
+                $commNumber = $v[1][1];
+
+                $stmt = $conn->prepare("SELECT * FROM octohit_comments WHERE thread_id=? AND comm_number=?");
+                $stmt->execute([$threadId,$commNumber]);
+                $res = [];
+                $total = 0;
+                while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                    $res[] = ['data' => $row, 'metadata' => null];
+                    $total += $row['amount'];
+                }
+                $bufRes['forum']['octohits']["{$threadId}_{$commNumber}"] = ['data' => $res, 'metadata' => ['totalAmount' => $total]];
+
+                array_push($toRemove,$v);
+                break;
         }
         foreach ($toRemove as $v) {
             $rg->remove($v);

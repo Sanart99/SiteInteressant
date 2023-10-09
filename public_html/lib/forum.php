@@ -298,6 +298,34 @@ function unkube_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $c
     return new OperationResult(SuccessType::SUCCESS, null, [$thread->id,$comment->nodeId], [$thread,$comment]);
 }
 
+function octohit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber):OperationResult {
+    $now = new \DateTimeImmutable('now');
+    $sNow = $now->format('Y-m-d H:i:s');
+    
+    $conn->query('START TRANSACTION');
+    $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
+    if ($threadRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'Thread not found.');
+    $commRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber")->fetch(\PDO::FETCH_ASSOC);
+    if ($commRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'Comment not found.');
+    $thread = Thread::initFromRow($threadRow);
+    $comment = Comment::initFromRow($commRow);
+    if (!$thread->isAccessibleToUser($user)) return new OperationResult(ErrorType::PROHIBITED, 'User unauthorized to access thread.');
+    $nHits = $conn->query("SELECT COUNT(*) FROM octohit_comments WHERE user_id={$user->id} AND thread_id={$thread->id} AND comm_number=$commNumber")->fetch(\PDO::FETCH_NUM)[0];
+    if ($nHits >= 5) return new OperationResult(ErrorType::USELESS, 'Comment octohit 5 times already.', [null,$thread->id,$comment->nodeId], [null,$thread,$comment]);
+    
+    $pos = $nHits+1;
+    $n = random_int(100,200);
+    $stmt = $conn->query("INSERT INTO octohit_comments (user_id,thread_id,comm_number,pos,date,amount) VALUES ({$user->id},{$thread->id},$commNumber,$pos,'$sNow',$n) RETURNING *");
+    if ($stmt === false) return new OperationResult(ErrorType::DATABASE_ERROR);
+    $rowOctohit = ['data' => $stmt->fetch(\PDO::FETCH_ASSOC), 'metadata' => null];
+
+    $stmt = $conn->prepare('INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)');
+    $stmt->execute([$user->id,'forum','octohitComment',json_encode(['threadId' => $thread->id, 'commNumber' => $commNumber, 'amount' => $n]),$sNow]);
+    
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS, null, [$rowOctohit,$thread->id,$comment->nodeId], [$rowOctohit,$thread,$comment]);
+}
+
 function check_can_remove_thread(LDPDO $conn, RegisteredUser $user, int $threadId, DateTimeInterface $currDate) {
     if ($user->isAdministrator()) return true;
 

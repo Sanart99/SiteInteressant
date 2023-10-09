@@ -47,7 +47,7 @@ use function LDLib\Parser\textToHTML;
 use function LDLib\Database\get_tracked_pdo;
 use function LDLib\Forum\{
     create_thread, remove_thread,
-    kube_thread, unkube_thread, kube_comment, unkube_comment,
+    kube_thread, unkube_thread, kube_comment, unkube_comment, octohit_comment,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
     thread_follow, thread_unfollow,
@@ -257,6 +257,18 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return unkube_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commNumber']);
+                    }
+                ],
+                'forum_octohitComment' => [
+                    'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnOctohit')),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int()),
+                        'commNumber' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return octohit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commNumber']);
                     }
                 ],
                 'forumThread_addComment' => [
@@ -1475,6 +1487,29 @@ class CommentType extends ObjectType {
                         return $res;
                     })
                 ],
+                'octohits' => [
+                    'type' => fn() => Type::listOf(Type::nonNull(Types::Octohit())),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $threadId = $row['data']['thread_id'];
+                        $commNumber = $row['data']['number'];
+                        ForumBuffer::requestCommentOctohits($threadId, $commNumber);
+                        return quickReactPromise(function() use(&$threadId, &$commNumber) {
+                            return ForumBuffer::getCommentOctohits($threadId, $commNumber)['data']??null;
+                        });
+                    })
+                ],
+                'totalOctohitAmount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $threadId = $row['data']['thread_id'];
+                        $commNumber = $row['data']['number'];
+                        ForumBuffer::requestCommentOctohits($threadId, $commNumber);
+                        return quickReactPromise(function() use(&$threadId, &$commNumber) {
+                            $res = ForumBuffer::getCommentOctohits($threadId, $commNumber);
+                            return $res == null ? null : $res['metadata']['totalAmount'];
+                        });
+                    })
+                ],
                 'isRead' => [
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($row) => in_array(Context::getAuthenticatedUser()->id, json_decode($row['data']['read_by'])))
@@ -1488,6 +1523,21 @@ class CommentType extends ObjectType {
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,fn($row) =>
                         check_can_remove_comment(DBManager::getConnection(), Context::getAuthenticatedUser(),$row['data']['thread_id'],$row['data']['number'],new \DateTime('now')))
+                ],
+                'canOctohit' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o,function($row) {
+                        $user = Context::getAuthenticatedUser();
+                        $threadId = $row['data']['thread_id'];
+                        $commNumber = $row['data']['number'];
+                        ForumBuffer::requestCommentOctohits($threadId, $commNumber);
+                        return quickReactPromise(function() use(&$threadId, &$commNumber, &$user) {
+                            $res = ForumBuffer::getCommentOctohits($threadId, $commNumber);
+                            $c = 0;
+                            foreach ($res['data'] as $row) if ($row['data']['user_id'] == $user->id) $c++;
+                            return $c < 5;
+                        });
+                    })
                 ]
             ]
         ];
@@ -1575,6 +1625,34 @@ class SettingInputType extends InputObjectType {
             'fields' => [
                 'name' => fn() => Type::nonNull(Type::string()),
                 'value' => fn() => Type::nonNull(Type::string())
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class OctohitType extends ObjectType {
+    private static function process(mixed $o, callable $f) {
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        return $f($o);
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'user' => [
+                    'type' => fn() => Types::RegisteredUser(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['user_id'])
+                ],
+                'amount' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['amount'])
+                ],
+                'date' => [
+                    'type' => fn() => Types::DateTime(),
+                    'resolve' => fn($o) => self::process($o,fn($row) => $row['data']['date'])
+                ]
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
@@ -1753,6 +1831,7 @@ class Generator {
        self::genQuickOperation('OnRegisteredUser',['registeredUser' => 'Types::RegisteredUser()']);
        self::genQuickOperation('OnThread',['thread' => 'Types::Thread()']);
        self::genQuickOperation('OnThreadComment',['thread' => 'Types::Thread()','comment' => 'Types::Comment()']);
+       self::genQuickOperation('OnOctohit',['octohit' => 'Types::Octohit()','thread' => 'Types::Thread()','comment' => 'Types::Comment()']);
        self::genQuickOperation('OnPush',['reports' => 'Type::listOf(Type::nonNull(Types::PushReport()))']);
     }
 
@@ -2084,6 +2163,10 @@ class Types {
 
     public static function SettingInput():SettingInputType {
         return self::$types['SettingInput'] ??= new SettingInputType();
+    }
+
+    public static function Octohit():OctohitType {
+        return self::$types['Octohit'] ??= new OctohitType();
     }
 
     /***** Notifications *****/
