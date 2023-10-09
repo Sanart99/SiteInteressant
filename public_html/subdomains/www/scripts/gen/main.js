@@ -598,6 +598,8 @@ function getForumMainElem() {
                                 isRead
                                 canEdit
                                 canRemove
+                                canOctohit
+                                totalOctohitAmount
                                 kubedBy {
                                     dbId
                                     name
@@ -877,7 +879,7 @@ function getForumMainElem() {
                 });
                 aFooter.push(nodeCite);
 
-                // Footer : Kubes
+                // Footer : Kubes + Octohits
                 const kubersIds = []; for (const o of comment.node.kubedBy) kubersIds.push(o.dbId);
                 const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeComment (\$threadId:Int!, \$commNumber:Int!) {
                     f:forum_kubeComment(threadId:\$threadId,commNumber:\$commNumber) {
@@ -893,7 +895,7 @@ function getForumMainElem() {
                     }
                 }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                     if (!basicQueryResultCheck(json?.data?.f)) return null;
-                    return json.data.f.comment.kubedBy.length;
+                    return {amount:json.data.f.comment.kubedBy.length};
                 }), async () => sendQuery(`mutation UnkubeComment (\$threadId:Int!,\$commNumber:Int!) {
                     f:forum_unkubeComment(threadId:\$threadId,commNumber:\$commNumber) {
                         success
@@ -908,9 +910,72 @@ function getForumMainElem() {
                     }
                 }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                     if (!basicQueryResultCheck(json?.data?.f)) return;
-                    return json.data.f.comment.kubedBy.length;
+                    return {amount:json.data.f.comment.kubedBy.length};
                 }));
                 kubeDiv.set(kubersIds.length,kubersIds.includes(viewerId));
+
+                let hits = 0;
+                let hitCd = null;
+                let tlPScale, animPValue = null;
+                let animBut = null; 
+                const octohitDiv = getOctohitDiv(async () => {
+                    const img = octohitDiv.querySelector("img");
+                    const p = octohitDiv.querySelector("p");
+
+                    if (hitCd != null) clearTimeout(hitCd);
+                    hits++;
+
+                    // anim button
+                    if (animBut != null) animBut.kill();
+                    if (hits < 3) animBut = gsap.fromTo(img,{scale:(1 + 0.2 * hits)},{delay:0.25,scale:1,duration:0.5,ease:'linear'});
+                    else img.style.transform = '';
+
+                    if (hits >= 3) {
+                        hits = 0;
+                        return sendQuery(`mutation OctohitComment (\$threadId:Int!, \$commNumber:Int!) {
+                            f:forum_octohitComment(threadId:\$threadId,commNumber:\$commNumber) {
+                                success
+                                resultCode
+                                resultMessage
+                                octohit {
+                                    amount
+                                }
+                                comment {
+                                    canOctohit
+                                    totalOctohitAmount
+                                }
+                            }
+                        }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
+                            if (!basicQueryResultCheck(json?.data?.f)) return null;
+                            console.log(json.data.f.comment.totalOctohitAmount);
+                            let comment = json.data.f.comment;
+
+                            // anim p value
+                            p.style.userSelect = p.style.pointerEvents = 'none';
+                            const twObj = {value:parseInt(p.innerText)};
+                            if (animPValue != null) animPValue.kill();
+                            animPValue = gsap.to(twObj, {duration:1, value:comment.totalOctohitAmount, ease:'linear', onUpdate:() => p.innerHTML = parseInt(twObj.value)});
+
+                            // anim p scale
+                            if (tlPScale == null) tlPScale = gsap.timeline({paused:false,onComplete:() => {p.style.userSelect = p.style.pointerEvents = '';}})
+                                .to(p,{duration:0.1,scale:2.5,color:'red'},0)
+                                .to(p,{scale:1,color:'darkred'},'>1.5');
+                            else tlPScale.tweenTo(0.1,{duration:0.1}).then(() => tlPScale.resume());
+
+                            // anim p diff
+                            const e = stringToNodes(`<p>+\${json.data.f.octohit.amount}</p>`)[0];
+                            octohitDiv.querySelector('.diffsDiv').insertAdjacentElement('beforeend',e);
+                            gsap.to(e,{opacity:0,delay:3}).then(() => e.remove());
+
+
+                            return {amount:comment.totalOctohitAmount,lit:!comment.canOctohit};
+                        });
+                    } else hitCd = setTimeout(() => { hits = 0; }, 500);
+                });
+                octohitDiv.querySelector('.octohitDiv_mid').insertAdjacentHTML('beforeend','<div class="diffsDiv"></div>');
+                octohitDiv.set(comment.node.totalOctohitAmount,!comment.node.canOctohit);
+
+                aFooter.unshift(octohitDiv);
                 aFooter.unshift(kubeDiv);
 
                 for (const n of aFooter) {
@@ -1565,48 +1630,54 @@ function getForumMainElem() {
         }
         return res;
     }
-    function getKubeDiv(fKube, fUnkube) {
-        const kubeDiv = stringToNodes(`<div class="kubeDiv">
-            <img class="kubeDiv_begin" src="$res/design/like_icon_none.png"/>
-            <div class="kubeDiv_mid"><p>123</p></div>
-            <img class="kubeDiv_end" src="$res/design/like_end.png" />
+    function getIconDiv(className,srcNone,srcUnlit,srcLit,fAdd,fRem) {
+        if (fRem == null) fRem = async () => null;
+
+        const div = stringToNodes(`<div class="iconDiv \${className}">
+            <img class="iconDiv_begin \${className}_begin" src="\${srcNone}"/>
+            <div class="iconDiv_mid \${className}_mid"><p>···</p></div>
+            <img class="iconDiv_end \${className}_end" src="$res/design/like_end.png" />
         </div>`)[0];
-        const kubeButton = kubeDiv.querySelector('.kubeDiv_begin');
-        const kubeDivMid = kubeDiv.querySelector('.kubeDiv_mid');
-        const kubeDivEnd = kubeDiv.querySelector('.kubeDiv_end')
-        const eKubeCount = kubeDiv.querySelector('.kubeDiv_mid p');
-        const srcKubed = "$res/design/like_icon_on.png";
-        const srcNotKubed = "$res/design/like_icon.png";
-        const srcNoKubes = "$res/design/like_icon_none.png";
-        function hideNumber(b = true) { kubeDivMid.style.display = kubeDivEnd.style.display = b ? 'none' : ''; }
-        hideNumber();
+        const divBegin = div.querySelector('.iconDiv_begin');
+        const divMid = div.querySelector('.iconDiv_mid');
+        const divEnd = div.querySelector('.iconDiv_end')
+        const eCount = div.querySelector('.iconDiv_mid p');
+        function hideAmount(b = true) { divMid.style.display = divEnd.style.display = b ? 'none' : ''; }
+        hideAmount();
+
         let bKubeProcess = false;
-        kubeButton.addEventListener('click', () => {
+        divBegin.addEventListener('click', () => {
             if (bKubeProcess) return;
             bKubeProcess = true;
 
-            if (kubeButton.src == srcNotKubed || kubeButton.src == srcNoKubes) {
-                fKube().then((nKubes) => {
+            if (divBegin.src == srcUnlit || divBegin.src == srcNone) {
+                fAdd().then((o) => {
                     bKubeProcess = false;
-                    if (nKubes == null) return;
-                    kubeDiv.set(nKubes,true);
+                    if (o?.amount == null) return;
+                    div.set(o.amount, o?.lit??true);
                 });
             } else {
-                fUnkube().then((nKubes) => {
+                fRem().then((o) => {
                     bKubeProcess = false;
-                    if (nKubes == null) return;
-                    kubeDiv.set(nKubes,false);
+                    if (o?.amount == null) return;
+                    div.set(o.amount, o?.lit??false);
                 });
             }
         });
 
-        kubeDiv.set = (n,kubed) => {
-            if (n == 0) { hideNumber(); kubeButton.src = srcNoKubes; }
-            else { hideNumber(false); kubeButton.src = kubed ? srcKubed : srcNotKubed; }
-            eKubeCount.innerHTML = n;
+        div.set = (n,lit) => {
+            if (n == 0) { hideAmount(); divBegin.src = srcNone; }
+            else { hideAmount(false); divBegin.src = lit ? srcLit : srcUnlit; }
+            eCount.innerHTML = n;
         };
 
-        return kubeDiv;
+        return div;
+    }
+    function getKubeDiv(fAdd, fRem) {
+        return getIconDiv("kubeDiv","$res/design/like_icon_none.png","$res/design/like_icon.png","$res/design/like_icon_on.png",fAdd,fRem);
+    }
+    function getOctohitDiv(fAdd, fRem) {
+        return getIconDiv("octohitDiv","$res/design/hit_icon_none.png","$res/design/hit_icon.png","$res/design/hit_icon_on.png",fAdd,fRem);
     }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
     setupPagInput(forumFooter,20,
@@ -2558,24 +2629,37 @@ function getForumMainElem() {
         border: 0;
         box-shadow: inset 0px 2px 3px 0px black;
     }
-    #mainDiv_forum .kubeDiv {
+    #mainDiv_forum .iconDiv {
         display: inline-flex;
         align-items: center;
         vertical-align: middle;
     }
-    #mainDiv_forum .kubeDiv .kubeDiv_begin {
+    #mainDiv_forum .iconDiv .iconDiv_begin {
         cursor: pointer;
     }
-    #mainDiv_forum .kubeDiv .kubeDiv_mid {
+    #mainDiv_forum .iconDiv .iconDiv_mid {
         background-image: url($res/design/like_bg.png);
         background-repeat: repeat-x;
         height: 20px;
         display: flex;
         align-items: center;
+        position: relative;
     }
-    #mainDiv_forum .kubeDiv .kubeDiv_mid p {
+    #mainDiv_forum .iconDiv .iconDiv_mid .diffsDiv {
+        position: absolute;
+        top: -1em;
+        left: -0.5ch;
+        transform: translate(0%,-100%);
+        display: flex;
+        flex-direction: column-reverse;
+        background-color: white;
+    }
+    #mainDiv_forum .iconDiv .iconDiv_mid p {
         padding: 0px 5px 0px 7px;
         font-size: 11px;
+    }
+    #mainDiv_forum .octohitDiv .octohitDiv_mid p {
+        color: darkRed;
     }
     @media screen and (max-width: 800px) {
         #forumR, #forumL{
