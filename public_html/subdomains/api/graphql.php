@@ -100,7 +100,13 @@ try {
             
             $output['cost'] = Context::$cost/100;
 
-            if (Cache::$setCount > 0 || Cache::$getCount > 0) $output['cache'] = ['get' => Cache::$getCount, 'set' => Cache::$setCount];
+            if (Cache::$setCount > 0 || Cache::$getCount > 0) {
+                $output['cache'] = [
+                    'get' => Cache::$getCount,
+                    'set' => Cache::$setCount,
+                ];
+                if (Cache::$keysNotFound > 0) $output['cache']['keysNotFound'] = Cache::$keysNotFound;
+            }
         }
     });
 } catch (\Exception $e) {

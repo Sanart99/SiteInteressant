@@ -1819,6 +1819,7 @@ class Cache {
     private static bool $initialized = false;
     public static int $getCount = 0;
     public static int $setCount = 0;
+    public static int $keysNotFound = 0;
 
     public static function init() {
         if (self::$initialized) return;
@@ -1844,6 +1845,7 @@ class Cache {
 
         self::$getCount++;
         $v = self::$redis->get($key);
+        if ($v === false) self::$keysNotFound++;
         return $v === false ? null : $v;
     }
 
