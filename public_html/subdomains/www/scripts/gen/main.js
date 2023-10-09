@@ -609,6 +609,10 @@ function getForumMainElem() {
                                     dbId
                                     name
                                     avatarURL
+                                    stats {
+                                        nThreads
+                                        nComments
+                                    }
                                 }
                             }
                             cursor
@@ -739,7 +743,8 @@ function getForumMainElem() {
                         </div>
                         <p class="name">\${comment.node.author.name}</p>
                         <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
-                    </div>
+                        <p class="stats">Topics : \${comment.node.author.stats.nThreads} · Commentaires : \${comment.node.author.stats.nComments}</p>    
+                   </div>
                     <div class="body">
                         <div class="main">\${comment.node.content}</div>
                         <div class="footer"><p class="infos"></p><p class="actionLinks"></p></div>
@@ -2424,7 +2429,7 @@ function getForumMainElem() {
         border-radius: 3px;
         color: white;
         position: relative;
-        height: 2.3rem;
+        height: 2.5rem;
         z-index: 1;
     }
     #forum_comments .header .name {
@@ -2433,6 +2438,13 @@ function getForumMainElem() {
         top: 0.3rem;
         font-weight: bold;
         font-size: 0.92rem;
+    }
+    #forum_comments .header .stats {
+        position: absolute;
+        left: 6.1rem;
+        top: 1.5rem;
+        font-size: 0.7rem;
+        opacity: 0.7;
     }
     #forum_comments .date {
         position: absolute;
