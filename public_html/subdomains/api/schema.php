@@ -1819,8 +1819,9 @@ class Cache {
     private static bool $initialized = false;
 
     public static function init() {
-        if (self::$initialized || !class_exists('\Redis')) return;
+        if (self::$initialized) return;
         self::$initialized = true;
+        if (!class_exists('\Redis')) return;
 
         self::$redis = new \Redis();
         try {
@@ -1835,12 +1836,19 @@ class Cache {
         }
     }
     
-    public static function get(string $key) {
+    public static function get(string $key):mixed {
         if (!self::$initialized) Cache::init();
         if (self::$redis == null) return null;
 
         $v = self::$redis->get($key);
         return $v === false ? null : $v;
+    }
+
+    public static function set(string $key, string $value, mixed $timeout = null):bool|\Redis {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return false;
+
+        return self::$redis->set($key, $value, $timeout);
     }
 }
 
