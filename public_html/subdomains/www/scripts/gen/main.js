@@ -427,6 +427,10 @@ function getForumMainElem() {
     global $isAuth,$root,$res;
     return ['html' => <<<HTML
     <div id="mainDiv_forum" class="authPadded" data-is-auth="$isAuth">
+        <div id="forum_banner">
+            <img src="$res/design/banner.jpg" />
+        </div>
+
         <div id="forum_content">
             <div id="forumL">
                 <div class="forum_mainBar">
@@ -2354,6 +2358,10 @@ function getForumMainElem() {
         max-height: 4rem;
         margin: 0.1em;
     }
+    #forum_banner {
+        display: flex;
+        justify-content: center;
+    }
     #forumL {
         flex: 1 1 37%;
         max-width: 37%;
@@ -2365,7 +2373,7 @@ function getForumMainElem() {
     #forum_content {
         display: flex;
         gap: 2rem;
-        margin: 4rem auto 4rem auto;
+        margin: 1rem auto 4rem auto;
         width: 980px;
         max-width: 99%;
         justify-content: center;
