@@ -35,6 +35,8 @@ use LDLib\Net\LDWebPush;
 use LdLib\Records\ActionGroup;
 use LDLib\User\UserSettings;
 
+use Aws\S3\S3Client;
+
 use function LDLib\Auth\{
     get_user_from_sid,
     login_user,
@@ -1927,6 +1929,30 @@ class Cache {
 
         self::$setCount++;
         return self::$redis->set($key, $value, $timeout);
+    }
+}
+
+class AWS {
+    public static ?S3Client $client;
+    public static bool $initialized = false;
+
+    public static function init() {
+        if (self::$initialized) return;
+        self::$initialized = true;
+        try {
+            self::$client = new S3Client([
+                'region'      => 'eu-west-3',
+                'version'     => '2006-03-01',
+                'credentials' => new \Aws\Credentials\Credentials($_SERVER['LD_AWS_ACCESS_KEY'],$_SERVER['LD_AWS_SECRET_KEY'])
+            ]);
+        } catch (\Exception $e) {
+            self::$client = null;
+        }
+    }
+
+    public static function getS3Client():?S3Client {
+        if (!self::$initialized) self::init();
+        return self::$client;
     }
 }
 
