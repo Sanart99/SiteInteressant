@@ -572,6 +572,7 @@ function getForumMainElem() {
         sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int!,\$toFirstUnreadComment:Boolean!) {
             viewer {
                 dbId
+                titles
             }
             node(id:\$threadId) {
                 __typename
@@ -635,6 +636,8 @@ function getForumMainElem() {
             highlightThread(currThreadId);
             const threadDbId = json.data.node.comments.edges[0].node.threadId;
             const viewerId = json.data.viewer.dbId;
+            const viewer = json.data.viewer;
+            const viewerIsAdmin = viewer.titles.includes('Administrator');
 
             forumR.innerHTML = '';
             if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
@@ -747,9 +750,14 @@ function getForumMainElem() {
                    </div>
                     <div class="body">
                         <div class="main">\${comment.node.content}</div>
-                        <div class="footer"><p class="infos"></p><p class="actionLinks"></p></div>
+                        <div class="footer"><p class="infos"></p><p class="commActions"></p></div>
+                        <div class="hiddenFooter hidden" style="display:none;">
+                            <div class="main"></div>
+                            <p><a class="hiddenFooterMsg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                        </div>
                     </div>
                 </div>`)[0];
+                const commKubers = comment.node.kubedBy;
 
                 // Footer
                 const footerInfos = commentNode.querySelector('.footer p.infos');
@@ -761,130 +769,13 @@ function getForumMainElem() {
                 }
                 if (aFooterInfos.length > 0) footerInfos.innerHTML = aFooterInfos.join('<br/>') + '<br/>';
                 
-                const footerP = commentNode.querySelector('.footer p.actionLinks');
-                let aFooter = [];
-                if (comment.node.canEdit) {
-                    const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
-                    nodeEdit.addEventListener('click',() => {
-                        const replyFormId = `edit_\${comment.node.id}`;
-                        const titleId = replyFormId+'_title';
-                        if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
+                const footerP = commentNode.querySelector('.footer p.commActions');
+                const nodeHidden = stringToNodes('<span class="hidden" style="display:none;"></span>')[0];
+                const hiddenFooter = commentNode.querySelector('.hiddenFooter');
+                const aFooter = [];
+                const aHidden = [];
 
-                        commentNode.classList.add('selected');
-                        if (replyFormSetups.get(replyFormId) == null) {
-                            addReplyFormSetup(replyFormId,async (div) => {
-                                if (comment.node.number == 0) {
-                                    const nodeTitle = stringToNodes(`<div class="title">
-                                        <label for="editThread_title">Titre : </label><input id="editThread_title" class="inputText1" type="text" name="title"/>
-                                    </div>`)[0];
-                                    div.querySelector('.replyForm').insertAdjacentElement('afterbegin',nodeTitle);
-                                    const input = nodeTitle.querySelector('#editThread_title');
-                                    input.value = sessionGet('title') ?? json.data.node.title;
-                                    input.addEventListener('input',() => sessionSet('title',input.value));
-                                }
-                                div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
-                                setupReplyForm(div,async (e) => {
-                                    e.preventDefault();
-                                    const submitButton = e.target.querySelector('input[type="submit"]');
-                                    if (submitButton.disabled === true) return;
-                                    submitButton.disabled = true;
-
-                                    const data = new FormData(e.target);
-                                    const title = data.get('title');
-                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
-                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
-                                            __typename
-                                            success
-                                            resultCode
-                                            resultMessage
-                                        }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((json) => {
-                                        if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
-
-                                        if (comment.node.number == 0) sessionRem(titleId);
-                                        location.reload();
-                                        return true;
-                                    });
-                                },replyFormId);
-                            });
-                        }
-                        loadReplyForm(replyFormId);
-                        const replyForm = document.querySelector('#forumR .replyForm');
-                        const textarea = replyForm.querySelector('textarea');
-                        if (textarea.value == '') textarea.value = contentToText(stringToNodes(comment.node.content));
-                        if (comment.node.number == 0) {
-                            const title = replyForm.querySelector('.title input');
-                            if (title.value == '') title.value = json.data.node.title;
-                        }
-                        textarea.dispatchEvent(new Event('input'));
-                    });
-                    aFooter.push(nodeEdit);
-                }
-                if (comment.node.canRemove || json.data.node.canRemove) {
-                    const nodeDel = stringToNodes('<a class="delete" href="#" onclick="return false;">Supprimer</a>')[0];
-                    nodeDel.addEventListener('click',() => {
-                        const e = stringToNodes(`<div id="askDelete" class="popupContainer" style="padding: 1rem;display: flex;gap: 1rem;">
-                            <input id="askDelete_cancel" type="button" value="Retour"/>
-                            <input id="askDelete_delete" type="button" value="Supprimer"/>
-                        </div>`)[0];
-                        e.querySelector('#askDelete_cancel').addEventListener('click',() => { popupDiv.close(); e.remove(); });
-                        const delBut = e.querySelector('#askDelete_delete');
-                        delBut.addEventListener('click',() => {
-                            if (comment.node.number == 0) {
-                                sendQuery(`mutation RemoveThread (\$threadId:Int!) {
-                                    f:forum_removeThread(threadId:\$threadId) {
-                                        __typename
-                                        success
-                                        resultCode
-                                        resultMessage
-                                    }
-                                }`,{threadId:threadDbId}).then((json) => {
-                                    if (!basicQueryResultCheck(json?.data?.f)) return;
-                                    location.href = "$root/forum";
-                                });
-                            } else {
-                                sendQuery(`mutation ForumRemoveComment (\$threadId:Int!, \$commNumber:Int!) {
-                                        f:forumThread_removeComment(threadId:\$threadId,commentNumber:\$commNumber) {
-                                            __typename
-                                            success
-                                            resultCode
-                                            resultMessage
-                                        }
-                                    }
-                                `,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
-                                    if(!basicQueryResultCheck(json?.data?.f)) return;
-                                    location.reload();
-                                });
-                            }
-                            popupDiv.close();
-                            e.remove();
-                        });
-                        popupDiv.insertAdjacentElement('beforeend',e);
-                        popupDiv.openTo('#askDelete');
-                    });
-                    aFooter.push(nodeDel);
-                }
-                const nodeCite = stringToNodes('<a class="cite" href="#" onclick="return false;">Citer</a>')[0];
-                nodeCite.addEventListener('click',() => {
-                    const replyFormDiv = forumR.querySelector('.replyFormDiv');
-                    if (replyFormDiv.classList.contains('hide')) replyFormDiv.classList.remove('hide');
-
-                    const citedUsername = commentNode.querySelector('.header .name').innerText;
-                    const sel = getSelection();
-                    const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
-                        `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
-                        : `[cite=\${citedUsername}]\${contentToText(stringToNodes(comment.node.content))}[/cite]`;
-                    
-                    const textarea = replyFormDiv.querySelector('textarea');
-                    const start = textarea.selectionStart;
-                    textarea.value = textarea.value.slice(0,start) + s + textarea.value.slice(start);
-                    textarea.selectionStart = start+s.length;
-                    textarea.dispatchEvent(new Event('input'));
-                    textarea.focus();
-                });
-                aFooter.push(nodeCite);
-
-                // Footer : Kubes + Octohits
+                // Footer: Kubes
                 const kubersIds = []; for (const o of comment.node.kubedBy) kubersIds.push(o.dbId);
                 const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeComment (\$threadId:Int!, \$commNumber:Int!) {
                     f:forum_kubeComment(threadId:\$threadId,commNumber:\$commNumber) {
@@ -918,7 +809,9 @@ function getForumMainElem() {
                     return {amount:json.data.f.comment.kubedBy.length};
                 }));
                 kubeDiv.set(kubersIds.length,kubersIds.includes(viewerId));
+                aFooter.push(kubeDiv);
 
+                // Footer: Octohits
                 let hits = 0;
                 let hitCd = null;
                 let tlPScale, animPValue = null;
@@ -979,14 +872,175 @@ function getForumMainElem() {
                 });
                 octohitDiv.querySelector('.octohitDiv_mid').insertAdjacentHTML('beforeend','<div class="diffsDiv"></div>');
                 octohitDiv.set(comment.node.totalOctohitAmount,!comment.node.canOctohit);
+                aFooter.push(octohitDiv);
 
-                aFooter.unshift(octohitDiv);
-                aFooter.unshift(kubeDiv);
+                // Footer: Cite
+                const nodeCite = stringToNodes('<a class="cite" href="#" onclick="return false;">Citer</a>')[0];
+                nodeCite.addEventListener('click',() => {
+                    const replyFormDiv = forumR.querySelector('.replyFormDiv');
+                    if (replyFormDiv.classList.contains('hide')) replyFormDiv.classList.remove('hide');
+
+                    const citedUsername = commentNode.querySelector('.header .name').innerText;
+                    const sel = getSelection();
+                    const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
+                        `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
+                        : `[cite=\${citedUsername}]\${contentToText(stringToNodes(comment.node.content))}[/cite]`;
+                    
+                    const textarea = replyFormDiv.querySelector('textarea');
+                    const start = textarea.selectionStart;
+                    textarea.value = textarea.value.slice(0,start) + s + textarea.value.slice(start);
+                    textarea.selectionStart = start+s.length;
+                    textarea.dispatchEvent(new Event('input'));
+                    textarea.focus();
+                });
+                aFooter.push(nodeCite);
+
+                if (comment.node.canEdit) {
+                    const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
+                    nodeEdit.addEventListener('click',() => {
+                        const replyFormId = `edit_\${comment.node.id}`;
+                        const titleId = replyFormId+'_title';
+                        if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
+
+                        commentNode.classList.add('selected');
+                        if (replyFormSetups.get(replyFormId) == null) {
+                            addReplyFormSetup(replyFormId,async (div) => {
+                                if (comment.node.number == 0) {
+                                    const nodeTitle = stringToNodes(`<div class="title">
+                                        <label for="editThread_title">Titre : </label><input id="editThread_title" class="inputText1" type="text" name="title"/>
+                                    </div>`)[0];
+                                    div.querySelector('.replyForm').insertAdjacentElement('afterbegin',nodeTitle);
+                                    const input = nodeTitle.querySelector('#editThread_title');
+                                    input.value = sessionGet('title') ?? json.data.node.title;
+                                    input.addEventListener('input',() => sessionSet('title',input.value));
+                                }
+                                div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
+                                setupReplyForm(div,async (e) => {
+                                    e.preventDefault();
+                                    const submitButton = e.target.querySelector('input[type="submit"]');
+                                    if (submitButton.disabled === true) return;
+                                    submitButton.disabled = true;
+
+                                    const data = new FormData(e.target);
+                                    const title = data.get('title');
+                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
+                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
+                                            __typename
+                                            success
+                                            resultCode
+                                            resultMessage
+                                        }
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((json) => {
+                                        if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
+
+                                        if (comment.node.number == 0) sessionRem(titleId);
+                                        location.reload();
+                                        return true;
+                                    });
+                                },replyFormId);
+                            });
+                        }
+                        loadReplyForm(replyFormId);
+                        const replyForm = document.querySelector('#forumR .replyForm');
+                        const textarea = replyForm.querySelector('textarea');
+                        if (textarea.value == '') textarea.value = contentToText(stringToNodes(comment.node.content));
+                        if (comment.node.number == 0) {
+                            const title = replyForm.querySelector('.title input');
+                            if (title.value == '') title.value = json.data.node.title;
+                        }
+                        textarea.dispatchEvent(new Event('input'));
+                    });
+                    if (!viewerIsAdmin) aFooter.push(nodeEdit);
+                    else aHidden.push(nodeEdit);
+                }
+                
+                if (comment.node.canRemove || json.data.node.canRemove) {
+                    const nodeDel = stringToNodes('<a class="delete" href="#" onclick="return false;">Supprimer</a>')[0];
+                    nodeDel.addEventListener('click',() => {
+                        const e = stringToNodes(`<div id="askDelete" class="popupContainer" style="padding: 1rem;display: flex;gap: 1rem;">
+                            <input id="askDelete_cancel" type="button" value="Retour"/>
+                            <input id="askDelete_delete" type="button" value="Supprimer"/>
+                        </div>`)[0];
+                        e.querySelector('#askDelete_cancel').addEventListener('click',() => { popupDiv.close(); e.remove(); });
+                        const delBut = e.querySelector('#askDelete_delete');
+                        delBut.addEventListener('click',() => {
+                            if (comment.node.number == 0) {
+                                sendQuery(`mutation RemoveThread (\$threadId:Int!) {
+                                    f:forum_removeThread(threadId:\$threadId) {
+                                        __typename
+                                        success
+                                        resultCode
+                                        resultMessage
+                                    }
+                                }`,{threadId:threadDbId}).then((json) => {
+                                    if (!basicQueryResultCheck(json?.data?.f)) return;
+                                    location.href = "$root/forum";
+                                });
+                            } else {
+                                sendQuery(`mutation ForumRemoveComment (\$threadId:Int!, \$commNumber:Int!) {
+                                        f:forumThread_removeComment(threadId:\$threadId,commentNumber:\$commNumber) {
+                                            __typename
+                                            success
+                                            resultCode
+                                            resultMessage
+                                        }
+                                    }
+                                `,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
+                                    if(!basicQueryResultCheck(json?.data?.f)) return;
+                                    location.reload();
+                                });
+                            }
+                            popupDiv.close();
+                            e.remove();
+                        });
+                        popupDiv.insertAdjacentElement('beforeend',e);
+                        popupDiv.openTo('#askDelete');
+                    });
+                    if (!viewerIsAdmin) aFooter.push(nodeDel);
+                    else aHidden.push(nodeDel);
+                }
+
+                // Footer: More
+                const nodeMore = stringToNodes('<span> - <a class="more" href="#" onclick="return false;">Plus...</a></span>')[0];
+                const nodeLess = stringToNodes('<a class="more" href="#" onclick="return false;">Moins...</a>')[0];
+                nodeMore.addEventListener('click',() => {
+                    nodeHidden.style.display = hiddenFooter.style.display = '';
+                    nodeMore.remove();
+                });
+                nodeLess.addEventListener('click',() => {
+                    nodeHidden.style.display = hiddenFooter.style.display = 'none';
+                    footerP.insertAdjacentElement('beforeend',nodeMore);
+                });
+                aHidden.push(nodeLess);
 
                 for (const n of aFooter) {
                     if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', ' - ');
                     footerP.insertAdjacentElement('beforeend',n);
                 }
+                for (const n of aHidden) {
+                    nodeHidden.insertAdjacentHTML('beforeend',' - ');
+                    nodeHidden.insertAdjacentElement('beforeend',n);
+                }
+                footerP.insertAdjacentElement('beforeend',nodeHidden);
+                footerP.insertAdjacentElement('beforeend',nodeMore);
+
+                // Footer: More infos
+                const hiddenFooterMsg = hiddenFooter.querySelector('.hiddenFooterMsg');
+                const hiddenFooterMain = hiddenFooter.querySelector('.main');
+                hiddenFooterMsg.addEventListener('click', () => {
+                    if (hiddenFooter.classList.contains('hidden')) {
+                        hiddenFooterMsg.innerHTML = "Moins d'informations...";
+                        hiddenFooter.classList.remove('hidden');
+                    } else {
+                        hiddenFooterMsg.innerHTML = "Plus d'informations...";
+                        hiddenFooter.classList.add('hidden');
+                    }
+                });
+
+                const kubersName = []; for (const o of commKubers) kubersName.push(o.name);
+                const sUsers = kubersName.length == 0 ? '[Aucun]'  : kubersName.join(', ');
+                hiddenFooterMain.innerHTML = '';
+                hiddenFooterMain.insertAdjacentElement('beforeend',stringToNodes(`<p>Kubeurs : \${sUsers}</p>`)[0]);
 
                 // Events
                 let b = false;
@@ -2481,7 +2535,7 @@ function getForumMainElem() {
         position: relative;
         z-index: 0;
     }
-    #forum_comments .body .main {
+    #forum_comments .body > .main {
         white-space: pre-wrap;
         min-height: 5rem;
         margin: 0px 0px 0.3em 0px;
@@ -2594,6 +2648,24 @@ function getForumMainElem() {
         margin: 1em 0px 0px 0px;
     }
     #mainDiv_forum .subheader .infos2.hide > .main {
+        height: 0%;
+        margin: 0;
+        max-height: 0;
+    }
+    #mainDiv_forum .hiddenFooter {
+        font-size: 0.7rem;
+        text-align: center;
+        border-top: 1px dotted black;
+        margin: 0.5rem 0px 0px 0px;
+        padding: 0.4em 0px 0.4em 0px;
+    }
+    #mainDiv_forum .hiddenFooter > .main {
+        text-align: left;
+        transition: all 0.5s;
+        overflow: hidden;
+        max-height: 1.1em;
+    }
+    #mainDiv_forum .hiddenFooter.hidden > .main {
         height: 0%;
         margin: 0;
         max-height: 0;
