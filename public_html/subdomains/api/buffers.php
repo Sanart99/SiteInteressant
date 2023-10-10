@@ -899,7 +899,7 @@ class ForumBuffer {
                 $stmt->execute([$threadId,$number]);
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-                $bufRes['forum']['comments'][\LDLib\Forum\Comment::getIdFromRow($row)] = ['data' => $row === false ? null : $row, 'metadata' => null];
+                $bufRes['forum']['comments']["forum_{$threadId}-{$number}"] = ['data' => $row === false ? null : $row, 'metadata' => null];
                 array_push($toRemove, $v);
                 break;
             case DataType::ForumTidComment:
