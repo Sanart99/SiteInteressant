@@ -21,6 +21,10 @@ RewriteEngine on
 RewriteCond %{REQUEST_URI} ^/$ [NC]
 RewriteRule .* home
 
+RewriteCond %{HTTP_HOST} ^res\.[^.]*\.[^.]*$
+RewriteCond %{REQUEST_URI} ^/img/
+RewriteRule .* /gen/img.php [L]
+
 RewriteCond %{HTTP_HOST} !^res\. [NC]
 RewriteRule ^((.*\/|)[^.]+)$ $1.php [NC,DPI]
 
