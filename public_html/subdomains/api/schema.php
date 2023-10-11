@@ -202,10 +202,7 @@ class QueryType extends ObjectType {
                             $row = S3Buffer::getKeyData($keyName);
                             if ($row['data'] == null) return null;
 
-                            $res = AWS::getS3Client()->getObject([
-                                'Bucket' => $_SERVER['LD_AWS_BUCKET_GENERAL'],
-                                'Key' => $row['data']['obj_key']
-                            ]);
+                            $res = AWS::getS3Client()->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$row['data']['obj_key']);
                             
                             if ($res['@metadata']['statusCode'] !== 200) return null;
 
@@ -491,7 +488,7 @@ class MutationType extends ObjectType {
                         $s3 = AWS::getS3Client();
                         if ($s3 == null) return new OperationResult(ErrorType::AWS_ERROR, "Couldn't connect to bucket.");
 
-                        if ($args['overwrite'] !== true && $s3->doesObjectExistV2($bucketName,$keyName)) {
+                        if ($args['overwrite'] !== true && $s3->client->doesObjectExistV2($bucketName,$keyName)) {
                             if ($args['newNameOnDuplicate']) {
                                 $keyName = "{$user->id}_".time()."_$fileName";
                             } else return new OperationResult(ErrorType::PROHIBITED, "File already exists.");
@@ -502,7 +499,7 @@ class MutationType extends ObjectType {
                         if (!$stmt->execute([$user->id,$keyName,$fileName,$fileSize,$mimeType])) return new OperationResult(ErrorType::DATABASE_ERROR);
 
                         try {
-                            $res = $s3->putObject([
+                            $res = $s3->client->putObject([
                                 'Bucket' => $bucketName,
                                 'Key' => $keyName,
                                 'Body' => $fileData,
