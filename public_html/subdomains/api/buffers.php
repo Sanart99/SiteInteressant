@@ -30,6 +30,7 @@ enum DataType {
     case ForumSearch;
     case FirstUnreadComment;
     case TidUser;
+    case S3KeyData;
 }
 
 class BufferManager {
@@ -54,7 +55,10 @@ class BufferManager {
         'notificationsM' => [],
         'emojis' => [],
         'emojisM' => [],
-        'usersEmojis' => []
+        'usersEmojis' => [],
+        's3' => [
+            'general' => []
+        ]
     ];
 
     private static ?LDPDO $conn = null;
@@ -143,6 +147,7 @@ class BufferManager {
                     case DataType::TidUser:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
+                    case DataType::S3KeyData: S3Buffer::exec(self::$conn); break;
                 }
             }
             if ($start <= self::$req->count()) throw new \Error("Req error. ({$a[0]->name})");
@@ -1002,6 +1007,43 @@ class RecordsBuffer {
                 $row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
                 $bufRes['records'][$recordId] = $row === false ? null : ['data' => $row, 'metadata' => null];
+                array_push($toRemove,$v);
+                break;
+        }
+        foreach ($toRemove as $v) {
+            $req->remove($v);
+            $fet->add($v);
+        }
+    }
+}
+
+class S3Buffer {
+    public static function requestKeyData(string $keyName) {
+        return BufferManager::request(DataType::S3KeyData,[$keyName]);
+    }
+
+    public static function getKeyData(string $keyName) {
+        return BufferManager::get(['s3','general',$keyName]);
+    }
+
+    public static function exec(LDPDO $conn) {
+        $bufRes =& BufferManager::$result;
+        $req =& BufferManager::$req;
+        $fet =& BufferManager::$fet;
+
+        $toRemove = [];
+        foreach ($req->getIterator() as $v) switch ($v[0]) {
+            case DataType::S3KeyData:
+                $keyName = $v[1][0];
+                if (preg_match('/^(\d+)_/',$keyName,$m) > 0) $userId = (int)$m[1];
+
+                if ($userId != null) {
+                    $stmt = $conn->prepare("SELECT * FROM s3_general WHERE user_id=? and obj_key=?");
+                    $stmt->execute([$userId,$keyName]);
+                    $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+                }
+
+                $bufRes['s3']['general'][$keyName] = ['data' => ($row??false) === false ? null : $row, 'metadata' => null];
                 array_push($toRemove,$v);
                 break;
         }

@@ -183,6 +183,39 @@ class QueryType extends ObjectType {
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn() => (bool)$_SERVER['LD_TEST']
                 ],
+                'getObjectFromBucket' => [
+                    'type' => fn() => Type::string(),
+                    'args' => [
+                        'name' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return null;
+
+                        $keyName = $user->id."_".$args['name'];
+
+                        $vCache = Cache::get("s3:general:$keyName");
+                        if ($vCache != null) return $vCache;
+
+                        S3Buffer::requestKeyData($keyName);
+                        return quickReactPromise(function() use (&$keyName) {
+                            $row = S3Buffer::getKeyData($keyName);
+                            if ($row['data'] == null) return null;
+
+                            $res = AWS::getS3Client()->getObject([
+                                'Bucket' => $_SERVER['LD_AWS_BUCKET_GENERAL'],
+                                'Key' => $row['data']['obj_key']
+                            ]);
+                            
+                            if ($res['@metadata']['statusCode'] !== 200) return null;
+
+                            $v = base64_encode($res['Body']);
+                            Cache::set("s3:general:$keyName",$v);
+                            return $v;
+                        });
+                    }
+
+                ]
             ]
         ]);
     }
@@ -431,6 +464,69 @@ class MutationType extends ObjectType {
                         if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
                         return $user->id;
+                    }
+                ],
+                'uploadFileToBucket' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'overwrite' => [ 'type' => Type::boolean(), 'defaultValue' => false ],
+                        'newNameOnDuplicate'  => [ 'type' => Type::boolean(), 'defaultValue' => true ]
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        if (!isset($_FILES['fileToUpload'])) return new OperationResult(ErrorType::CONTEXT_INVALID, "File not found.");
+                        $file = $_FILES['fileToUpload'];
+                        if (mb_strlen($file['name']) > 248) return new OperationResult(ErrorType::INVALID_DATA, "File name must not be greater than 248 characters.");
+                        if ($file['size'] > 20000000) return new OperationResult(ErrorType::INVALID_DATA, "File size must not be greater than 20MB.");
+                        $fileName = $file['name'];
+                        $fileData = file_get_contents($file['tmp_name']);
+                        $fileSize = $file['size'];
+                        $mimeType = mime_content_type($file['tmp_name']);
+                        $keyName = "{$user->id}_{$fileName}";
+                        $bucketName = $_SERVER['LD_AWS_BUCKET_GENERAL'];
+                        if ($mimeType === false) $mimeType = null;
+
+                        $s3 = AWS::getS3Client();
+                        if ($s3 == null) return new OperationResult(ErrorType::AWS_ERROR, "Couldn't connect to bucket.");
+
+                        if ($args['overwrite'] !== true && $s3->doesObjectExistV2($bucketName,$keyName)) {
+                            if ($args['newNameOnDuplicate']) {
+                                $keyName = "{$user->id}_".time()."_$fileName";
+                            } else return new OperationResult(ErrorType::PROHIBITED, "File already exists.");
+                        }
+
+                        $conn = DBManager::getConnection();
+                        $stmt = $conn->prepare("INSERT IGNORE INTO s3_general (user_id,obj_key,filename,size,mime_type) VALUES (?,?,?,?,?)");
+                        if (!$stmt->execute([$user->id,$keyName,$fileName,$fileSize,$mimeType])) return new OperationResult(ErrorType::DATABASE_ERROR);
+
+                        try {
+                            $res = $s3->putObject([
+                                'Bucket' => $bucketName,
+                                'Key' => $keyName,
+                                'Body' => $fileData,
+                                'AddContentMD5' => true,
+                                'ContentMD5' => md5($fileData),
+                                'ContentType' => 'image/png',
+                                'Metadata' => [
+                                    'userId' => $user->id,
+                                    'username' => $user->username
+                                ]
+                            ]);
+                        } catch (\Aws\Exception\AwsException $e) {
+                            $stmt = $conn->prepare("DELETE FROM s3_general WHERE user_id=? AND obj_key=?");
+                            $stmt->execute([$user->id,$keyName]);
+                            return new OperationResult(ErrorType::AWS_ERROR, "Couldn't put object. (Permissions?)");
+                        }
+
+                        if (($res['@metadata']['statusCode']??null) != 200) {
+                            $stmt = $conn->prepare("DELETE FROM s3_general WHERE user_id=? AND obj_key=?");
+                            $stmt->execute([$user->id,$keyName]);
+                            return new OperationResult(ErrorType::AWS_ERROR, "Bad AWS status code.");
+                        }
+                        
+                        return new OperationResult(SuccessType::SUCCESS);
                     }
                 ],
                 'changeSetting' => [
