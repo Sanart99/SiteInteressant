@@ -506,9 +506,8 @@ class MutationType extends ObjectType {
                                 'Bucket' => $bucketName,
                                 'Key' => $keyName,
                                 'Body' => $fileData,
-                                'AddContentMD5' => true,
-                                'ContentMD5' => md5($fileData),
-                                'ContentType' => 'image/png',
+                                'ChecksumAlgorithm' => 'SHA256',
+                                'ContentType' => $mimeType,
                                 'Metadata' => [
                                     'userId' => $user->id,
                                     'username' => $user->username
