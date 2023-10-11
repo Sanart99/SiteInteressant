@@ -71,19 +71,27 @@ class LDWebPush {
     }
 }
 
-function graphql_query(string $json):array {
+function graphql_query(string $json, string $sid=''):array {
+    $localMode = (bool)$_SERVER['LD_LOCAL'];
     $ch = curl_init($_SERVER['LD_LINK_GRAPHQL']);
-    curl_setopt_array($ch,[
+
+    $options = [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => ['Content-Type:application/json'],
+        CURLOPT_HTTPHEADER => ['Content-Type:application/json',"Cookie:sid=$sid"],
         CURLOPT_POSTFIELDS => $json
-    ]);
+    ];
+    if ($localMode) {
+        $options[CURLOPT_SSL_VERIFYPEER] = false;
+        $options[CURLOPT_SSL_VERIFYHOST] = false;
+    }
+
+    curl_setopt_array($ch,$options);
     
     $v = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
     if (!$v) {
-        if ((bool)$_SERVER['LD_LOCAL']) trigger_error(curl_error($ch));
+        if ($localMode) trigger_error(curl_error($ch));
     }
 
     curl_close($ch);
@@ -91,20 +99,27 @@ function graphql_query(string $json):array {
 }
 
 function curl_fetch(string $url, array $postFields = null) {
+    $localMode = (bool)$_SERVER['LD_LOCAL'];
     $ch = curl_init($url);
+
     $options = [CURLOPT_RETURNTRANSFER => true];
     if ($postFields != null) {
         $options[CURLOPT_HTTPHEADER] = ['Content-Type:multipart/form-data'];
         $options[CURLOPT_POST] = true;
         $options[CURLOPT_POSTFIELDS] = $postFields;
     }
+    if ($localMode) {
+        $options[CURLOPT_SSL_VERIFYPEER] = false;
+        $options[CURLOPT_SSL_VERIFYHOST] = false;
+    }
+
     curl_setopt_array($ch,$options);
     
     $v = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     
     if (!$v) {
-        if ((bool)$_SERVER['LD_LOCAL']) trigger_error(curl_error($ch));
+        if ($localMode) trigger_error(curl_error($ch));
     }
 
     curl_close($ch);
