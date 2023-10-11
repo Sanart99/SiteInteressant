@@ -79,6 +79,7 @@ enum SuccessType {
 }
 
 enum ErrorType {
+    case AWS_ERROR;
     case CONTEXT_INVALID;
     case DATABASE_ERROR;
     case DBLOCK_TAKEN;
