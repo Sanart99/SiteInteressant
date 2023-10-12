@@ -9,9 +9,9 @@ ob_end_clean();
 use LDLib\AWS\AWS;
 use Aws\Exception\AwsException;
 
-if (preg_match('/^\/img\/(\d+_[^\/?]*)/',$_SERVER['REQUEST_URI'],$m) == 0) {
+if (preg_match('/^\/file\/(\d+_[^\/?]*)/',$_SERVER['REQUEST_URI'],$m) == 0) {
     http_response_code(404);
-    echo 'Image not found.';
+    echo 'File not found.';
     return;
 }
 $s3Key = $m[1];
@@ -31,9 +31,9 @@ $res = $s3Client->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$s3Key);
 
 if ($res instanceof AwsException) {
     switch ($res->getAwsErrorCode()) {
-        case 'NoSuchKey': echo 'Image not found.'; break;
+        case 'NoSuchKey': echo 'File not found.'; break;
         case 'AccessDenied': echo 'Access denied.'; break;
-        default: echo $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$op->errorCode}" : 'Unknown image error.'; break;
+        default: echo $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$op->errorCode}" : 'Unknown error.'; break;
     }
     return;
 }
