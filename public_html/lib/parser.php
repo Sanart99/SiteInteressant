@@ -3,6 +3,10 @@ namespace LDLib\Parser;
 
 use Ds\Set;
 use Schema\UsersBuffer;
+use LDLib\AWS\AWS;
+use LDLib\User\RegisteredUser;
+
+use function LDLib\Database\get_tracked_pdo;
 
 $urlRegex = '/(^(https?|ftp):\/\/(\S*?\.\S*?))([\s)\[\]{},;"\':<]|\.\s|$)/i';
 
@@ -87,6 +91,26 @@ class KeywordMarker {
     }
 }
 
+class SoloKeywordMarker {
+    public static array $all = [];
+    public string $from;
+
+    public array $arrA = [];
+
+    private string $result;
+
+    public function __construct(string $from, callable $to, string &$result) {
+        $this->from = $from;
+        $this->{'to'} = $to;
+        $this->result =& $result;
+        self::$all[] = $this;
+    }
+
+    public function insert(?string $arg=null) {
+        $this->result .= call_user_func($this->{'to'},$arg);
+    }
+}
+
 function textToHTML(int $userId, string $text, bool $commitData = false, bool $useBufferManager = true) {
     if (!$useBufferManager) return '';
 
@@ -104,6 +128,8 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
     $sSpec = '';
     $ignoreSpec = false;
     $skipIfNewLine = false;
+
+    $conn = null;
 
     $sMarkers = new Set([new SymbolMarker('**','b',$result),new SymbolMarker('//','i',$result),new SymbolMarker('--','s',$result)]);
     $kwMarkers = new Set([
@@ -131,6 +157,26 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             $skipIfNewLine = true;
             $sArg = preg_match('/^[^<>]+$/',$arg,$m) > 0 ? "<div class=\"rpTextSpeaker\"><p>{$m[0]}</p></div>" : '';
             return ["</p>$sArg<div class=\"rpText\"><p>",'</p></div><p>'];
+        }, $result),
+        new SoloKeywordMarker('file',function ($arg) use(&$commitData,&$userId,&$conn) {
+            if (!$commitData) return "<span class='processThis'>insertFileLocal:$arg</span>";
+            $arg = str_replace(['.',' '],'_',$arg);
+
+            if (!isset($_FILES[$arg])) return '<span class="error">Failed upload.</span>';
+            $file = $_FILES[$arg];
+
+            $conn ??= get_tracked_pdo();
+
+            UsersBuffer::requestFromId($userId);
+            $row = UsersBuffer::getFromId($userId);
+            if ($row['data'] == null) return '<span class="error">Failed upload.</span>';
+            $user = RegisteredUser::initFromRow($row);
+
+            $s3client = AWS::getS3Client();
+            $res = $s3client->putObject($conn,$user,$file,true,true);
+            if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload.</span>';
+
+            return "<span class='processThis'>insertFile:{$file['type']};{$res->data[0]}</span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
@@ -147,9 +193,18 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     break;
                 case (preg_match('/^\]$/',$char) > 0):
                     if ($activeMarker == null) throw new \Exception('Parse error.'); // only needed cuz intelephense mark it otherwise
-                    $activeMarker->markA(strlen($result),$kwMarkerArg);
-                    // print_r(PHP_EOL.'END, Argument: \''.$kwMarkerArg."'".PHP_EOL);
-                    $result .= "[$sSpec=$kwMarkerArg]";
+
+                    if (substr($kwMarkerArg,-1) == '/' && $activeMarker instanceof SoloKeywordMarker) {
+                        $kwMarkerArg = substr($kwMarkerArg,0,strlen($kwMarkerArg)-1);
+                        $activeMarker->insert($kwMarkerArg);
+                    } else if ($activeMarker instanceof KeywordMarker) {
+                        $activeMarker->markA(strlen($result),$kwMarkerArg);
+                        // print_r(PHP_EOL.'END, Argument: \''.$kwMarkerArg."'".PHP_EOL);
+                        $result .= "[$sSpec=$kwMarkerArg]";
+                    } else {
+                        $result .= "[$sSpec=$kwMarkerArg]";
+                    }
+
                     $sSpec = '';
                     $activeMarker = null;
                     $kwMarkerArg = null;
@@ -170,11 +225,13 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     continue;
                 } else if ($char == ']') {
                     // print_r(PHP_EOL.'END, sSpec[0]:'.$sSpec[0].PHP_EOL);
-                    if ($sSpec[0] == '/') $activeMarker->markB(strlen($result));
-                    else {
-                        $kwMarkerMode = false;
-                        $activeMarker->markA(strlen($result));
-                        $result .= "[$sSpec]";
+                    if ($activeMarker instanceof KeywordMarker) {
+                        if ($sSpec[0] == '/') $activeMarker->markB(strlen($result));
+                        else {
+                            $kwMarkerMode = false;
+                            $activeMarker->markA(strlen($result));
+                            $result .= "[$sSpec]";
+                        }
                     }
                     $sSpec = '';
                     $activeMarker = null;
