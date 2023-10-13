@@ -753,7 +753,7 @@ function getForumMainElem() {
                         <p class="stats">Topics : \${comment.node.author.stats.nThreads} · Commentaires : \${comment.node.author.stats.nComments}</p>    
                    </div>
                     <div class="body">
-                        <div class="main">\${comment.node.content}</div>
+                        <div class="main"></div>
                         <div class="footer"><p class="infos"></p><p class="commActions"></p></div>
                         <div class="hiddenFooter hidden" style="display:none;">
                             <div class="main"></div>
@@ -761,6 +761,7 @@ function getForumMainElem() {
                         </div>
                     </div>
                 </div>`)[0];
+                const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
 
                 // Footer
@@ -1046,6 +1047,8 @@ function getForumMainElem() {
                 hiddenFooterMain.innerHTML = '';
                 hiddenFooterMain.insertAdjacentElement('beforeend',stringToNodes(`<p>Kubeurs : \${sUsers}</p>`)[0]);
 
+                processComment(commNodeMain,stringToNodes(comment.node.content));
+
                 // Events
                 let b = false;
                 commentNode.querySelector('.body').addEventListener('mouseover',() => {
@@ -1129,7 +1132,7 @@ function getForumMainElem() {
             }
 
             addReplyFormSetup('reply',(div) => {
-                setupReplyForm(div,async (e) => {
+                setupReplyForm(div,async (e,moreData) => {
                     e.preventDefault();
 
                     const data = new FormData(e.target);
@@ -1144,7 +1147,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')}).then((json) => {
+                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')},null,null,null,moreData).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
                         loadThread(threadId,0,10);
                         return true;
@@ -1754,8 +1757,18 @@ function getForumMainElem() {
     function setupReplyForm(replyFormDiv, onSubmit, contentSaveName=null) {
         const replyForm = replyFormDiv.querySelector('.replyForm');
         const replyFormTA = replyFormDiv.querySelector('textarea');
+        const eFileInput = replyForm.querySelector('.buttonBar input[type="file"]');
         let acReplyForm = null;
         let toReplyForm = null;
+        
+        const files = [];
+        const objectURLs = new Map();
+        let filesToUpload = {};
+
+        function escapeCharacters(s) {
+            return s.replaceAll(/[\\*\\/\\-\\[\\]]/g,(s) => '\\\\'+s);
+        }
+        
         replyFormTA.addEventListener('input',() => {
             if (toReplyForm != null) clearTimeout(toReplyForm);
             toReplyForm = setTimeout(() => {
@@ -1767,7 +1780,12 @@ function getForumMainElem() {
                 }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((json) => {
                     acReplyForm = null;
                     if (json?.data?.parseText == null) { basicQueryResultCheck(null,true); return; }
-                    replyFormDiv.querySelector('.preview').innerHTML = json.data.parseText
+
+                    const nodePreview = replyFormDiv.querySelector('.preview');
+                    const nodes = stringToNodes(json.data.parseText);
+                    const o = processComment(nodePreview,nodes,{files:files,objectURLs:objectURLs});
+                    filesToUpload = o.filesToUpload;
+
                     if (contentSaveName != null) sessionSet(contentSaveName,sToParse);
                 }).catch((e) => {if (e.name != 'AbortError') throw e; } );
             },100);
@@ -1775,7 +1793,7 @@ function getForumMainElem() {
         replyFormTA.addEventListener('paste',(e) => {
             if (replyFormDiv.querySelector('.opt_specChar').checked == false) return;
             e.preventDefault();
-            const v = e.clipboardData.getData('text/plain').replaceAll(/[\\*\\/\\-\\[\\]]/g,(s) => '\\\\'+s);
+            const v = escapeCharacters(e.clipboardData.getData('text/plain'));
             const start = replyFormTA.selectionStart;
             const end = replyFormTA.selectionEnd;
             replyFormTA.value = replyFormTA.value.slice(0,start) + v + replyFormTA.value.slice(end);
@@ -1788,7 +1806,7 @@ function getForumMainElem() {
         }
         
         replyForm.addEventListener('submit',async (e) => {
-            const res = await onSubmit(e);
+            const res = await onSubmit(e,filesToUpload);
             if (contentSaveName != null && res === true) sessionRem(contentSaveName);
         });
 
@@ -1801,17 +1819,21 @@ function getForumMainElem() {
             const msg = replyFormTA.value;
             const start = replyFormTA.selectionStart;
             const end = replyFormTA.selectionEnd;
-            if (s2 == null) s2 = s1;
-            replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start,end) + s2 + msg.substring(end);
-            replyFormTA.focus();
-            const diff = replyFormTA.selectionEnd-replyFormTA.selectionStart;
-            replyFormTA.selectionStart = start+s1.length;
-            replyFormTA.selectionEnd = end+s1.length+diff;
-            replyForm.dispatchEvent(new InputEvent('input'));
+
+            if (s2 == null) {
+                replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start);
+            } else {
+                replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start,end) + s2 + msg.substring(end);
+                replyFormTA.focus();
+                const diff = replyFormTA.selectionEnd-replyFormTA.selectionStart;
+                replyFormTA.selectionStart = start+s1.length;
+                replyFormTA.selectionEnd = end+s1.length+diff;
+            }
+            replyFormTA.dispatchEvent(new InputEvent('input'));
         }
-        replyForm.querySelector('.buttonBar .bold').addEventListener('click',() => quickInputInsert('**'));
-        replyForm.querySelector('.buttonBar .italic').addEventListener('click',() => quickInputInsert('//'));
-        replyForm.querySelector('.buttonBar .strike').addEventListener('click',() => quickInputInsert('--'));
+        replyForm.querySelector('.buttonBar .bold').addEventListener('click',() => quickInputInsert('**','**'));
+        replyForm.querySelector('.buttonBar .italic').addEventListener('click',() => quickInputInsert('//','//'));
+        replyForm.querySelector('.buttonBar .strike').addEventListener('click',() => quickInputInsert('--','--'));
         replyForm.querySelector('.buttonBar .link').addEventListener('click',() => {
             const link = prompt("Le lien que vous voulez insérer :");
             if (link == null) return;
@@ -1822,6 +1844,13 @@ function getForumMainElem() {
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
         replyForm.querySelector('.buttonBar .rp').addEventListener('click',() => quickInputInsert('[rp]','[/rp]'));
         replyForm.querySelector('.buttonBar .code').addEventListener('click',() => quickInputInsert('[code]','[/code]'));
+        replyForm.querySelector('.buttonBar .file').addEventListener('click',() => eFileInput.click());
+        eFileInput.addEventListener('change', () => {
+            const file = eFileInput.files[0]??null;
+            if (file == null) return;
+            files.push(file);
+            quickInputInsert(`[file=\${escapeCharacters(file.name)}/]`);
+        });
 
         // Emojis
         if (savedCategories == null) sendQuery(`query {
@@ -1905,14 +1934,20 @@ function getForumMainElem() {
             
                 <form class="replyForm">
                     <div class="buttonBar">
-                        <button class="button1 bold" type="button">G</button><!--
-                        --><button class="button1 italic" type="button">I</button><!--
-                        --><button class="button1 strike" type="button">Barré</button><!--
-                        --><button class="button1 link" type="button">Lien</button><!--
-                        --><button class="button1 cite" type="button">Citer</button><!--
-                        --><button class="button1 spoil" type="button">Spoil</button><!--
-                        --><button class="button1 rp" type="button">Roleplay</button><!--
-                        --><button class="button1 code" type="button">Code</button>
+                        <div>
+                            <button class="button1 bold" type="button">G</button><!--
+                            --><button class="button1 italic" type="button">I</button><!--
+                            --><button class="button1 strike" type="button">Barré</button><!--
+                            --><button class="button1 link" type="button">Lien</button><!--
+                            --><button class="button1 cite" type="button">Citer</button><!--
+                            --><button class="button1 spoil" type="button">Spoil</button><!--
+                            --><button class="button1 rp" type="button">Roleplay</button><!--
+                            --><button class="button1 code" type="button">Code</button>
+                        </div>
+                        <div>
+                            <input type="file" style="display:none;" />
+                            <button class="button1 file" type="button">Insérer un fichier</button>
+                        </div>
                     </div>
                     <textarea name="msg"></textarea>
                     <div class="optDiv">
@@ -1925,6 +1960,94 @@ function getForumMainElem() {
                     <input class="button2" type="submit" value="Envoyer"/>
                 </form>
             </div>`)[0];
+    }
+    function processComment(container, commNodes, withData) {
+        container.innerHTML = '';
+        const files = withData?.files ?? [];
+        const objectURLs = withData?.objectURLs ?? new Map();
+        const o = {filesToUpload:{}};
+        for (const node of commNodes) {
+            const nodesToProcess = [];
+            if (node.classList.contains('processThis')) nodesToProcess.push(node);
+            for (const n of node.querySelectorAll('.processThis')) nodesToProcess.push(n);
+
+            for (const node of nodesToProcess) {
+                const m = /^(\w+):(.*)$/.exec(node.innerHTML);
+                if (m == null) continue;
+
+                const fName = m[1];
+                let local = false;
+                switch (m[1]) {
+                    case 'insertFile':
+                        const mArg = /^([^;]*);(.*)$/.exec(m[2]);
+                        if (mArg == null) break;
+                        const mimeType = mArg[1];
+                        const keyName = mArg[2];
+                        const imgRegex = new RegExp('^image\\/*');
+                        const vidRegex = new RegExp('^video\\/*');
+                        if (imgRegex.test(mimeType)) {
+                            node.replaceWith(stringToNodes(`<img class="inserted" src="$res/file/\${keyName}" />`)[0]);
+                        } else if (vidRegex.test(mimeType)) {
+                            node.replaceWith(stringToNodes(`<video controls class="inserted"> <source src="$res/file/\${keyName}" /> </video>`)[0]);
+                        } else {
+                            const but = stringToNodes(`<button class="button1">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
+                            but.addEventListener('click',() => but.querySelector('a').click());
+                            node.replaceWith(but);
+                        }
+
+                        break;
+                    case 'insertFileLocal':
+                        function replaceByFile(node, file, url) {
+                            const imgRegex = new RegExp('^image\\/*');
+                            const vidRegex = new RegExp('^video\\/*');
+                            if (imgRegex.test(file.type)) {
+                                node.replaceWith(stringToNodes(`<img class="inserted" src=\${url} />`)[0]);
+                            } else if (vidRegex.test(file.type)) {
+                                node.replaceWith(stringToNodes(`<video controls class="inserted"> <source src=\${url} /> </video>`)[0]);
+                            } else {
+                                const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" style="display:none;"></a></button>`)[0];
+                                but.addEventListener('click',() => but.querySelector('a').click());
+                                node.replaceWith(but);
+                            }
+                        }
+
+                        let file = null;
+                        for (const f of files) if (f.name == m[2]) file = f;
+
+                        if (file == null) {
+                            const but = stringToNodes(`<button class="button1 warning" type="button">Reuploader \${m[2]}</button>`)[0];
+                            const hiddenFileInput = stringToNodes(`<input type="file" style="display:none;" />`)[0]
+                            container.insertAdjacentElement('afterend',hiddenFileInput);
+                            node.replaceWith(but);
+
+                            but.addEventListener('click', () => hiddenFileInput.click());
+                            hiddenFileInput.addEventListener('change',() => {
+                                const file = hiddenFileInput.files[0];
+                                if (file.name != m[2]) { alert('Le nom du fichier est différent.'); return; }
+
+                                files.push(file);
+                                const url = URL.createObjectURL(file);
+                                objectURLs.set(file.name,url);
+                                replaceByFile(but,file,url);
+                                o.filesToUpload[file.name] = file;
+                            });
+                            break;
+                        }
+
+                        let url = objectURLs.get(file.name);
+                        if (url == null) {
+                            url = URL.createObjectURL(file);
+                            objectURLs.set(file.name,url);
+                        }
+                        
+                        replaceByFile(node,file,url);
+                        o.filesToUpload[file.name] = file;
+                        break;
+                }
+            }                        
+            container.insertAdjacentElement('beforeend',node);
+        }
+        return o;
     }
 
     document.querySelector('.newThreadLoader').addEventListener('click',loadNewThreadForm);
@@ -2164,6 +2287,14 @@ function getForumMainElem() {
         font-size: 0.7rem;
         max-height: 71em;
     }
+    #mainDiv_forum .replyFormDiv .preview .button1.warning,
+    #mainDiv_forum .comment .body .button1.warning,
+    #mainDiv_forum #searchFormResults .content .button1.warning {
+        box-shadow: 0px 0px 0.5em 0.2em red;
+    }
+    #mainDiv_forum .inserted {
+        max-width: 100%;
+    }
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay,
@@ -2321,7 +2452,11 @@ function getForumMainElem() {
         font-weight: bold;
     }
     #mainDiv_forum .replyFormDiv .replyForm .buttonBar {
-        margin: 0rem 0px 0.2rem 0.1rem;
+        margin: 0rem 0rem 0.2rem 0.1rem;
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0px 0.1rem 0px 0px;
     }
     #mainDiv_forum .replyFormDiv .replyForm .buttonBar button {
         min-width: 1.8rem;
