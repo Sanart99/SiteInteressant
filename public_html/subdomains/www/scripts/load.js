@@ -77,13 +77,25 @@ async function importScript(src, callback) {
     }
 }
 
-function sendQuery(query, variables, headers, operationName, moreOptions) {
+function sendQuery(query, variables, headers, operationName, moreOptions, moreData) {
     let options = {
         method: 'POST',
-        headers: headers == null ? { 'Content-Type':'application/json', 'Cache-Control':'no-cache' } : headers,
-        body: JSON.stringify({'query':query, 'variables':variables, 'operationName':operationName}),
         credentials: 'include',
         ...moreOptions
+    };
+
+    if (moreData == null) {
+        options.headers = headers == null ? { 'Content-Type':'application/json', 'Cache-Control':'no-cache' } : headers;
+        options.body = JSON.stringify({'query':query, 'variables':variables, 'operationName':operationName});
+    } else {
+        const data = new FormData();
+        data.append('gqlQuery',JSON.stringify({'query':query}));
+        if (variables != null) data.append('gqlVariables',JSON.stringify(variables));
+        if (operationName != null) data.append('gqlOperationName',operationName);
+        for (const k in moreData) data.append(k,moreData[k]);
+
+        options.headers = headers == null ? { 'Cache-Control':'no-cache' } : headers;
+        options.body = data;
     }
 
     return fetch("$graphql",options).then((res) => {
