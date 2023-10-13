@@ -33,7 +33,7 @@ $rawVariables = null;
 if (isset($input['variables'])) $rawVariables = $input['variables'];
 else if (isset($_POST['gqlVariables'])) $rawVariables = $_POST['gqlVariables'];
 $queryVariables = null;
-if ($rawVariables != null) {
+if (!empty($rawVariables)) {
     if (is_array($rawVariables)) $queryVariables = $rawVariables;
     else $queryVariables = json_decode($rawVariables,true, 512, JSON_THROW_ON_ERROR);
 }
