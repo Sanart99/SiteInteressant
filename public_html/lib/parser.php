@@ -87,7 +87,7 @@ class KeywordMarker {
     }
 }
 
-function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
+function textToHTML(int $userId, string $text, bool $commitData = false, bool $useBufferManager = true) {
     if (!$useBufferManager) return '';
 
     $chars = preg_split("//u", $text, -1, PREG_SPLIT_NO_EMPTY);

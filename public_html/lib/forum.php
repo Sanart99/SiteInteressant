@@ -174,7 +174,7 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,read_by) VALUES (?,?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
+    $stmt->execute([$threadRow['id'],0,$user->id,textToHTML($user->id, $msg, true),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
@@ -348,7 +348,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     // add comment
     $n = $conn->query("SELECT MAX(number) FROM comments WHERE thread_id=$threadId")->fetch(\PDO::FETCH_NUM)[0] + 1;
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,read_by) VALUES (?,?,?,?,?,?) RETURNING *');
-    $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg),$sNow,json_encode([$user->id])]);
+    $stmt->execute([$threadId,$n,$user->id,textToHTML($user->id, $msg, true),$sNow,json_encode([$user->id])]);
     $commentRow = $stmt->fetch(\PDO::FETCH_ASSOC);
     $aDetails = ['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']];
 
@@ -424,7 +424,7 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
 
     // Edit comment
     $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=?, read_by=? WHERE thread_id=? AND number=? LIMIT 1");
-    $stmt->execute([textToHTML($user->id, $msg),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
+    $stmt->execute([textToHTML($user->id, $msg, true),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
     // Update thread data
