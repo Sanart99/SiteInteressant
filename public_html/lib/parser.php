@@ -138,6 +138,13 @@ function textToHTML(int $userId, string $text, bool $useBufferManager = true) {
     foreach ($chars as $char) {
         if ($kwMarkerArg !== null) {
             switch (true) {
+                case $ignoreSpec:
+                    $ignoreSpec = false;
+                    $kwMarkerArg .= htmlspecialchars($char);
+                    break;
+                case $char == '\\':
+                    $ignoreSpec = true;
+                    break;
                 case (preg_match('/^\]$/',$char) > 0):
                     if ($activeMarker == null) throw new \Exception('Parse error.'); // only needed cuz intelephense mark it otherwise
                     $activeMarker->markA(strlen($result),$kwMarkerArg);
