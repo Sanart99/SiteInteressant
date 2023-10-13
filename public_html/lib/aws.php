@@ -6,6 +6,9 @@ require_once __DIR__.'/utils/utils.php';
 dotenv();
 
 use Aws\S3\S3Client;
+use LDLib\General\{OperationResult, ErrorType, SuccessType};
+use LDLib\Database\LDPDO;
+use LDLib\User\RegisteredUser;
 
 class AWS {
     public static ?LDS3Client $client;
@@ -43,6 +46,54 @@ class LDS3Client {
         } catch (\Aws\Exception\AwsException $e) {
             return $e;
         }
+    }
+
+    public function putObject(LDPDO $conn, RegisteredUser $user, array $file, bool $overwrite=false, bool $newNameOnDuplicate=false):OperationResult {
+        $fileName = $file['name'];
+        $fileData = file_get_contents($file['tmp_name']);
+        $fileSize = $file['size'];
+        $mimeType = mime_content_type($file['tmp_name']);
+        $keyName = "{$user->id}_{$fileName}";
+        $bucketName = $_SERVER['LD_AWS_BUCKET_GENERAL'];
+        if ($mimeType === false) $mimeType = null;
+
+        $s3 = AWS::getS3Client();
+        if ($s3 == null) return new OperationResult(ErrorType::AWS_ERROR, "Couldn't connect to bucket.");
+
+        if ($overwrite !== true && $s3->client->doesObjectExistV2($bucketName,$keyName)) {
+            if ($newNameOnDuplicate) {
+                $keyName = "{$user->id}_".time()."_$fileName";
+            } else return new OperationResult(ErrorType::PROHIBITED, "File already exists.");
+        }
+
+        $stmt = $conn->prepare("INSERT IGNORE INTO s3_general (user_id,obj_key,filename,size,mime_type) VALUES (?,?,?,?,?)");
+        if (!$stmt->execute([$user->id,$keyName,$fileName,$fileSize,$mimeType])) return new OperationResult(ErrorType::DATABASE_ERROR);
+
+        try {
+            $res = $s3->client->putObject([
+                'Bucket' => $bucketName,
+                'Key' => $keyName,
+                'Body' => $fileData,
+                'ChecksumAlgorithm' => 'SHA256',
+                'ContentType' => $mimeType,
+                'Metadata' => [
+                    'userId' => $user->id,
+                    'username' => $user->username
+                ]
+            ]);
+        } catch (\Aws\Exception\AwsException $e) {
+            $stmt = $conn->prepare("DELETE FROM s3_general WHERE user_id=? AND obj_key=?");
+            $stmt->execute([$user->id,$keyName]);
+            return new OperationResult(ErrorType::AWS_ERROR, "Couldn't put object. (Permissions?)");
+        }
+
+        if (($res['@metadata']['statusCode']??null) != 200) {
+            $stmt = $conn->prepare("DELETE FROM s3_general WHERE user_id=? AND obj_key=?");
+            $stmt->execute([$user->id,$keyName]);
+            return new OperationResult(ErrorType::AWS_ERROR, "Bad AWS status code.");
+        }
+        
+        return new OperationResult(SuccessType::SUCCESS, null, [], [$keyName]);
     }
 }
 ?>
