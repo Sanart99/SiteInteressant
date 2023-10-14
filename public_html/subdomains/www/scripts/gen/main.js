@@ -241,9 +241,9 @@ function getIndexElems() {
     });  
     document.querySelector('#rightBar_optionsDiv_forum').addEventListener('click',(e) => {
         e.preventDefault();
-        loadPage("$root/forum",StateAction.PushState);
+        loadPage("$root/pages/forum",StateAction.PushState);
     });
-    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/usersettings",StateAction.PushState));  
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS

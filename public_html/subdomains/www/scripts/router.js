@@ -2,6 +2,7 @@
 $libDir = __DIR__.'/../../../lib';
 require_once $libDir.'/utils/utils.php';
 $root = get_root_link();
+$rootForRegex = str_replace('/','\/',str_replace(['.'],'\.',$root));
 
 header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
@@ -25,13 +26,14 @@ class RouterError extends Error {
 
 function setUrlFormatter(urlFormatter) {
     _urlFormatter = urlFormatter != null ? urlFormatter : function(url) {
-        var res = /^.*?\/pages\/(.*)\.php.*(?:(?:\?|&)urlEnd=)(.*)$/.exec(url);
+        var res = /^(?:$rootForRegex)?\/pages\/([^?]*).*(?:(?:\?|&)urlEnd=(.+))?$/.exec(url);
         if (res == null) {
             if (__debug) console.log('urlFormatter regex failed');
             return url;
         }
 
-        var displayedURL = `$root/\${res[1]}`;
+        const afterRoot = res[1].endsWith('.php') ? res[1].substr(0,res[1].length-4) : res[1];
+        var displayedURL = `$root/\${afterRoot}`;
         if (res[2] != undefined) displayedURL += `\${res[2]}`;
         if (__debug) console.log(`urlFormatter: \${url} -> \${displayedURL}`);
         return displayedURL;
