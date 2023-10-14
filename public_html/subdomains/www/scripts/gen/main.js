@@ -30,11 +30,40 @@ function getIndexElems() {
             <p></p>
         </div>
         <div id="rightBar_optionsDiv">
-            <a id="rightBar_optionsDiv_editAvatar" href="#" onclick="return false;"><p>Changer d'avatar</p></a>
-            <a id="rightBar_optionsDiv_forum" href="$root/forum"><p>Forum</p></a>
-            <a id="rightBar_optionsDiv_userSettings" href="$root/usersettings" onclick="return false;"><p>Paramètres</p></a>
-            <a href="$root/versionhistory"><p>Historique versions</p></a>
-            <a id="rightBar_optionsDiv_disconnect" href="#" onclick="return false;"><p>Se Déconnecter</p></a>
+            <div class="primary">
+                <a id="rightBar_optionsDiv_forum" href="$root/forum" onclick="return false;">
+                    <div class="imgContainer">
+                        <img src="$res/icons/speech_bubble.svg" />
+                    </div>
+                    <p>Forum</p>
+                </a>
+                <a id="rightBar_optionsDiv_userSettings" href="$root/usersettings" onclick="return false;">
+                    <div class="imgContainer">
+                        <img src="$res/icons/gears.svg" />
+                    </div>
+                    <p>Paramètres</p>
+                </a>
+            </div>
+            
+            <div class="more">
+                <a id="rightBar_more_button" href="#" onclick="return false;">
+                    <div class="imgContainer">
+                        <img src="$res/icons/arrow.svg" />
+                    </div>
+                    <p>Plus d'options...</p>
+                </a>
+                <div>
+                    <a id="rightBar_optionsDiv_editAvatar" href="#" onclick="return false;">
+                        <p>Changer d'avatar</p>
+                    </a>
+                    <a id="rightBar_optionsDiv_versionHistory" href="$root/versionhistory" onclick="return false">
+                        <p>Historique versions</p>
+                    </a>
+                    <a id="rightBar_optionsDiv_disconnect" href="#" onclick="return false;">
+                        <p>Se Déconnecter</p>
+                    </a>
+                </div>
+            </div>
         </div>
         <div id="rightBar_notificationsDiv">
             <p class="sectionTitle">Notifications</p>
@@ -243,11 +272,20 @@ function getIndexElems() {
         e.preventDefault();
         loadPage("$root/pages/forum",StateAction.PushState);
     });
-    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));  
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));
+    document.querySelector('#rightBar_optionsDiv_versionHistory').addEventListener('click',() => loadPage("$root/pages/versionhistory",StateAction.PushState));  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS
         popupDiv.openTo('#askDisconnect');
+    });
+
+    const moreDiv = document.querySelector('#rightBar_optionsDiv > .more');
+    const moreBut = document.querySelector('#rightBar_more_button');
+    moreBut.addEventListener('click',() => {
+        if (moreDiv.classList.contains('expanded')) {
+            moreDiv.classList.remove('expanded');
+        } else moreDiv.classList.add('expanded');
     });
 
     if ($isAuth === 1) {
@@ -334,26 +372,75 @@ function getIndexElems() {
         color: white;
         font-size: 1.4rem;
     }
-    #rightBar_optionsDiv {
+    #rightBar_optionsDiv a {
+        display: flex;
+        height: 2.6rem;
+        width: 100%;
+        text-decoration: none;
+        align-items: center;
+        font-size: 1.2rem;
+    }   
+    #rightBar_optionsDiv .imgContainer {
+        width: 4rem;
+        display: flex;
+        height: 100%;
+        justify-content: center;
+    }
+    #rightBar_optionsDiv > .primary {
         display: flex;
         flex-direction: column;
         align-items: center;
         background-color: var(--color-black-1);
     }
-    #rightBar_optionsDiv a {
-        display: flex;
-        height: 2rem;
+    #rightBar_optionsDiv > .primary img {
+        width: 2.2rem;
+    }
+    #rightBar_optionsDiv > .primary p,
+    #rightBar_optionsDiv > .more > a:first-of-type p {
+        flex: 1 100 90%;
+        text-align: center;
+        transform: translate(-8%, 0px);
+    }
+    #rightBar_optionsDiv > .more p {
         width: 100%;
+        text-align: center;
+    }
+    #rightBar_optionsDiv > .more {
+        border-bottom: 0.1rem solid #FE7D00;
+    }
+    #rightBar_optionsDiv > .more > a:first-of-type {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        text-decoration: none;
+        height: 1.6rem;
+        font-size: 0.7rem;
+    }
+    #rightBar_optionsDiv > .more a {
+        height: 2rem;
+        font-size: 0.95rem;
+    }
+    #rightBar_optionsDiv > .more img {
+        width: 0.7rem;
+        transition: all 0.25s;
+    }
+    #rightBar_optionsDiv > .more > div {
+        display: none;
+    }
+    #rightBar_optionsDiv > .more.expanded > div {
+        display: initial;
+    }
+    #rightBar_optionsDiv > .more.expanded > a {
+        background-color: var(--color-orange-1);
+        color: white;
+    }
+    #rightBar_optionsDiv > .more.expanded img {
+        transform: rotate(90deg);
     }
     #rightBar_optionsDiv a:hover {
         background-color: var(--color-orange-1);
         color: white;
     }
     #rightBar_notificationsDiv {
-        height: 100%;
+        /* height: 100%; */
         color: white;
     }
     #rightBar_notificationsDiv .sectionTitle {
