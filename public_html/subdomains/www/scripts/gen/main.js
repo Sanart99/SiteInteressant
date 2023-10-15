@@ -2190,7 +2190,7 @@ function getForumMainElem() {
     loadThreads(20);
 
     const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
-    if (m != null) loadThread(`forum_\${m[1]}`,20);
+    if (m != null) loadThread(`forum_\${m[1]}`,10);
     _loadPageMidProcesses['forumMP'] = (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
         const m = new RegExp("^$root/forum/(\\\d+)").exec(displayedURL);
