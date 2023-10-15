@@ -1,0 +1,12 @@
+{
+  "name": "Site Intéressant",
+  "start_url": "https://local_siteinteressant.net/",
+  "display":"minimal-ui",
+  "icons": [
+    {
+      "src": "https://res.local_siteinteressant.net/icons/gears.svg",
+      "type": "image/svg",
+      "sizes": "any"
+    }
+  ]
+}
