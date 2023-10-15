@@ -831,6 +831,9 @@ function getForumMainElem() {
 
             const eComments = document.querySelector('#forum_comments');
             const comments = json.data.node.comments;
+            const autoMarkPagesAsRead = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
+            const eUnreadComments = [];
+            const unreadCommentsNumbers = [];
             eComments.innerHTML = '';
             currThreadId = threadId;
             for (const comment of comments.edges) {
@@ -854,6 +857,10 @@ function getForumMainElem() {
                 </div>`)[0];
                 const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
+                if (!comment.node.isRead) {
+                    eUnreadComments.push(commentNode);
+                    unreadCommentsNumbers.push(comment.node.number);
+                }
 
                 // Footer
                 const footerInfos = commentNode.querySelector('.footer p.infos');
@@ -1142,7 +1149,7 @@ function getForumMainElem() {
 
                 // Events
                 let b = false;
-                commentNode.querySelector('.body').addEventListener('mouseover',() => {
+                if (!autoMarkPagesAsRead) commentNode.querySelector('.body').addEventListener('mouseover',() => {
                     if (!commentNode.classList.contains('new') || b) return;
                     b = true;
                     sendQuery(`mutation MarkCommentsAsRead (\$threadId:Int!, \$commNumbers:[Int!]!) {
@@ -1177,6 +1184,37 @@ function getForumMainElem() {
 
                 // Add element
                 eComments.insertAdjacentElement('beforeend',commentNode);
+            }
+            if (autoMarkPagesAsRead && eUnreadComments.length > 0) {
+                sendQuery(`mutation MarkCommentsAsRead (\$threadId:Int!, \$commNumbers:[Int!]!) {
+                    f:forumThread_markCommentsAsRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
+                        __typename
+                        success
+                        resultCode
+                        resultMessage
+                    }
+                }`.trim(),{threadId:json.data.node.dbId,commNumbers:unreadCommentsNumbers}).then((json) => {
+                    if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
+
+                    for (const comm of eUnreadComments) if (comm.classList.contains('new')) comm.classList.remove('new');
+                    sendQuery(`query (\$threadId:ID!) {
+                        node(id:\$threadId) {
+                            id
+                            ... on Thread {
+                                isRead
+                            }
+                        }
+                    }`,{threadId:threadId}).then((json) => {
+                        if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
+                        if (json.data.node.isRead == false) return;
+                        const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                        if (e != null) {
+                            e.classList.remove('new');
+                            const eNew = e.querySelector('.statusIcons .new');
+                            if (eNew != null) eNew.style.display = 'none';
+                        }
+                    });
+                })
             }
 
             const n = first ?? last;
@@ -3261,11 +3299,19 @@ function getUserSettings() {
     <div id="mainDiv_userSettings" class="authPadded" data-is-auth="$isAuth">
         <form id="settingsForm" class="main">
             <section>
+                <h2>Forum</h2>
+                <div class="sectionContent">
+                    <ul>
+                        <li><input id="settings_forum_autoMarkPagesAsRead" name="forum_autoMarkPagesAsRead" type="checkbox" disabled><label for="settings_forum_autoMarkPagesAsRead">Automatiquement marquer les pages comme lu</label></li>
+                    </ul>
+                </div>
+            </section>
+            <section>
                 <h2>Notifications</h2>
                 <div class="sectionContent">
                     <ul>
                         <li>
-                            <input id="settings_notif" name="notifications" type="checkbox" disabled><label for="settings_notif">Activer les notifications push</label>
+                            <input id="settings_notif" name="notifications" type="checkbox" disabled><label for="settings_notif" class="bold">Activer les notifications push</label>
                             <ul>
                                 <li><input id="settings_device_notif" class="local" type="checkbox" disabled><label for="settings_device_notif">Activer pour cet appareil</label></li>
                             </ul>
@@ -3289,6 +3335,7 @@ function getUserSettings() {
     const allSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input');
     const globalSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input:not(.local)');
 
+    const eForum_MarkPagesAsRead = document.querySelector('#settings_forum_autoMarkPagesAsRead');
     const eNotif = document.querySelector('#settings_notif');
     const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
@@ -3320,6 +3367,8 @@ function getUserSettings() {
         }
     }
     function loadInputVals() {
+        eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
+
         eNotif.checked = localGet('settings_notifications') === 'true';
         eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
@@ -3409,7 +3458,7 @@ function getUserSettings() {
     #mainDiv_userSettings input[type="checkbox"] {
         margin: 0px 0.5em 0px 0px;
     }
-    #mainDiv_userSettings .sectionContent > ul > li > label {
+    #mainDiv_userSettings .sectionContent > ul > li > label.bold {
         font-weight: bold;
     }
     #mainDiv_userSettings input[type="submit"] {

@@ -1218,6 +1218,10 @@ class UserSettingsType extends ObjectType {
     public function __construct(array $config2 = null) {
         $config = [
             'fields' => [
+                'forum_autoMarkPagesAsRead' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->forum_autoMarkPagesAsRead)
+                ],
                 'notificationsEnabled' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notificationsEnabled)

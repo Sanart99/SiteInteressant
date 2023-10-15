@@ -39,8 +39,9 @@ class RegisteredUser extends User {
                 'notifications' => $this->settings->notificationsEnabled,
                 'forum' => [
                     'defaultThreadPermission' => $this->settings->defaultThreadPermission,
+                    'autoMarkPagesAsRead' => $this->settings->forum_autoMarkPagesAsRead,
                     'notif_newThread' => $this->settings->notif_newThread,
-                    'notif_newCommentOnFollowedThread' => $this->settings->notif_newCommentOnFollowedThread
+                    'notif_newCommentOnFollowedThread' => $this->settings->notif_newCommentOnFollowedThread,
                 ]
             ],JSON_THROW_ON_ERROR)
         ]);
@@ -57,6 +58,8 @@ class RegisteredUser extends User {
 
 class UserSettings {
     public ThreadPermission $defaultThreadPermission;
+    public bool $forum_autoMarkPagesAsRead;
+
     public bool $notificationsEnabled;
     public bool $notif_newThread;
     public bool $notif_newCommentOnFollowedThread;
@@ -70,11 +73,14 @@ class UserSettings {
                 case 'current_users': $this->defaultThreadPermission = ThreadPermission::CURRENT_USERS; break;
                 case 'all_users': $this->defaultThreadPermission = ThreadPermission::ALL_USERS; break;
             }
+            $this->forum_autoMarkPagesAsRead = (bool)($a['autoMarkPagesAsRead']??false);
+
             $this->notif_newThread = (bool)($a['notif_newThread']??false);
             $this->notif_newCommentOnFollowedThread = (bool)($a['notif_newCommentOnFollowedThread']??false);
         }
         
         $this->defaultThreadPermission ??= ThreadPermission::CURRENT_USERS;
+        $this->forum_autoMarkPagesAsRead ??= false;
         $this->notif_newThread ??= false;
         $this->notif_newCommentOnFollowedThread ??= false;
     }
@@ -89,6 +95,7 @@ function set_user_setting(LDPDO $conn, int $userId, array $names, array $values)
         try {
             switch ($names[$i]) {
                 case 'defaultThreadPermission': $user->settings->defaultThreadPermission = ThreadPermission::from($values[$i]); break;
+                case 'forum_autoMarkPagesAsRead': $user->settings->forum_autoMarkPagesAsRead = (bool)$values[$i]; break;
                 case 'notifications': $user->settings->notificationsEnabled = (bool)$values[$i]; break;
                 case 'notif_newThread': $user->settings->notif_newThread = (bool)$values[$i]; break;
                 case 'notif_newCommentOnFollowedThread': $user->settings->notif_newCommentOnFollowedThread = (bool)$values[$i]; break;
