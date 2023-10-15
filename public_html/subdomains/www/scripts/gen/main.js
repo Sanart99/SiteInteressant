@@ -59,6 +59,9 @@ function getIndexElems() {
                     <a id="rightBar_optionsDiv_versionHistory" href="$root/versionhistory" onclick="return false">
                         <p>Historique versions</p>
                     </a>
+                    <a id="rightBar_optionsDiv_contribute" href="https://opencollective.com/site-interessant/donate?interval=oneTime&amount=10&contributeAs=me" target="_blank">
+                        <p>Financer</p>
+                    </a>
                     <a id="rightBar_optionsDiv_disconnect" href="#" onclick="return false;">
                         <p>Se Déconnecter</p>
                     </a>
