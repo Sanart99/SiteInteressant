@@ -394,6 +394,7 @@ function getIndexElems() {
     }
     #rightBar_optionsDiv > .primary img {
         width: 2.2rem;
+        filter: drop-shadow(0px 1px 0px #2d3a68);
     }
     #rightBar_optionsDiv > .primary p,
     #rightBar_optionsDiv > .more > a:first-of-type p {
