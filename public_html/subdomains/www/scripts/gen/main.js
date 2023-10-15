@@ -3383,11 +3383,14 @@ function getUserSettings() {
             localSet('settings_device_notifications', eDeviceNotif.checked);
         }
 
-        if (eDeviceNotif.checked && Notification.permission !== 'granted') {
-            alert('You didn\'t grant notification permission.');
-            Notification.requestPermission();
-            toggleInputs(true);
-            return;
+        if (eDeviceNotif.checked) {
+            if (Notification.permission !== 'granted') {
+                alert('You didn\'t grant notification permission.');
+                Notification.requestPermission();
+                toggleInputs(true);
+                return;
+            }
+            initPushSubscription();
         }
 
         if (__online) {
