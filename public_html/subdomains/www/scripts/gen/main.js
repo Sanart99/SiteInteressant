@@ -33,7 +33,7 @@ function getIndexElems() {
             <div class="primary">
                 <a id="rightBar_optionsDiv_forum" href="$root/forum" onclick="return false;">
                     <div class="imgContainer">
-                        <img src="$res/icons/speech_bubble.svg" />
+                        <img src="$res/icons/speech_bubble.svg" style="transform: translate(0%,9%);" />
                     </div>
                     <p>Forum</p>
                 </a>
@@ -396,7 +396,7 @@ function getIndexElems() {
         background-color: var(--color-black-1);
     }
     #rightBar_optionsDiv > .primary img {
-        width: 2.2rem;
+        width: 2.1rem;
         filter: drop-shadow(0px 1px 0px #2d3a68);
     }
     #rightBar_optionsDiv > .primary p,
