@@ -1145,14 +1145,14 @@ function getForumMainElem() {
                 commentNode.querySelector('.body').addEventListener('mouseover',() => {
                     if (!commentNode.classList.contains('new') || b) return;
                     b = true;
-                    sendQuery(`mutation MarkCommentAsRead (\$threadId:Int!, \$commNumber:Int!) {
-                        f:forumThread_markCommentAsRead(threadId:\$threadId,commentNumber:\$commNumber) {
+                    sendQuery(`mutation MarkCommentsAsRead (\$threadId:Int!, \$commNumbers:[Int!]!) {
+                        f:forumThread_markCommentsAsRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
                             __typename
                             success
                             resultCode
                             resultMessage
                         }
-                    }`.trim(),{threadId:json.data.node.dbId,commNumber:comment.node.number}).then((json) => {
+                    }`.trim(),{threadId:json.data.node.dbId,commNumbers:[comment.node.number]}).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
 
                         commentNode.classList.remove('new');

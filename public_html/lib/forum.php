@@ -489,15 +489,26 @@ function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $thread
     return $minutes < 1.5;
 }
 
-function thread_mark_comment_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber):OperationResult {
-    $comment = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-    if ($comment == false) return new OperationResult(ErrorType::NOT_FOUND, 'Comment not found.');
-    $readBy = json_decode($comment['read_by']);
-    if (in_array($user->id,$readBy)) return true;
-    $readBy[] = $user->id;
+function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, array $commNumbers):OperationResult {
+    if (count($commNumbers) == 0) return new OperationResult(SuccessType::SUCCESS);
+    $conn->query('START TRANSACTION');
+
+    $sqlWhere = "";
+    foreach ($commNumbers as $n) {
+        if (strlen($sqlWhere) > 0) $sqlWhere .= " OR ";
+        $sqlWhere .= "number=$n";
+    }
+    $stmt = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND ($sqlWhere)");
+    while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+        $readBy = json_decode($row['read_by']);
+        if (in_array($user->id,$readBy)) continue;
+        $readBy[] = $user->id;
+
+        $stmt2 = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number={$row['number']} LIMIT 1");
+        $stmt2->execute([json_encode($readBy)]);
+    }
     
-    $stmt = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number=$commNumber LIMIT 1");
-    $stmt->execute([json_encode($readBy)]);
+    $conn->query('COMMIT');
     return new OperationResult(SuccessType::SUCCESS);
 }
 

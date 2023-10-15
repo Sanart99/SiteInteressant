@@ -52,7 +52,7 @@ use function LDLib\Forum\{
     create_thread, remove_thread,
     kube_thread, unkube_thread, kube_comment, unkube_comment, octohit_comment,
     search,
-    thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comment_as_read,
+    thread_add_comment, thread_edit_comment, thread_remove_comment, thread_mark_comments_as_read,
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
@@ -342,16 +342,16 @@ class MutationType extends ObjectType {
                         return thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
                     }
                 ],
-                'forumThread_markCommentAsRead' => [
+                'forumThread_markCommentsAsRead' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'threadId' => Type::nonNull(Type::int()),
-                        'commentNumber' => Type::nonNull(Type::int())
+                        'commentNumbers' => Type::nonNull(Type::listOf(Type::nonNull(Type::int())))
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
-                        return thread_mark_comment_as_read(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
+                        return thread_mark_comments_as_read(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumbers']);
                     }
                 ],
                 'forumThread_follow' => [
