@@ -26,7 +26,7 @@ class RouterError extends Error {
 
 function setUrlFormatter(urlFormatter) {
     _urlFormatter = urlFormatter != null ? urlFormatter : function(url) {
-        var res = /^(?:$rootForRegex)?\/pages\/([^?]*).*(?:(?:\?|&)urlEnd=(.+))?$/.exec(url);
+        var res = /^(?:$rootForRegex)?\/pages\/([^?]*).*?(?:(?:\?|&)urlEnd=(.+))?$/.exec(url);
         if (res == null) {
             if (__debug) console.log('urlFormatter regex failed');
             return url;
