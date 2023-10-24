@@ -2095,12 +2095,12 @@ function getForumMainElem() {
         const files = withData?.files ?? [];
         const objectURLs = withData?.objectURLs ?? new Map();
         const o = {filesToUpload:{}};
-        for (const node of commNodes) {
+        for (const node of Array.from(commNodes)) {
             const nodesToProcess = [];
             if (node.classList.contains('processThis')) nodesToProcess.push(node);
             for (const n of node.querySelectorAll('.processThis')) nodesToProcess.push(n);
 
-            for (const node of nodesToProcess) {
+            for (const node of Array.from(nodesToProcess)) {
                 const m = /^(\w+):(.*)$/.exec(node.innerHTML);
                 if (m == null) continue;
 
@@ -2173,7 +2173,7 @@ function getForumMainElem() {
                         o.filesToUpload[file.name] = file;
                         break;
                 }
-            }                        
+            }
             container.insertAdjacentElement('beforeend',node);
         }
         return o;
