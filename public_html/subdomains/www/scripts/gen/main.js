@@ -3080,7 +3080,7 @@ function getForumMainElem() {
         #forum_comments .body {
             padding: 0.6rem 0.5rem 0.4rem 1.2rem;
         }
-        #forum_comments .body > .main {
+        #forum_comments .body > .main > p:first-of-type {
             text-indent: 3.7rem;
         }
         #forum_threads tbody tr[data-selected="true"] .selectArrow {
