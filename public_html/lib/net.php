@@ -60,11 +60,12 @@ class LDWebPush {
         return new OperationResult(SuccessType::SUCCESS, null, [$reports], $reports);
     }
 
-    public function sendNotification(LDPDO $conn, int $userId, string $title, ?string $body = null):OperationResult {
+    public function sendNotification(LDPDO $conn, int $userId, string $title, ?string $body = null, ?string $icon = null):OperationResult {
         return $this->send($conn, $userId, json_encode([
             'notifications' => [[
                 'title' => $title,
-                'body' => $body
+                'body' => $body,
+                'icon' => $icon
                 ]
             ]
         ]));

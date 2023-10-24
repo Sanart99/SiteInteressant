@@ -66,6 +66,7 @@ self.addEventListener('push', (event) => {
         const options = {};
         if (notif?.title == null) continue;
         if (notif?.body != null) options.body = notif.body;
+        if (notif?.icon != null) options.icon = notif.icon;
 
         try { self.registration.showNotification(notif.title, options); }
         catch (e) { console.error(e); continue; }

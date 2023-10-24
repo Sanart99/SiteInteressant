@@ -184,7 +184,7 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
 
     $wp = new LDWebPush();
     $stmt = $conn->query("SELECT id FROM users WHERE id!={$user->id} AND JSON_CONTAINS(settings,'true','$.notifications')=1 AND JSON_CONTAINS(settings,'true','$.forum.notif_newThread')=1");
-    while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) $wp->sendNotification($conn,$row['id'],"Nouveau topic de $user->username",$title);
+    while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) $wp->sendNotification($conn,$row['id'],"Nouveau topic de $user->username",$title,$user->getAvatarURL());
 
     ForumBuffer::storeThread($threadRow);
     ForumBuffer::storeComment($commentRow);
@@ -406,7 +406,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     // push notifications
     $wp = new LDWebPush();
     $sTitle = mb_strlen($rowThread['title']) > 60 ? substr($rowThread['title'],0,57).'...' : $rowThread['title'];
-    foreach ($followingIds as $id) $wp->sendNotification($conn,$id,"Nouveau commentaire de $user->username",$sTitle);
+    foreach ($followingIds as $id) $wp->sendNotification($conn,$id,"Nouveau commentaire de $user->username",$sTitle,$user->getAvatarURL());
 
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
