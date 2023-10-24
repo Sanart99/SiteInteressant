@@ -8,6 +8,7 @@ require_once $scriptsLib.'/gen/popup.js';
 ob_end_clean();
 
 $root = get_root_link();
+$res = get_root_link('res');
 
 $loadPage = '';
 $qString = '';
@@ -28,7 +29,8 @@ header('Content-Type: text/html');
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="<?php echo $root ?>/styleReset.css" type="text/css">
 		<link rel="stylesheet" href="<?php echo $root ?>/style.css" type="text/css">
-        <link rel="manifest" href="manifest.webmanifest" />
+        <link rel="manifest" href="<?php echo $root ?>/manifest.webmanifest" />
+        <link rel="icon" href="<?php echo $res ?>/icons/icon_interessant.svg"/>
         <title>Site Interessant</title>
 
         <?php foreach ($scriptsToLoad as $s) echo "<script src=\"$root/scripts/$s\"></script>" ?>
