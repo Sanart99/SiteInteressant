@@ -1977,6 +1977,7 @@ function getForumMainElem() {
         eFileInput.addEventListener('change', () => {
             const file = eFileInput.files[0]??null;
             if (file == null) return;
+            if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
             files.push(file);
             quickInputInsert(`[file=\${escapeCharacters(file.name)}/]`);
         });

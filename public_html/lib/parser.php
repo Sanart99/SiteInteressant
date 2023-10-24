@@ -162,7 +162,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             if (!$commitData) return "<span class='processThis'>insertFileLocal:$arg</span>";
             $arg = str_replace(['.',' '],'_',$arg);
 
-            if (!isset($_FILES[$arg])) return '<span class="error">Failed upload.</span>';
+            if (!isset($_FILES[$arg]) || $_FILES[$arg]['size'] > 25000000) return '<span class="error">Failed upload.</span>';
             $file = $_FILES[$arg];
 
             $conn ??= get_tracked_pdo();
