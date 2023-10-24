@@ -1,6 +1,8 @@
 <?php
 namespace LDLib\User;
 
+require_once __DIR__.'/utils/utils.php';
+
 use Ds\Set;
 use LDLib\Forum\ThreadPermission;
 use LDLib\Database\LDPDO;
@@ -23,12 +25,20 @@ abstract class User {
 }
 
 class RegisteredUser extends User {
-    public function __construct(int $id, Set $titles, string $username, \DateTimeImmutable $registrationDate, UserSettings $settings) {
+    public readonly ?string $avatarName;
+
+    public function __construct(int $id, Set $titles, string $username, \DateTimeImmutable $registrationDate, UserSettings $settings, ?string $avatarName=null) {
         parent::__construct($id,$titles,$username,$registrationDate,$settings);
+        $this->avatarName = $avatarName;
     }
 
     public function isAdministrator():bool {
         return $this->titles->contains('Administrator');
+    }
+
+    public function getAvatarURL():string {
+        $res = get_root_link('res');
+        return $this->avatarName == null ? $res.'/avatars/default.jpg' : $res.'/avatars/'.$this->avatarName;
     }
 
     public function saveSettings(LDPDO $conn):bool {
@@ -52,7 +62,7 @@ class RegisteredUser extends User {
     public static function initFromRow(array $row) {
         $data = array_key_exists('data',$row) && array_key_exists('metadata',$row) ? $row['data'] : $row;
         $settings = new UserSettings(json_decode($data['settings'],true));
-        return new self($data['id'],new Set(explode(',',$data['titles'])),$data['name'],new \DateTimeImmutable($data['registration_date']),$settings);
+        return new self($data['id'],new Set(explode(',',$data['titles'])),$data['name'],new \DateTimeImmutable($data['registration_date']),$settings,$data['avatar_name']);
     }
 }
 
