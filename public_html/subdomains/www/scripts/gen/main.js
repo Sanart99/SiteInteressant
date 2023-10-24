@@ -2134,7 +2134,7 @@ function getForumMainElem() {
                             } else if (vidRegex.test(file.type)) {
                                 node.replaceWith(stringToNodes(`<video controls class="inserted"> <source src=\${url} /> </video>`)[0]);
                             } else {
-                                const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" style="display:none;"></a></button>`)[0];
+                                const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
                                 but.addEventListener('click',() => but.querySelector('a').click());
                                 node.replaceWith(but);
                             }
