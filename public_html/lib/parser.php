@@ -138,7 +138,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             if ($arg == null) return ["[link]",'[/link]'];
             $arg = str_replace('"','\"',$arg);
             if ($arg == '' || preg_match($urlRegex, $arg) == 0) return ["[link=$arg]",'[/link]'];
-            return ["<a href=\"$arg\">",'</a>'];
+            return ["<a href=\"$arg\" target=\"_blank\">",'</a>'];
         }, $result),
         new KeywordMarker('cite',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
