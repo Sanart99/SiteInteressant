@@ -1,12 +1,25 @@
+<?php
+$libDir = __DIR__.'/../../lib';
+ob_start();
+require_once $libDir.'/utils/utils.php';
+ob_end_clean();
+
+$root = get_root_link();
+$res = get_root_link('res');
+
+header('Content-Type: application/json');
+echo <<<JSON
 {
   "name": "Site Intéressant",
-  "start_url": "https://local_siteinteressant.net/",
+  "start_url": "$root",
   "display":"minimal-ui",
   "icons": [
     {
-      "src": "https://res.local_siteinteressant.net/icons/gears.svg",
+      "src": "$res/icons/icon_interessant.svg",
       "type": "image/svg",
       "sizes": "any"
     }
   ]
 }
+JSON;
+?>
