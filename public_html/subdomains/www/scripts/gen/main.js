@@ -630,15 +630,15 @@ function getForumMainElem() {
 
                     if (date.toISOString().substr(0,10) == now.toISOString().substr(0,10)) {
                         if (lastDelimiter != "Aujourd'hui") {
-                            tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Aujourd'hui</td></tr>`);
+                            tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>Aujourd'hui</p></td></tr>`);
                             lastDelimiter = "Aujourd'hui";
                         }
                     } else if (lastDelimiter != sDate) {
-                        tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">\${sDate}</td></tr>`);
+                        tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>\${sDate}</p></td></tr>`);
                         lastDelimiter = sDate;
                     }
                 } else if (lastDelimiter != 'Date inconnue') {
-                    tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter">Date inconnue</td></tr>`);
+                    tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>Date inconnue</p></td></tr>`);
                     lastDelimiter = 'Date inconnue';
                 }
                 const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread \${edge.node.isRead ? '' : 'new'}">
@@ -1104,7 +1104,7 @@ function getForumMainElem() {
                 }
 
                 // Footer: More
-                const nodeMore = stringToNodes('<span> - <a class="more" href="#" onclick="return false;">Plus...</a></span>')[0];
+                const nodeMore = stringToNodes('<span><p> - </p><a class="more" href="#" onclick="return false;">Plus...</a></span>')[0];
                 const nodeLess = stringToNodes('<a class="more" href="#" onclick="return false;">Moins...</a>')[0];
                 nodeMore.addEventListener('click',() => {
                     nodeHidden.style.display = hiddenFooter.style.display = '';
@@ -1117,11 +1117,11 @@ function getForumMainElem() {
                 aHidden.push(nodeLess);
 
                 for (const n of aFooter) {
-                    if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', ' - ');
+                    if (n != aFooter[0]) footerP.insertAdjacentHTML('beforeend', '<p> - </p>');
                     footerP.insertAdjacentElement('beforeend',n);
                 }
                 for (const n of aHidden) {
-                    nodeHidden.insertAdjacentHTML('beforeend',' - ');
+                    nodeHidden.insertAdjacentHTML('beforeend','<p> - </p>');
                     nodeHidden.insertAdjacentElement('beforeend',n);
                 }
                 footerP.insertAdjacentElement('beforeend',nodeHidden);
@@ -2392,7 +2392,7 @@ function getForumMainElem() {
         display: block;
         position:absolute;
         content: url({$res}/design/arrowUp.png);
-        transform: translate(0.5rem, -86%);
+        transform: translate(0.5rem, -83%);
     }
     #mainDiv_forum .replyFormDiv .preview .rpText,
     #mainDiv_forum .comment .body .rpText,
@@ -2423,7 +2423,7 @@ function getForumMainElem() {
         box-shadow: 0px 0px 0.5em 0.2em red;
     }
     #mainDiv_forum .inserted {
-        max-width: 100%;
+        max-width: 85%;
     }
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil,
@@ -2627,6 +2627,9 @@ function getForumMainElem() {
         display: flex;
         justify-content: center;
     }
+    #forum_banner img {
+        max-width:100%;
+    }
     #forumL {
         flex: 1 1 37%;
         max-width: 37%;
@@ -2739,6 +2742,7 @@ function getForumMainElem() {
         display: flex;
         align-items: center;
         padding: 0.3em 0.2em 0.3em 0.2em;
+        line-height: 1.1;
     }
     #forum_threads .delimiter {
         background-color: var(--color-black-2);
@@ -2747,6 +2751,9 @@ function getForumMainElem() {
         color: white;
         text-align: center;
         font-weight: bold;
+    }
+    #forum_threads .delimiter p {
+        line-height: 1.1;
     }
     #forum_comments {
         margin: 2rem 0px 0px 0px;
@@ -2786,7 +2793,7 @@ function getForumMainElem() {
         max-height: 80px;
         position: absolute;
         top: 50%;
-        left: 10px;
+        left: 11px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2825,11 +2832,28 @@ function getForumMainElem() {
         margin: 0.2em 0px 0px 0px;
     }
     #forum_comments .footer > *:not(:last-child) {
-        margin: 0px 0px 0.1em 0px;
+        margin: 0px 0px 0.2em 0px;
     }
     #forum_comments .footer .infos {
         color: gray;
         opacity: 0.8;
+    }
+    #forum_comments .footer .commActions > span {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+    }
+    #forum_comments .footer .commActions {
+        display: flex;
+        align-items: center;
+        gap: 0.3em;
+        justify-content: flex-end;
+    }
+    #forum_comments .footer .commActions a {
+        display: inline-block;
+        text-decoration: none;
+        vertical-align: middle;
+        padding: 0.2em 0px 0px 0px;
     }
     #searchForm {
         padding: 10px;
@@ -2917,7 +2941,8 @@ function getForumMainElem() {
         text-align: left;
         transition: all 0.5s;
         overflow: hidden;
-        max-height: 1em;
+        height: 1.1em;
+        max-height: 1.1em;
         margin: 1em 0px 0px 0px;
     }
     #mainDiv_forum .subheader .infos2.hide > .main {
@@ -2936,7 +2961,7 @@ function getForumMainElem() {
         text-align: left;
         transition: all 0.5s;
         overflow: hidden;
-        max-height: 1.1em;
+        max-height: 1.2em;
     }
     #mainDiv_forum .hiddenFooter.hidden > .main {
         height: 0%;
@@ -3014,9 +3039,11 @@ function getForumMainElem() {
     #mainDiv_forum .iconDiv .iconDiv_mid p {
         padding: 0px 5px 0px 7px;
         font-size: 11px;
+        line-height: 1.1;
     }
     #mainDiv_forum .octohitDiv .octohitDiv_mid p {
         color: darkRed;
+        line-height: 1.1;
     }
     @media screen and (max-width: 800px) {
         #forumR, #forumL{
@@ -3032,17 +3059,29 @@ function getForumMainElem() {
             padding-top: 1.5%;
             border-top: 1px dashed black;
         }
+        #mainDiv_forum .replyFormDiv .replyForm .buttonBar {
+            flex-direction: column;
+            gap: 0.3em;
+        }
         #forum_comments .avatar {
-            max-width: 75px;
-            max-height: 75px;
+            max-width: 60px;
+            max-height: 60px;
         }
         #forum_comments .avatarDiv {
-            width: 75px;
-            max-height: 75px;
+            width: 60px;
+            max-height: 60px;
+        }
+        #forum_comments .header .name {
+            left: 4.9rem;
+        }
+        #forum_comments .header .stats {
+            left: 4.9rem;
         }
         #forum_comments .body {
             padding: 0.6rem 0.5rem 0.4rem 1.2rem;
-            text-indent: 4.3rem;
+        }
+        #forum_comments .body > .main {
+            text-indent: 3.7rem;
         }
         #forum_threads tbody tr[data-selected="true"] .selectArrow {
             display: none;
@@ -3450,7 +3489,7 @@ function getUserSettings() {
         color: var(--color-black-2);
         font-size: 1.6rem;
         border-bottom: 1px solid black;
-        margin: 0px 0px 0.7em 0px;
+        margin: 1em 0px 0.7em 0px;
         padding: 0px 0px 0.1em 0px;
     }
     #mainDiv_userSettings ul li {
