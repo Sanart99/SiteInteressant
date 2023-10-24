@@ -17,13 +17,22 @@ if (preg_match('/^\/file\/(\d+_[^\/?]*)/',$_SERVER['REQUEST_URI'],$m) == 0) {
 $s3Key = $m[1];
 $redisKey = "s3:general:$s3Key";
 
-$redis = new \Redis();
-$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT']);
-$vCache = $redis->hGetAll($redisKey);
-if ($vCache != null)  {
-    header("Content-Type: {$vCache['mimetype']}");
-    echo $vCache['data'];
-    return;
+if (class_exists('\Redis')) {
+    $redis = new \Redis();
+    try {
+        $redisRes = $redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],0.5);
+    } catch (\RedisException $e) {
+        $redisRes = false;
+    }
+    
+    if ($redisRes !== false) {
+        $vCache = $redis->hGetAll($redisKey);
+        if ($vCache != null)  {
+            header("Content-Type: {$vCache['mimetype']}");
+            echo $vCache['data'];
+            return;
+        }
+    }
 }
 
 $s3Client = AWS::getS3Client();
@@ -40,8 +49,12 @@ if ($res instanceof AwsException) {
 
 $mimeType = $res['ContentType'];
 $data = strval($res['Body']);
-$redis->hMSet($redisKey,['mimetype' => $mimeType, 'data' => $data]);
-$redis->expire($redisKey,3600);
+
+if (class_exists('\Redis') && $redisRes !== false && $res['ContentLength'] <= 25000000) {
+    $redis->hMSet($redisKey,['mimetype' => $mimeType, 'data' => $data]);
+    $redis->expire($redisKey,3600);
+}
+
 header("Content-Type: $mimeType");
 echo $data;
 ?>
