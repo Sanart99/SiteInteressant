@@ -460,7 +460,7 @@ class MutationType extends ObjectType {
                         $v = move_uploaded_file($file['tmp_name'],Context::$avatarsDir."/$avatarName");
                         if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
                         if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
-                        return $user->id;
+                        return new OperationResult(SuccessType::SUCCESS,null,[$user->id]);
                     }
                 ],
                 'uploadFileToBucket' => [
