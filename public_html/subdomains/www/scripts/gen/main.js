@@ -1454,16 +1454,25 @@ function getForumMainElem() {
                     <label for="newThread_title">Titre : </label><input id="newThread_title" class="inputText1" type="text" name="title" tabindex="1"/>
                 </div>
                 <div class="buttonBar">
-                    <button class="button1 bold" type="button">G</button><!--
-                    --><button class="button1 italic" type="button">I</button><!--
-                    --><button class="button1 strike" type="button">Barré</button><!--
-                    --><button class="button1 link" type="button">Lien</button><!--
-                    --><button class="button1 cite" type="button">Citer</button><!--
-                    --><button class="button1 spoil" type="button">Spoil</button><!--
-                    --><button class="button1 rp" type="button">Roleplay</button><!--
-                    --><button class="button1 code" type="button">Code</button>
+                    <div>
+                        <button class="button1 bold" type="button">G</button><!--
+                        --><button class="button1 italic" type="button">I</button><!--
+                        --><button class="button1 strike" type="button">Barré</button><!--
+                        --><button class="button1 link" type="button">Lien</button><!--
+                        --><button class="button1 cite" type="button">Citer</button><!--
+                        --><button class="button1 spoil" type="button">Spoil</button><!--
+                        --><button class="button1 rp" type="button">Roleplay</button><!--
+                        --><button class="button1 code" type="button">Code</button>
+                    </div>
+                    <div>
+                        <input type="file" style="display:none;" />
+                        <button class="button1 file" type="button">Insérer un fichier</button>
+                    </div>
                 </div>
                 <textarea name="msg" tabindex="2"></textarea>
+                <div class="optDiv">
+                    <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                </div>
                 <div class="emojisDiv">
                     <div class="emojisButtons"></div>
                     <div class="emojis"></div>
