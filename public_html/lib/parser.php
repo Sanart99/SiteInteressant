@@ -182,6 +182,16 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
             return "<span class=\"gadget card\"><img src=\"$resPath/design/balises/card.png\" data-generator=\"$arg\"/><span class=\"value\">".($commitData ? get_random_card_value($arg) : '??')."</span></span>";
+        }, $result),
+        new SoloKeywordMarker('letter',function($arg) use(&$commitData, &$resPath) {
+            $arg = preg_replace('/\s/','',$arg);
+            $v = get_random_letter_value($arg,$type);
+            switch ($type) {
+                case 'consonant': $src = "$resPath/design/balises/conson.png"; break;
+                case 'vowel': $src = "$resPath/design/balises/vowel.png"; break;
+                default: $src = "$resPath/design/balises/letter.png"; break;
+            }
+            return "<span class=\"gadget\"><img src=\"$src\" data-generator=\"$arg\"/><span class=\"value\">".($commitData ? $v : '??')."</span></span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
@@ -460,5 +470,51 @@ function get_random_card_value($arg) {
     if (empty($cards)) return get_random_card_value('1-13');
 
     return $cards[random_int(0,count($cards)-1)];
+}
+
+function get_random_letter_value($arg, &$sType='') {
+    $vals = explode(';',$arg);
+    $letters = [];
+
+    $scrabblePush = static function(&$array, $letter) {
+        $n = 1;
+        switch ($letter) {
+            case 'E': $n = 15; break;
+            case 'A': $n = 9; break;
+            case 'I': $n = 8; break;
+            case 'N': case 'O': case 'R': case 'S': case 'T': case 'U': $n = 6; break;
+            case 'L': $n = 5; break;
+            case 'D': case 'M': $n = 3; break;
+            case 'B': case 'C': case 'F': case 'G': case 'H': case 'P': case 'V': $n = 2; break;
+            case 'J': case 'K': case 'Q': case 'W': case 'X': case 'Y': case 'Z': $n = 1; break;
+        }
+        for ($i=0; $i<$n; $i++) array_push($array, $letter);
+    };
+
+    foreach ($vals as $val) {
+        if (preg_match('/^\s*([a-z])(?:-([a-z])\s*(?:,\s*(scrabble))?)?\s*$/i',$val,$m) > 0) {
+            if (!isset($m[2])) { array_push($letters,strtoupper($m[1])); continue; }
+            $min = min(ord(strtoupper($m[1])),ord(strtoupper($m[2])));
+            $max = max(ord(strtoupper($m[1])),ord(strtoupper($m[2])));
+            $scrabble = isset($m[3]) && $m[3] === 'scrabble';
+            for ($i=$min; $i<=$max || $i <= 90; $i++) {
+                if ($scrabble) $scrabblePush($letters,chr($i));
+                else array_push($letters, chr($i));
+            }
+        } else if (preg_match('/^\s*(consonne|voyelle)\s*$/i',$val,$m) > 0) {
+            switch ($m[1]) {
+                case 'consonne': array_push($letters,'B','C','D','F','G','H','J','K','L','M','N','P','Q','R','S','T','V','W','X','Z'); break;
+                case 'voyelle': array_push($letters,'A','E','I','O','U','Y'); break;
+            }
+        }
+    }
+
+    if (empty($letters)) return get_random_letter_value('A-Z');
+
+    $sLetters = implode('',$letters);
+    if (strlen($sLetters) == 6 && preg_match('/^[AEIOUY]+$/',$sLetters) > 0) $sType = 'vowel';
+    else if (strlen($sLetters) == 20 && preg_match('/^[BCDFGHJKLMNPQRSTVWXZ]+$/',$sLetters) > 0) $sType = 'consonant';
+
+    return $letters[random_int(0,count($letters)-1)];
 }
 ?>

@@ -2070,6 +2070,15 @@ function getForumMainElem() {
                 const cardNode = stringToNodes(`<button type="button"><img src="$res/design/balises/card.png" alt="[card/]"/></button>`)[0];
                 cardNode.addEventListener('click',() => quickInputInsert('[card/]'));
                 emojisCont.insertAdjacentElement('beforeend',cardNode);
+                const letterNode = stringToNodes(`<button type="button"><img src="$res/design/balises/letter.png" alt="[letter/]"/></button>`)[0];
+                letterNode.addEventListener('click',() => quickInputInsert('[letter/]'));
+                emojisCont.insertAdjacentElement('beforeend',letterNode);
+                const consonNode = stringToNodes(`<button type="button"><img src="$res/design/balises/conson.png" alt="[letter=consonne/]"/></button>`)[0];
+                consonNode.addEventListener('click',() => quickInputInsert('[letter=consonne/]'));
+                emojisCont.insertAdjacentElement('beforeend',consonNode);
+                const vowelNode = stringToNodes(`<button type="button"><img src="$res/design/balises/vowel.png" alt="[letter=voyelle/]"/></button>`)[0];
+                vowelNode.addEventListener('click',() => quickInputInsert('[letter=voyelle/]'));
+                emojisCont.insertAdjacentElement('beforeend',vowelNode);
             });
             emojisButtons.insertAdjacentElement('beforeend',gadgetsCat);
         }
