@@ -1350,7 +1350,7 @@ function getForumMainElem() {
                 });
                 return e;
             }
-            if (json.data.node.followingIds.includes(json.data.viewer.dbId.toString())) {
+            if (json.data.node.followingIds.includes(json.data.viewer.dbId)) {
                 for (const cont of document.querySelectorAll('#forumR .actions'))
                     cont.insertAdjacentElement('beforeend',getUnfollowButton());                 
             } else {
@@ -1492,7 +1492,7 @@ function getForumMainElem() {
         });
         back.style.display = mobileMode ? '' : 'none';
 
-        setupReplyForm(forumR.querySelector('.replyFormDiv'), async (e) => {
+        setupReplyForm(forumR.querySelector('.replyFormDiv'), async (e,moreData) => {
             e.preventDefault();
             const data = new FormData(e.target);
             const submitButton = e.target.querySelector('input[type="submit"]');
@@ -1512,7 +1512,7 @@ function getForumMainElem() {
                         followingIds
                     }
                 }
-            }`,{title:data.get('title'),tags:[],msg:data.get('msg')}).then((json) => {
+            }`,{title:data.get('title'),tags:[],msg:data.get('msg')},null,null,null,moreData).then((json) => {
                 if (json?.data?.f?.thread?.id == null) {
                     basicQueryResultCheck(null,true);
                     submitButton.disabled = false;
