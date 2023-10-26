@@ -2063,6 +2063,15 @@ function getForumMainElem() {
                 });
                 emojisButtons.insertAdjacentElement('beforeend',butNode);
             }
+
+            const gadgetsCat = stringToNodes(`<button class="button1" type="button">Gadgets</button>`)[0];
+            gadgetsCat.addEventListener('click',() => {
+                emojisCont.innerHTML = '';
+                const cardNode = stringToNodes(`<button type="button"><img src="$res/design/balises/card.png" alt="[card/]"/></button>`)[0];
+                cardNode.addEventListener('click',() => quickInputInsert('[card/]'));
+                emojisCont.insertAdjacentElement('beforeend',cardNode);
+            });
+            emojisButtons.insertAdjacentElement('beforeend',gadgetsCat);
         }
     }
     let newReplyFormC = 0;
@@ -2431,6 +2440,24 @@ function getForumMainElem() {
     #mainDiv_forum .comment .body .button1.warning,
     #mainDiv_forum #searchFormResults .content .button1.warning {
         box-shadow: 0px 0px 0.5em 0.2em red;
+    }
+    #mainDiv_forum .replyFormDiv .preview .gadget,
+    #mainDiv_forum .comment .body .gadget,
+    #mainDiv_forum #searchFormResults .content .gadget {
+        background-color: #3B4151;
+        color: white;
+        padding: 0.15em 0.4em 0.15em 0.4em;
+        border-radius: 0.2rem;
+        font-weight: bold;
+        display: inline-flex;
+        font-size: 80%;
+        vertical-align: middle;
+        margin: 0.1em;
+    }
+    #mainDiv_forum .replyFormDiv .preview .gadget .value,
+    #mainDiv_forum .comment .body .gadget .value,
+    #mainDiv_forum #searchFormResults .content .gadget .value {
+        margin: 0.1rem 0px 0px 0.2rem;
     }
     #mainDiv_forum .inserted {
         max-width: 85%;

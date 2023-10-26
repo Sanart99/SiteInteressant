@@ -113,6 +113,7 @@ class SoloKeywordMarker {
 
 function textToHTML(int $userId, string $text, bool $commitData = false, bool $useBufferManager = true) {
     if (!$useBufferManager) return '';
+    $resPath = get_root_link('res');
 
     $chars = preg_split("//u", $text, -1, PREG_SPLIT_NO_EMPTY);
     $result = '<p>';
@@ -177,6 +178,10 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload.</span>';
 
             return "<span class='processThis'>insertFile:{$file['type']};{$res->data[0]}</span>";
+        }, $result),
+        new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
+            $arg = preg_replace('/\s/','',$arg);
+            return "<span class=\"gadget card\"><img src=\"$resPath/design/balises/card.png\" data-generator=\"$arg\"/><span class=\"value\">".($commitData ? get_random_card_value($arg) : '??')."</span></span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
@@ -415,5 +420,45 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         $correctedResult .= $part[3];
     }
     return $correctedResult;
+}
+
+function get_random_card_value($arg) {
+    $vals = explode(';',$arg);
+    $cards = [];
+
+    $conv = static function ($n) {
+        switch ($n) {
+            case 1: return 'As';
+            case 11: return 'Valet';
+            case 12: return 'Dame';
+            case 13: return 'Roi';
+            default:
+                if ($n < 0) return 'As';
+                else if ($n > 13) return 'Roi';
+                else return $n;
+        }
+    };
+
+    foreach ($vals as $val) {
+        if (preg_match('/(\d+)(?:-(\d+))?((?:,?(?:Trèfle|Pique|Carreau|Coeur|T|P|Ca|Co))+)?/i',$val,$m) > 0) {
+            $min = isset($m[2]) ? min((int)$m[1],(int)$m[2]) : (int)$m[1];
+            $max = isset($m[2]) ? max((int)$m[1],(int)$m[2]) : $min;
+            if (!isset($m[3])) {
+                for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Trèfle', $conv($i).' de Pique', $conv($i).' de Carreau', $conv($i).' de Coeur');
+            } else {
+                $aKind = explode(',',$m[3]);
+                foreach ($aKind as $s) switch (strtolower($s)) {
+                    case 'trèfle': case 't': for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Trèfle'); break;
+                    case 'pique': case 'p': for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Pique'); break;
+                    case 'carreau': case 'ca': for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Carreau'); break;
+                    case 'coeur': case 'co': for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Coeur'); break;
+                }
+            }
+        }
+    }
+
+    if (empty($cards)) return get_random_card_value('1-13');
+
+    return $cards[random_int(0,count($cards)-1)];
 }
 ?>
