@@ -1165,7 +1165,7 @@ class RegisteredUserStatsType extends ObjectType {
                             }
                             if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_threads WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
 
-                            Cache::set($cacheKey,$v,600);
+                            Cache::set($cacheKey,$v,21600);
                             return $v;
                         });
                     })
@@ -1189,7 +1189,7 @@ class RegisteredUserStatsType extends ObjectType {
                             }
                             if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_comments WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
 
-                            Cache::set($cacheKey,$v,600);
+                            Cache::set($cacheKey,$v,21600);
                             return $v;
                         });
                     })
