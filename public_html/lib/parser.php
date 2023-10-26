@@ -232,11 +232,17 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                             $activeMarker->markA(strlen($result));
                             $result .= "[$sSpec]";
                         }
+                    } else if ($activeMarker instanceof SoloKeywordMarker && substr($sSpec,-1) == '/') {
+                        $sSpec = substr($sSpec,0,strlen($sSpec)-1);
+                        $activeMarker->insert();
                     }
                     $sSpec = '';
                     $activeMarker = null;
                     $kwMarkerMode = false;
                     $kwMarkersToSkip->clear();
+                    continue;
+                } else if ($char == '/') {
+                    $sSpec .= $char;
                     continue;
                 }
             }
