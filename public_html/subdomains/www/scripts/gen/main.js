@@ -1960,13 +1960,14 @@ function getForumMainElem() {
 
             if (s2 == null) {
                 replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start);
+                replyFormTA.selectionStart = replyFormTA.selectionEnd = start+s1.length;
             } else {
                 replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start,end) + s2 + msg.substring(end);
-                replyFormTA.focus();
                 const diff = replyFormTA.selectionEnd-replyFormTA.selectionStart;
                 replyFormTA.selectionStart = start+s1.length;
                 replyFormTA.selectionEnd = end+s1.length+diff;
             }
+            replyFormTA.focus();
             replyFormTA.dispatchEvent(new InputEvent('input'));
         }
         replyForm.querySelector('.buttonBar .bold').addEventListener('click',() => quickInputInsert('**','**'));
