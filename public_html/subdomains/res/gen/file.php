@@ -42,7 +42,7 @@ if ($res instanceof AwsException) {
     switch ($res->getAwsErrorCode()) {
         case 'NoSuchKey': echo 'File not found.'; break;
         case 'AccessDenied': echo 'Access denied.'; break;
-        default: echo $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$op->errorCode}" : 'Unknown error.'; break;
+        default: echo $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$res->getAwsErrorCode()}" : 'Unknown error.'; break;
     }
     return;
 }
