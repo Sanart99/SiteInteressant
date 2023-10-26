@@ -9,7 +9,7 @@ ob_end_clean();
 use LDLib\AWS\AWS;
 use Aws\Exception\AwsException;
 
-if (preg_match('/^\/file\/(\d+_[^\/?]*)/',$_SERVER['REQUEST_URI'],$m) == 0) {
+if (preg_match('/^\/file\/(\d+_[^\/?]*)/',urldecode($_SERVER['REQUEST_URI']),$m) == 0) {
     http_response_code(404);
     echo 'File not found.';
     return;
