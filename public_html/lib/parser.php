@@ -186,7 +186,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         }, $result),
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
-            return "<span class=\"gadget card\"><img src=\"$resPath/design/balises/card.png\" data-generator=\"$arg\"/><span class=\"value\">".($commitData ? get_random_card_value($arg) : '??')."</span></span>";
+            return "<span class=\"gadget card\" data-generator=\"$arg\"><img src=\"$resPath/design/balises/card.png\"/><span class=\"value\">".($commitData ? get_random_card_value($arg) : '??')."</span></span>";
         }, $result),
         new SoloKeywordMarker('letter',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
@@ -196,7 +196,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 case 'vowel': $src = "$resPath/design/balises/vowel.png"; break;
                 default: $src = "$resPath/design/balises/letter.png"; break;
             }
-            return "<span class=\"gadget\"><img src=\"$src\" data-generator=\"$arg\"/><span class=\"value\">".($commitData ? $v : '??')."</span></span>";
+            return "<span class=\"gadget\" data-generator=\"$arg\"><img src=\"$src\"/><span class=\"value\">".($commitData ? $v : '??')."</span></span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
