@@ -2488,6 +2488,11 @@ function getForumMainElem() {
         vertical-align: middle;
         margin: 0.1em;
     }
+    #mainDiv_forum .replyFormDiv .preview .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]),
+    #mainDiv_forum .comment .body .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]),
+    #mainDiv_forum #searchFormResults .content .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]) {
+        background-color: #DF0000;
+    }
     #mainDiv_forum .replyFormDiv .preview .gadget .value,
     #mainDiv_forum .comment .body .gadget .value,
     #mainDiv_forum #searchFormResults .content .gadget .value {
