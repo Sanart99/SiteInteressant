@@ -6,6 +6,8 @@ require_once $libDir.'/net.php';
 require_once $libDir.'/utils/utils.php';
 ob_end_clean();
 
+header("Access-Control-Allow-Origin: {$_SERVER['LD_LINK_ROOT']}");
+
 use LDLib\AWS\AWS;
 use Aws\Exception\AwsException;
 
