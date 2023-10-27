@@ -855,6 +855,7 @@ class ForumBuffer {
                 }
 
                 array_push($toRemove, $v);
+                break;
             case DataType::Octohit:
                 $threadId = $v[1][0];
                 $commNumber = $v[1][1];
