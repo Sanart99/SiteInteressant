@@ -524,7 +524,7 @@ function getForumMainElem() {
     return ['html' => <<<HTML
     <div id="mainDiv_forum" class="authPadded" data-is-auth="$isAuth">
         <div id="forum_banner">
-            <img src="$res/design/banners/v667.png" />
+            <img src="$res/design/banners/v668.png" />
         </div>
 
         <div id="forum_content">
