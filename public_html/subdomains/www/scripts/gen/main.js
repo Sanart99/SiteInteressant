@@ -1037,7 +1037,7 @@ function getForumMainElem() {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
-                                        location.reload();
+                                        loadThread(currThreadId,10,null,null,null,0,false,true);
                                         return true;
                                     });
                                 },replyFormId);
@@ -1090,7 +1090,7 @@ function getForumMainElem() {
                                     }
                                 `,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                                     if(!basicQueryResultCheck(json?.data?.f)) return;
-                                    location.reload();
+                                    loadThread(currThreadId,10,null,null,null,0,false,true);
                                 });
                             }
                             popupDiv.close();
