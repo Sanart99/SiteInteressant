@@ -1051,7 +1051,7 @@ function getForumMainElem() {
                         loadReplyForm(replyFormId);
                         const replyForm = document.querySelector('#forumR .replyForm');
                         const textarea = replyForm.querySelector('textarea');
-                        if (textarea.value == '') textarea.value = contentToText(stringToNodes(comment.node.content));
+                        if (textarea.value == '') textarea.value = contentToText(commentNode.querySelector('.body .main').children);
                         if (comment.node.number == 0) {
                             const title = replyForm.querySelector('.title input');
                             if (title.value == '') title.value = json.data.node.title;
