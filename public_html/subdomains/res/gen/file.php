@@ -30,8 +30,13 @@ if (class_exists('\Redis')) {
     if ($redisRes !== false) {
         $vCache = $redis->hGetAll($redisKey);
         if ($vCache != null)  {
-            header("Content-Type: {$vCache['mimetype']}");
-            echo $vCache['data'];
+            if (isset($vCache['errorCode'])) {
+                http_response_code($vCache['errorCode']);
+                echo $vCache['errorMsg'];
+            } else {
+                header("Content-Type: {$vCache['mimetype']}");
+                echo $vCache['data'];
+            }
             return;
         }
     }
@@ -41,18 +46,28 @@ $s3Client = AWS::getS3Client();
 $res = $s3Client->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$s3Key);
 
 if ($res instanceof AwsException) {
+    $errMsg = '';
+    $errCode = 500;
     switch ($res->getAwsErrorCode()) {
-        case 'NoSuchKey': echo 'File not found.'; break;
-        case 'AccessDenied': echo 'Access denied.'; break;
-        default: echo $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$res->getAwsErrorCode()}" : 'Unknown error.'; break;
+        case 'NoSuchKey': $errCode = 404; $errMsg = 'File not found.'; break;
+        case 'AccessDenied': $errCode = 403; $errMsg = 'Access denied.'; break;
+        default: $errMsg = $_SERVER['LD_DEBUG'] ? "AWS Error Code: {$res->getAwsErrorCode()}" : 'Unknown error.'; break;
     }
+
+    if ($redisRes === true) {
+        $redis->hMSet($redisKey,['errorCode' => $errCode, 'errorMsg' => $errMsg]);
+        $redis->expire($redisKey,15);
+    }
+
+    http_response_code($errCode);
+    echo $errMsg;
     return;
 }
 
 $mimeType = $res['ContentType'];
 $data = strval($res['Body']);
 
-if (class_exists('\Redis') && $redisRes !== false && $res['ContentLength'] <= 25000000) {
+if ($redisRes === true && $res['ContentLength'] <= 25000000) {
     $redis->hMSet($redisKey,['mimetype' => $mimeType, 'data' => $data]);
     $redis->expire($redisKey,3600);
 }
