@@ -325,13 +325,19 @@ function getEditAvatar() {
         const fd = new FormData(form);
         fd.append('gqlQuery',`{"query":"mutation UploadAvatar { uploadAvatar { __typename success resultCode resultMessage registeredUser { __typename id name } } }","operationName":"UploadAvatar"}`);
         
-        let options = {
-            method: 'POST',
-            headers: { 'Cache-Control':'no-cache' },
-            body: fd,
-            credentials: 'include'
-        }
-        fetch("{$_SERVER['LD_LINK_GRAPHQL']}",options).then((json) => {
+        sendQuery(`mutation UploadAvatar {
+            uploadAvatar {
+                __typename
+                success
+                resultCode
+                resultMessage
+                registeredUser {
+                    __typename
+                    id
+                    name
+                }
+            }
+        }`,null,null,'UploadAvatar',null,{imgAvatar:fd.get('imgAvatar')}).then((json) => {
             if (!basicQueryResultCheck(json?.data?.uploadAvatar)) return;
             location.reload();
         });
