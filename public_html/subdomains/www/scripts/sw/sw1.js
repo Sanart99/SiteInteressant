@@ -1,4 +1,10 @@
 <?php
+$libDir = '../../../../lib';
+require_once $libDir.'/utils/utils.php';
+
+$api = get_root_link('api');
+$graphql = "$api/graphql.php";
+
 header('Content-Type: text/javascript');
 
 $urlRegex1 = '/^\/(?:(?:index|forum|home|usersettings|versionhistory)(?:\.php)?|style\.css|styleReset\.css)$/';
@@ -10,6 +16,7 @@ $trimRegex = '/^(.*)\.php$/';
 echo <<<JAVASCRIPT
 const swName = 'sw1_v1.0';
 const permissions = {};
+let settingsSynced = false;
 let authenticated = true; //?
 let online = false; //?
 const __feat_cacheStorage = 'caches' in self;
@@ -30,9 +37,10 @@ self.addEventListener('activate', (event) => {
         for (const k of keys) for (const s of keep) if (k != s) promises.push(caches.delete(k));
         await Promise.all(promises);
         console.info("Name: "+swName);
-        self.clients.matchAll({type: 'window'}).then((tabs) => {
+        await self.clients.matchAll({type: 'window'}).then((tabs) => {
             for (const tab of tabs) tab.navigate(tab.url);
         });
+        self.clients.claim();
     })());
 });
 
@@ -55,14 +63,34 @@ self.addEventListener('fetch', (event) => {
     }
 });
 
-self.addEventListener('push', (event) => {
-    if (!__feat_notifications || Notification.permission !== 'granted' || permissions?.notifications !== true || permissions?.device_notifications !== true) return;
+self.addEventListener('push', async (event) => {
+    if (!settingsSynced) {
+        await sendQuery(`query {
+            viewer {
+                settings {
+                    notificationsEnabled
+                }
+            }
+        }`).then((json) => {
+            if (json?.data?.viewer?.settings == null) { return; }
+            const settings = json.data.viewer.settings;
+            permissions.notifications = settings.notificationsEnabled;
+            settingsSynced = true;
+        });
+    }
 
     let data = null;
     try { data = event.data?.json(); }
     catch (e) { console.error(e); return; }
 
     if (data?.notifications != null && Array.isArray(data.notifications)) for (const notif of data?.notifications) {
+        await self.clients.claim();
+        self.clients.matchAll().then(clients => {
+            clients.forEach(client => client.postMessage('checkNotifs'));
+        });
+
+        if (!__feat_notifications || Notification.permission !== 'granted' || permissions?.notifications !== true) return;
+        
         const options = {};
         if (notif?.title == null) continue;
         if (notif?.body != null) options.body = notif.body;
@@ -131,6 +159,35 @@ async function replenishCache() {
         '/usersettings',
         '/versionhistory'
     ]);
+}
+
+function sendQuery(query, variables, headers, operationName, moreOptions, moreData) {
+    let options = {
+        method: 'POST',
+        credentials: 'include',
+        ...moreOptions
+    };
+
+    if (moreData == null) {
+        options.headers = headers == null ? { 'Content-Type':'application/json', 'Cache-Control':'no-cache' } : headers;
+        options.body = JSON.stringify({'query':query, 'variables':variables, 'operationName':operationName});
+    } else {
+        const data = new FormData();
+        data.append('gqlQuery',JSON.stringify({'query':query}));
+        if (variables != null) data.append('gqlVariables',JSON.stringify(variables));
+        if (operationName != null) data.append('gqlOperationName',operationName);
+        for (const k in moreData) data.append(k,moreData[k]);
+
+        options.headers = headers == null ? { 'Cache-Control':'no-cache' } : headers;
+        options.body = data;
+    }
+
+    return fetch("$graphql",options).then((res) => {
+        if (!res.ok) return (async () => {});
+        else return res.json();
+    }).catch(async (e) => {
+        console.error(e);
+    });
 }
 JAVASCRIPT;
 ?>

@@ -299,6 +299,11 @@ function getIndexElems() {
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
+
+        navigator.serviceWorker.onmessage = (s) => {
+            if (s?.data == 'checkNotifs') getRecentEvents();
+        };
+        getRecentEvents();
     }
 
     JAVASCRIPT,
