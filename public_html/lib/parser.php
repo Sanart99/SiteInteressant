@@ -174,7 +174,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             $user = RegisteredUser::initFromRow($row);
 
             $s3client = AWS::getS3Client();
-            $res = $s3client->putObject($conn,$user,$file,true,true);
+            $res = $s3client->putObject($conn,$user,$file,false,true);
             if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload.</span>';
 
             return "<span class='processThis'>insertFile:{$file['type']};{$res->data[0]}</span>";
