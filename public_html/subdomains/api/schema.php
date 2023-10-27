@@ -1146,14 +1146,15 @@ class RegisteredUserStatsType extends ObjectType {
     public function __construct(array $config2 = null) {
         $config = [
             'fields' => [
-                'nThreads' => [
+                'nAllThreads' => [
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o, function($userId) {
-                        $cacheKey = "userStats:{$userId}:nThreads";
+                        $cacheKey = "userStats:{$userId}:nAllThreads";
+                        $cacheKey2 = "userStats:{$userId}:nTidThreads";
                         $vCache = Cache::get($cacheKey);
                         if ($vCache != null) return $vCache;
 
-                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
+                        return quickReactPromise(function() use(&$userId,&$cacheKey,&$cacheKey2) {
                             $conn = DBManager::getConnection();
                             $v = $conn->query('SELECT COUNT(*) FROM threads WHERE author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
 
@@ -1163,21 +1164,30 @@ class RegisteredUserStatsType extends ObjectType {
                                 if ($sqlWhere != '') $sqlWhere .= ' OR ';
                                 $sqlWhere .= "author_id={$row['id_b']}";
                             }
-                            if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_threads WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+                            if ($sqlWhere != '') {
+                                $vCacheTid = Cache::get($cacheKey2);
+                                if ($vCacheTid != null) $v += $vCacheTid;
+                                else {
+                                    $nTid = $conn->query("SELECT COUNT(*) FROM tid_threads WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+                                    Cache::set($cacheKey2,$nTid,2000000000);
+                                    $v += $nTid;
+                                }
+                            }
 
                             Cache::set($cacheKey,$v,21600);
                             return $v;
                         });
                     })
                 ],
-                'nComments' => [
+                'nAllComments' => [
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o, function($userId) {
-                        $cacheKey = "userStats:{$userId}:nComments";
+                        $cacheKey = "userStats:{$userId}:nAllComments";
+                        $cacheKey2 = "userStats:{$userId}:nTidComments";
                         $vCache = Cache::get($cacheKey);
                         if ($vCache != null) return $vCache;
 
-                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
+                        return quickReactPromise(function() use(&$userId,&$cacheKey,&$cacheKey2) {
                             $conn = DBManager::getConnection();
                             $v = $conn->query('SELECT COUNT(*) FROM comments WHERE author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
 
@@ -1187,7 +1197,15 @@ class RegisteredUserStatsType extends ObjectType {
                                 if ($sqlWhere != '') $sqlWhere .= ' OR ';
                                 $sqlWhere .= "author_id={$row['id_b']}";
                             }
-                            if ($sqlWhere != '') $v += $conn->query("SELECT COUNT(*) FROM tid_comments WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+                            if ($sqlWhere != '') {
+                                $vCacheTid = Cache::get($cacheKey2);
+                                if ($vCacheTid != null) $v += $vCacheTid;
+                                else {
+                                    $nTid = $conn->query("SELECT COUNT(*) FROM tid_comments WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+                                    Cache::set($cacheKey2,$nTid,2000000000);
+                                    $v += $nTid;
+                                }
+                            }
 
                             Cache::set($cacheKey,$v,21600);
                             return $v;

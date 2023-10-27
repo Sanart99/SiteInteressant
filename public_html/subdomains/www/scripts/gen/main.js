@@ -706,8 +706,8 @@ function getForumMainElem() {
                                     name
                                     avatarURL
                                     stats {
-                                        nThreads
-                                        nComments
+                                        nAllThreads
+                                        nAllComments
                                     }
                                 }
                             }
@@ -844,7 +844,7 @@ function getForumMainElem() {
                         </div>
                         <p class="name">\${comment.node.author.name}</p>
                         <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
-                        <p class="stats">Topics : \${comment.node.author.stats.nThreads} · Commentaires : \${comment.node.author.stats.nComments}</p>    
+                        <p class="stats">Topics : \${comment.node.author.stats.nAllThreads} · Commentaires : \${comment.node.author.stats.nAllComments}</p>    
                    </div>
                     <div class="body">
                         <div class="main"></div>
