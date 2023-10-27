@@ -1926,7 +1926,7 @@ function getForumMainElem() {
 
                     const nodePreview = replyFormDiv.querySelector('.preview');
                     const nodes = stringToNodes(json.data.parseText);
-                    const o = processComment(nodePreview,nodes,{files:files,objectURLs:objectURLs});
+                    const o = processComment(nodePreview,nodes,{files:files,objectURLs:objectURLs,forPreview:true});
                     filesToUpload = o.filesToUpload;
 
                     if (contentSaveName != null) sessionSet(contentSaveName,sToParse);
@@ -2128,6 +2128,7 @@ function getForumMainElem() {
         container.innerHTML = '';
         const files = withData?.files ?? [];
         const objectURLs = withData?.objectURLs ?? new Map();
+        const forPreview = withData?.forPreview === true;
         const o = {filesToUpload:{}};
         for (const node of Array.from(commNodes)) {
             const nodesToProcess = [];
@@ -2142,36 +2143,55 @@ function getForumMainElem() {
                 let local = false;
                 switch (m[1]) {
                     case 'insertFile':
-                        const mArg = /^([^;]*);(.*)$/.exec(m[2]);
-                        if (mArg == null) break;
-                        const mimeType = mArg[1];
-                        const keyName = mArg[2];
-                        const imgRegex = new RegExp('^image\\/*');
-                        const vidRegex = new RegExp('^video\\/*');
-                        if (imgRegex.test(mimeType)) {
-                            node.replaceWith(stringToNodes(`<img class="inserted" src="$res/file/\${keyName}" />`)[0]);
-                        } else if (vidRegex.test(mimeType)) {
-                            node.replaceWith(stringToNodes(`<video controls class="inserted"> <source src="$res/file/\${keyName}" /> </video>`)[0]);
-                        } else {
-                            const but = stringToNodes(`<button class="button1">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
-                            but.addEventListener('click',() => but.querySelector('a').click());
-                            node.replaceWith(but);
-                        }
+                        const keyName = m[2];
+                        const viewNode = stringToNodes(`<button class="button1">View file</button>`)[0];
+                        node.replaceWith(viewNode);
+                        let bLoading = false;
+                        viewNode.addEventListener('click',() => {
+                            if (bLoading) return;
+                            bLoading = true;
+                            viewNode.innerHTML = 'Loading...';
+                            
+                            fetch(`$res/file/\${keyName}`).then((res) => {
+                                bLoading = false;
+                                if (res.status == 404) { viewNode.innerHTML = 'File not found.'; return 'ignore'; }
+                                try { return res.blob(); } catch (e) { return null; }
+                            }).then((blob) => {
+                                if (blob == 'ignore') return;
+                                if (blob?.constructor?.name != 'Blob') { viewNode.innerHTML = '<span>Incorrect file.</span>'; return; }
 
+                                const imgRegex = new RegExp('^image\\/*');
+                                const vidRegex = new RegExp('^video\\/*');
+                                if (imgRegex.test(blob.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]);
+                                } else if (vidRegex.test(blob.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<video controls class="inserted file"> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                } else {
+                                    const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
+                                    but.addEventListener('click',() => but.querySelector('a').click());
+                                    viewNode.replaceWith(but);
+                                }
+                            });
+                        });
+                        if (!forPreview) viewNode.click();
                         break;
                     case 'insertFileLocal':
                         function replaceByFile(node, file, url) {
-                            const imgRegex = new RegExp('^image\\/*');
-                            const vidRegex = new RegExp('^video\\/*');
-                            if (imgRegex.test(file.type)) {
-                                node.replaceWith(stringToNodes(`<img class="inserted" src=\${url} />`)[0]);
-                            } else if (vidRegex.test(file.type)) {
-                                node.replaceWith(stringToNodes(`<video controls class="inserted"> <source src=\${url} /> </video>`)[0]);
-                            } else {
-                                const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
-                                but.addEventListener('click',() => but.querySelector('a').click());
-                                node.replaceWith(but);
-                            }
+                            const viewNode = stringToNodes(`<button class="button1">View file</button>`)[0];
+                            node.replaceWith(viewNode);
+                            viewNode.addEventListener('click',() => {
+                                const imgRegex = new RegExp('^image\\/*');
+                                const vidRegex = new RegExp('^video\\/*');
+                                if (imgRegex.test(file.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<img class="inserted file" src=\${url} />`)[0]);
+                                } else if (vidRegex.test(file.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<video controls class="inserted file"> <source src=\${url} /> </video>`)[0]);
+                                } else {
+                                    const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
+                                    but.addEventListener('click',() => but.querySelector('a').click());
+                                    viewNode.replaceWith(but);
+                                }
+                            });
                         }
 
                         let file = null;

@@ -160,24 +160,29 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             return ["</p>$sArg<div class=\"rpText\"><p>",'</p></div><p>'];
         }, $result),
         new SoloKeywordMarker('file',function ($arg) use(&$commitData,&$userId,&$conn) {
-            if (!$commitData) return "<span class='processThis'>insertFileLocal:$arg</span>";
-            $arg = str_replace(['.',' '],'_',$arg);
-
-            if (!isset($_FILES[$arg]) || $_FILES[$arg]['size'] > 25000000) return '<span class="error">Failed upload.</span>';
-            $file = $_FILES[$arg];
-
+            if (preg_match('/^\s*(?:(get)\s*;)?(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
+            $get = isset($m[1]) && strtolower($m[1]) === 'get';
+            $sFile = $m[2];
+            $sFile2 = str_replace(['.',' '],'_',$sFile);
+            if ($get) return "<span class=\"processThis\">insertFile:{$sFile}</span>";
+            if (!$commitData) return "<span class=\"processThis\">insertFileLocal:$sFile</span>";
+            
             $conn ??= get_tracked_pdo();
+            
+            if (!isset($_FILES[$sFile2])) return '<span class="error">Failed upload (1).</span>';
+            else if ($_FILES[$sFile2]['size'] > 25000000) return '<span class="error">File must be under 25MB.</span>';
+            $file = $_FILES[$sFile2];
 
             UsersBuffer::requestFromId($userId);
             $row = UsersBuffer::getFromId($userId);
-            if ($row['data'] == null) return '<span class="error">Failed upload.</span>';
+            if ($row['data'] == null) return '<span class="error">Failed upload (2).</span>';
             $user = RegisteredUser::initFromRow($row);
 
             $s3client = AWS::getS3Client();
             $res = $s3client->putObject($conn,$user,$file,false,true);
-            if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload.</span>';
-
-            return "<span class='processThis'>insertFile:{$file['type']};{$res->data[0]}</span>";
+            if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (3).</span>';
+            $keyName = $res->data[0];
+            return "<span class=\"processThis\">insertFile:{$keyName}</span>";
         }, $result),
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
