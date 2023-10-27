@@ -3403,9 +3403,9 @@ function getUserSettings() {
                     <ul>
                         <li>
                             <input id="settings_notif" name="notifications" type="checkbox" disabled><label for="settings_notif" class="bold">Activer les notifications push</label>
-                            <ul>
+                            <!-- <ul>
                                 <li><input id="settings_device_notif" class="local" type="checkbox" disabled><label for="settings_device_notif">Activer pour cet appareil</label></li>
-                            </ul>
+                            </ul> -->
                             <ul>
                                 <br/>
                                 <p>Envoyer une notification push quand :</p>
@@ -3428,7 +3428,7 @@ function getUserSettings() {
 
     const eForum_MarkPagesAsRead = document.querySelector('#settings_forum_autoMarkPagesAsRead');
     const eNotif = document.querySelector('#settings_notif');
-    const eDeviceNotif = document.querySelector('#settings_device_notif');
+    // const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
     const eNotifNewCommentOnFollowedThread = document.querySelector('#settings_notif_newCommentOnFollowedThread');
 
@@ -3438,7 +3438,7 @@ function getUserSettings() {
     function initAfterSettingsSync() {
         if (__settingsInitialized) {
             loadInputVals();
-            eDeviceNotif.addEventListener('change',() => { if (eDeviceNotif.checked) Notification.requestPermission(); });
+            eNotif.addEventListener('change',() => { if (eNotif.checked) Notification.requestPermission(); });
             for (const e1 of allSettings) e1.addEventListener('change',() => {
                 for (const e2 of e1.parentElement.querySelectorAll('input')) if (e2 != e1) e2.disabled = !e1.checked;
             });
@@ -3448,7 +3448,7 @@ function getUserSettings() {
     }
     function toggleInputs(enable) {
         for (const e of allInputs) e.disabled = !enable;
-        if (!__feat_notifications) eDeviceNotif.disabled = true;
+        // if (!__feat_notifications) eDeviceNotif.disabled = true;
 
         if (enable) {
             // Disable children elements if parent unchecked
@@ -3461,7 +3461,7 @@ function getUserSettings() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
 
         eNotif.checked = localGet('settings_notifications') === 'true';
-        eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
+        // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
         eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
     }
@@ -3471,10 +3471,10 @@ function getUserSettings() {
         toggleInputs(false);
 
         function saveLocalSettings() {
-            localSet('settings_device_notifications', eDeviceNotif.checked);
+            // localSet('settings_device_notifications', eDeviceNotif.checked);
         }
 
-        if (eDeviceNotif.checked) {
+        if (eNotif.checked) {
             if (Notification.permission !== 'granted') {
                 alert('You didn\'t grant notification permission.');
                 Notification.requestPermission();
