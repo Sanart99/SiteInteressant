@@ -301,9 +301,9 @@ function getIndexElems() {
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
         });
 
-        navigator.serviceWorker.onmessage = (s) => {
+        navigator.serviceWorker.addEventListener('message', (s) => {
             if (s?.data == 'checkNotifs') getRecentEvents();
-        };
+        });
         getRecentEvents();
     }
 
