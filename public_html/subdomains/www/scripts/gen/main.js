@@ -655,6 +655,7 @@ function getForumMainElem() {
                 tBody.insertAdjacentElement('beforeend',tr);
                 for (const e of tr.querySelectorAll('a')) {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
+                    e.href=`$root/forum/\${edge.node.dbId}`;
                 }
                 if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="{$res}/icons/recent.png"/>');
             }
