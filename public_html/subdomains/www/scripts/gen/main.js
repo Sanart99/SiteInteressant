@@ -2340,10 +2340,10 @@ function getForumMainElem() {
         border-color: white;
     }
     #mainDiv_forum .inputText1 {
-        font-size: 0.9rem;
+        font-size: 0.75rem;
         border: 0;
         box-shadow: inset 0px 2px 2px #c7c5c0;
-        padding: 0.1rem 0px 0.1rem 0px;
+        padding: 0.1rem 1rem 0.1rem 0px;
     }
     #mainDiv_forum .inputText1:invalid {
         color: red;
