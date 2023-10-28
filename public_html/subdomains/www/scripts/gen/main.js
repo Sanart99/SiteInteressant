@@ -2409,6 +2409,7 @@ function getForumMainElem() {
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preCite *:not(.tid_user) {
         font-size: 80%;
         font-weight: bold;
+        margin: 0.2rem 0px 0px 0px;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil,
     #mainDiv_forum .comment .body .spoil,
@@ -2908,7 +2909,7 @@ function getForumMainElem() {
     #forum_comments .body > .main {
         white-space: pre-wrap;
         min-height: 5rem;
-        margin: 0px 0px 0.3em 0px;
+        margin: 0rem 0px 0.25rem 0px;
     }
     #forum_comments .comment.new .body {
         box-shadow: 0px 0px min(7px,1.2rem) min(5px,0.4rem) #ffdd79a6;
