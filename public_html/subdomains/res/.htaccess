@@ -1,0 +1,6 @@
+<If "%{HTTP_HOST} == 'res.local_siteinteressant.net'">
+    Header set Access-Control-Allow-Origin https://local_siteinteressant.net
+</If>
+<ElseIf "%{HTTP_HOST} == 'res.siteinteressant.net'">
+    Header set Access-Control-Allow-Origin https://siteinteressant.net
+</ElseIf>

@@ -3,6 +3,7 @@ $libDir = '../../../../lib';
 require_once $libDir.'/utils/utils.php';
 
 $api = get_root_link('api');
+$res = get_root_link('res');
 $graphql = "$api/graphql.php";
 
 header('Content-Type: text/javascript');
@@ -30,7 +31,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     if (!__feat_cacheStorage) return;
 
-    const keep = [swName];
+    const keep = [swName,'res_'+swName];
     event.waitUntil((async () => {
         const keys = await caches.keys();
         const promises = [];
@@ -48,19 +49,33 @@ self.addEventListener('fetch', (event) => {
     if (!__feat_cacheStorage) return;
 
     const url = new URL(event.request.url);
-    if (
-        $urlRegex1.exec(url.pathname) != null || $urlRegex2.exec(url.pathname) != null ||
-        $urlRegex3.exec(url.pathname) != null || $urlRegex4.exec(url.pathname) != null
-    ) {
-        event.respondWith((async () => {
-            const c = await caches.open(swName);
-            const vTrim = $trimRegex.exec(url.pathname);
-            let res = null;
-            if (vTrim != null) res = await c.match(vTrim[1]);
-            else res = await c.match(url.pathname);
-            return res == null ? fetch(url.href) : res;
-        })());
+    switch (url.origin) {
+        case '$res':
+            if (!url.pathname.startsWith('/icons/') && !url.pathname.startsWith('/design/')) return fetch(url.href);
+            event.respondWith((async () => {
+                const c = await caches.open('res_'+swName);
+                let res = await c.match(url.pathname);
+                if (res != null) return res;
+                res = await fetch(url.href);
+                await c.put(url.pathname,res);
+                return c.match(url.pathname);
+            })());
+            break;
     }
+
+    // if (
+    //     $urlRegex1.exec(url.pathname) != null || $urlRegex2.exec(url.pathname) != null ||
+    //     $urlRegex3.exec(url.pathname) != null || $urlRegex4.exec(url.pathname) != null
+    // ) {
+    //     event.respondWith((async () => {
+    //         const c = await caches.open(swName);
+    //         const vTrim = $trimRegex.exec(url.pathname);
+    //         let res = null;
+    //         if (vTrim != null) res = await c.match(vTrim[1]);
+    //         else res = await c.match(url.pathname);
+    //         return res == null ? fetch(url.href) : res;
+    //     })());
+    // }
 });
 
 self.addEventListener('push', async (event) => {
