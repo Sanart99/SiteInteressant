@@ -843,13 +843,14 @@ function getForumMainElem() {
             eComments.innerHTML = '';
             currThreadId = threadId;
             for (const comment of comments.edges) {
+                const date = new Date(comment.node.creationDate+'Z');
                 const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}">
                     <div class="header">
                         <div class="avatarDiv">
                             <img class="avatar" src="\${comment.node.author.avatarURL}" />
                         </div>
                         <p class="name">\${comment.node.author.name}</p>
-                        <p class="date">\${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(new Date(comment.node.creationDate+'Z'))}</p>
+                        <p class="date" title="\${date.toString()}">\${getDateAsString2(date)}</p>
                         <p class="stats">Topics : \${comment.node.author.stats.nAllThreads} · Commentaires : \${comment.node.author.stats.nAllComments}</p>    
                    </div>
                     <div class="body">
@@ -2851,20 +2852,20 @@ function getForumMainElem() {
         border-radius: 3px;
         color: white;
         position: relative;
-        height: 2.5rem;
+        height: 2.2rem;
         z-index: 1;
     }
     #forum_comments .header .name {
         position: absolute;
         left: 6.1rem;
-        top: 0.3rem;
+        top: 0.2rem;
         font-weight: bold;
         font-size: 0.92rem;
     }
     #forum_comments .header .stats {
         position: absolute;
         left: 6.1rem;
-        top: 1.5rem;
+        top: 1.3rem;
         font-size: 0.7rem;
         opacity: 0.7;
     }
@@ -2872,8 +2873,8 @@ function getForumMainElem() {
         position: absolute;
         right: 0.4rem;
         display: inline;
-        top: 0.4rem;
-        font-size: 0.8rem;
+        top: 0.3rem;
+        font-size: 0.7rem;
         color: #9D9EA6;
     }
     #forum_comments .avatarDiv {
