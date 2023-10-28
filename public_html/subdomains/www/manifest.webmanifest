@@ -12,12 +12,19 @@ echo <<<JSON
 {
   "name": "Site Intéressant",
   "start_url": "$root",
-  "display":"minimal-ui",
+  "display":"standalone",
   "icons": [
     {
       "src": "$res/icons/icon_interessant.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "$res/icons/icon_interessant_maskable.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
     }
   ]
 }
