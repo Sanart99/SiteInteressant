@@ -64,19 +64,19 @@ function getDateAsString2(date) {
     const secondsDiff = milliDiff / 1000;
     if (secondsDiff < 60) return "Il y a moins d'une minute";
     const minutesDiff = secondsDiff / 60;
-    if (minutesDiff < 60) return `Il y a \${Math.floor(minutesDiff)} minute\${minutesDiff < 2 ? '' : 's'}`;
+    if (minutesDiff < 60) return `Il y a \${Math.floor(minutesDiff)} min`;
     const hoursDiff = minutesDiff / 60;
-    if (hoursDiff < 24) {
-        s = `Il y a \${Math.floor(hoursDiff)} heure\${hoursDiff < 2 ? '' : 's'}`;
+    if (hoursDiff < 3) {
         let rest = Math.floor(minutesDiff%60);
-        if (rest != 0) s += ` et \${rest} minute\${rest < 2 ? '' : 's'}`
+        s = `Il y a \${Math.floor(hoursDiff)} h \${rest} min`;        
         return s;
     }
 
     const nowDate = new Date(Date.now());
     const daysDiff = hoursDiff / 24;
     const sDate = getDateAsString(date);
-    if (nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,5)}`;
+    if (nowDate.getDate() == date.getDate()) return `Aujourd'hui à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
+    if (nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
 }
 
