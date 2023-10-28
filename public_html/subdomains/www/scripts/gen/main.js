@@ -2503,6 +2503,7 @@ function getForumMainElem() {
     #mainDiv_forum .comment .body .gadget .value,
     #mainDiv_forum #searchFormResults .content .gadget .value {
         margin: 0.1rem 0px 0px 0.2rem;
+        text-indent: 0px;
     }
     #mainDiv_forum .inserted {
         max-width: 85%;
