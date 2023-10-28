@@ -881,9 +881,10 @@ function getForumMainElem() {
                 const footerInfos = commentNode.querySelector('.footer p.infos');
                 let aFooterInfos = [];
                 if (comment.node.lastEditionDate != null) {
-                    const a = getDateAsString(new Date(comment.node.lastEditionDate+'Z'));
-                    const s = `Le \${a[1]} \${a[2]} \${a[3]} à \${a[4]}`;
-                    aFooterInfos.push(`Dernière édition : \${s}`);
+                    const date = new Date(comment.node.lastEditionDate+'Z');
+                    aFooterInfos.push(`Dernière édition : \${getDateAsString2(date)}`);
+                    const nodeDate = commentNode.querySelector('.date');
+                    nodeDate.title = nodeDate.title + `\nEdit: \${date.toString()}`;
                 }
                 if (aFooterInfos.length > 0) footerInfos.innerHTML = aFooterInfos.join('<br/>') + '<br/>';
                 
