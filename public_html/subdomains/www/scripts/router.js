@@ -8,7 +8,6 @@ header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 let _routerElement = null;
 let _urlFormatter = null;
-let _lastLoadedPage = {url:'', displayedURL:''};
 let _loadPageMidProcesses = {};
 
 const StateAction = {
@@ -53,11 +52,9 @@ async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseH
         }
         return response.text();
     }).then((text) => {
-        if (_lastLoadedPage.url == url) return url;
         if (__debug) console.log("loading page at: "+url);
 
         displayedURL = urlFormatter == null ? _urlFormatter(url) : urlFormatter(url);
-        _lastLoadedPage = {url:url, displayedURL:displayedURL};
         for (const k in _loadPageMidProcesses) if (_loadPageMidProcesses[k](url,displayedURL,stateAction) == true) return;
 
         _routerElement.innerHTML = "";
