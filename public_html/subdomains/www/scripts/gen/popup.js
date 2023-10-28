@@ -311,6 +311,7 @@ function getDisconnectElem() {
         }`).then((json) => {
             if (!basicQueryResultCheck(json?.data?.logoutUser,true)) return;
             switchToNotAuthenticated();
+            location.reload();
         });
     });
 
