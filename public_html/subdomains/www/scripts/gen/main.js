@@ -1286,6 +1286,7 @@ function getForumMainElem() {
                     }`,{threadId:json.data.node.dbId,msg:data.get('msg')},null,null,null,moreData).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
                         loadThread(threadId,0,10);
+                        loadThreads(20);
                         return true;
                     });
                 },'forum_replyText');
