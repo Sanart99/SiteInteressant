@@ -380,11 +380,12 @@ class MutationType extends ObjectType {
                     'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnRegisteredUser')),
                     'args' => [
                         'username' => Type::nonNull(Type::string()),
-                        'password' => Type::nonNull(Type::string())
+                        'password' => Type::nonNull(Type::string()),
+                        'rememberMe' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
                     ],
                     'resolve' => function($o,$args) {
                         if (Context::getAuthenticatedUser() != null) return new OperationResult(ErrorType::CONTEXT_INVALID);
-                        return login_user(DBManager::getConnection(),$args['username'],$args['password'],false,null);
+                        return login_user(DBManager::getConnection(),$args['username'],$args['password'],$args['rememberMe'],null);
                     }
                 ],
                 'logoutUser' => [

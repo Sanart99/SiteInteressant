@@ -86,13 +86,19 @@ function getConnexionForm() {
             <p>•••</p>
         </div>
         <form id="connexionForm_connect" class="connexionForm_subDiv" style="display:none;" data-title-to="Connexion">
-            <div>
-                <label for="connexionForm_connect_username">Nom d'utilisateur</label>
-                <input type="text" id="connexionForm_connect_username" name="connUsername"/>
-            </div>
-            <div>
-                <label for="connexionForm_connect_password">Mot de passe</label>
-                <input type="password" id="connexionForm_connect_password" name="connPwd"/>
+            <div class="main">
+                <div class="stack">
+                    <label for="connexionForm_connect_username">Nom d'utilisateur</label>
+                    <input type="text" id="connexionForm_connect_username" name="connUsername"/>
+                </div>
+                <div class="stack">
+                    <label for="connexionForm_connect_password">Mot de passe</label>
+                    <input type="password" id="connexionForm_connect_password" name="connPwd"/>
+                </div>
+                <div>
+                    <label for="connexionForm_connect_rememberMe">Se souvenir de moi</label>
+                    <input type="checkbox" id="connexionForm_connect_rememberMe" name="rememberMe"/>
+                </div>
             </div>
             <div id="connexionForm_connect_subActions">
                 <p><a id="connexionForm_connect_link_invite" href="#" onclick="return false;">J'ai un code d'invitation !</a></p>
@@ -101,11 +107,11 @@ function getConnexionForm() {
             <input type="submit" value="Se connecter"/>
         </form>
         <form id="connexionForm_register" class="connexionForm_subDiv" style="display:none;" data-title-to="Inscription">
-            <div>
+            <div class="stack">
                 <label for="connexionForm_register_username">Nom d'utilisateur</label>
                 <input type="text" id="connexionForm_register_username" name="connUsername"/>
             </div>
-            <div>
+            <div class="stack">
                 <label for="connexionForm_register_password">Mot de passe</label>
                 <input type="password" id="connexionForm_register_password" name="connPwd"/>
             </div>
@@ -113,7 +119,7 @@ function getConnexionForm() {
         </form>
         <form id="connexionForm_invite" class="connexionForm_subDiv" style="display:none;" data-title-to="Code d'invitation">
             <p class="goBack"><a href="#" onclick="return false;">Retour</a></p>
-            <div>
+            <div class="stack">
                 <label for="connexionForm_invite_code">Code d'invitation</label>
                 <input type="text" id="connexionForm_invite_code" name="inviteCode"/>
             </div>
@@ -150,8 +156,9 @@ function getConnexionForm() {
 
         const username = connexionForm.querySelector('#connexionForm_connect_username').value;
         const password = connexionForm.querySelector('#connexionForm_connect_password').value;
-        sendQuery(`mutation LoginUser(\$username:String!, \$password:String!) {
-            loginUser(username:\$username, password:\$password) {
+        const rememberMe = connexionForm.querySelector('#connexionForm_connect_rememberMe').checked;
+        sendQuery(`mutation LoginUser(\$username:String!, \$password:String!, \$rememberMe:Boolean!) {
+            loginUser(username:\$username, password:\$password, rememberMe:\$rememberMe) {
                 __typename
                 success
                 resultCode
@@ -162,7 +169,7 @@ function getConnexionForm() {
                     name
                 }
             }
-        }`,{username:username,password:password}).then(async (json) => {
+        }`,{username:username,password:password,rememberMe:rememberMe}).then(async (json) => {
             if (!basicQueryResultCheck(json?.data?.loginUser,true)) {
                 submit.value = submitOldValue;
                 submit.disabled = false;
@@ -228,7 +235,7 @@ function getConnexionForm() {
 
     JAVASCRIPT,
     'css' => <<<CSS
-    #connexionForm label {
+    #connexionForm .stack label {
         font-weight: bold;
         font-size: 1.2rem;
         padding: 0.2rem 0px;
@@ -255,9 +262,20 @@ function getConnexionForm() {
         gap: 1.3rem;
         margin: 0px 0.8rem;
     }
-    .connexionForm_subDiv div {
+    #connexionForm_connect .main {
+        gap: 0.3rem;
         display: flex;
         flex-direction: column;
+    }
+    .connexionForm_subDiv .stack {
+        display: flex;
+        flex-direction: column;
+    }
+    #connexionForm_connect .main div:not(.stack) {
+        align-self: center;
+        font-size: 1rem;
+        font-weight: bold;
+        margin: 0.5rem 0px 0px 0px;
     }
     .goBack {
         position: absolute;
