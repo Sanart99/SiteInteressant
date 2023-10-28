@@ -1932,14 +1932,19 @@ function getForumMainElem() {
             },100);
         });
         replyFormTA.addEventListener('paste',(e) => {
-            if (replyFormDiv.querySelector('.opt_specChar').checked == false) return;
-            e.preventDefault();
-            const v = escapeCharacters(e.clipboardData.getData('text/plain'));
-            const start = replyFormTA.selectionStart;
-            const end = replyFormTA.selectionEnd;
-            replyFormTA.value = replyFormTA.value.slice(0,start) + v + replyFormTA.value.slice(end);
-            replyFormTA.selectionStart = replyFormTA.selectionEnd = start+v.length;
-            replyFormTA.dispatchEvent(new Event('input'));
+            if (new RegExp('^(https?|ftp)://[^\\.]+\.[^\\.]+$').test(e.clipboardData.getData('text/plain'))) {
+                e.preventDefault();
+                const v = e.clipboardData.getData('text/plain');
+                quickInputInsert(`[link=\${v}]\${v}[/link]`);
+            } else if (replyFormDiv.querySelector('.opt_specChar').checked) {
+                e.preventDefault();
+                const v = escapeCharacters(e.clipboardData.getData('text/plain'));
+                const start = replyFormTA.selectionStart;
+                const end = replyFormTA.selectionEnd;
+                replyFormTA.value = replyFormTA.value.slice(0,start) + v + replyFormTA.value.slice(end);
+                replyFormTA.selectionStart = replyFormTA.selectionEnd = start+v.length;
+                replyFormTA.dispatchEvent(new Event('input'));
+            }
         });
         if (contentSaveName != null) {
             replyFormTA.value = sessionGet(contentSaveName)??'';
