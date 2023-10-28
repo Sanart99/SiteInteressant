@@ -189,5 +189,19 @@ function sendQuery(query, variables, headers, operationName, moreOptions, moreDa
         console.error(e);
     });
 }
+
+async function sendMessageToOne(msg) {
+    await self.clients.claim();
+    self.clients.matchAll().then(clients => {
+        clients[0]?.postMessage(msg);
+    });
+}
+
+async function sendMessageToAll(msg) {
+    await self.clients.claim();
+    self.clients.matchAll().then(clients => {
+        clients.forEach(client => client.postMessage(msg));
+    });
+}
 JAVASCRIPT;
 ?>
