@@ -507,7 +507,7 @@ function getHomeMainDiv() {
     global $isAuth;
     return ['html' => <<<HTML
     <div id="mainDiv_home" class="authPadded" data-is-auth="$isAuth">
-        <p>HOME.PHP</p>
+        <p></p>
     </div>
 
     HTML,
