@@ -23,10 +23,21 @@ __authenticated ? switchToAuthenticated() : switchToNotAuthenticated();
         if (!__online || !__authenticated) return;
 
         try {
-            const registration = await navigator.serviceWorker.register("/scripts/sw/sw1.js", { scope: "/" });
+            const registration = await navigator.serviceWorker.register("/scripts/sw/sw1.js", {scope:'/',updateViaCache:'none'});
             if (registration.installing) console.info("Service worker installing");
             else if (registration.waiting) console.info("Service worker installed");
-            else if (registration.active) console.info("Service worker active");
+            else if (registration.active) {
+                console.info("Service worker active");
+                navigator.serviceWorker.addEventListener('message', (s) => {
+                    if (s?.data == 'updateServiceWorker') { registration.update(); }
+                });
+
+                sendQuery(`query { version:getServiceWorkerName }`).then((res) => {
+                    registration.active.postMessage(JSON.stringify({
+                        action:{ verifyVersion:res.data.version }
+                    }));
+                });
+            }
         } catch (error) {
             console.error(`Registration failed with \${error}`);
         }

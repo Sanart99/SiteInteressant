@@ -14,7 +14,7 @@ $urlRegex4 = '/^\/pages\/(?:forum|home|usersettings|versionhistory)(?:\.php)?$/'
 $trimRegex = '/^(.*)\.php$/';
 
 echo <<<JAVASCRIPT
-const swName = 'sw1_v1.0';
+const swName = '{$_SERVER['LD_SERVICEWORKER_NAME']}';
 const permissions = {};
 let settingsSynced = false;
 let authenticated = true; //?
@@ -124,6 +124,10 @@ self.addEventListener('message',(event) => {
     if (data?.action != null) for (const k in data.action) switch (k) {
         case 'emptyCache': emptyCache(); break;
         case 'replenishCache': replenishCache(); break;
+        case 'verifyVersion':
+            if (swName == data.action[k]) break;
+            sendMessageToOne('updateServiceWorker');
+            break;
     }
 });
 

@@ -212,6 +212,10 @@ class QueryType extends ObjectType {
                         });
                     }
 
+                ],
+                'getServiceWorkerName' => [
+                    'type' => fn() => Type::nonNull(Type::string()),
+                    'resolve' => fn() => $_SERVER['LD_SERVICEWORKER_NAME']
                 ]
             ]
         ]);
