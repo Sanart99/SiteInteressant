@@ -706,6 +706,13 @@ function getForumMainElem() {
                                     dbId
                                     name
                                 }
+                                octohits {
+                                    amount
+                                    user {
+                                        dbId
+                                        name
+                                    }
+                                }
                                 author {
                                     id
                                     dbId
@@ -864,6 +871,7 @@ function getForumMainElem() {
                 </div>`)[0];
                 const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
+                const commOctohits = comment.node.octohits;
                 if (!comment.node.isRead) {
                     eUnreadComments.push(commentNode);
                     unreadCommentsNumbers.push(comment.node.number);
@@ -1147,10 +1155,41 @@ function getForumMainElem() {
                     }
                 });
 
+                hiddenFooterMain.innerHTML = '';
                 const kubersName = []; for (const o of commKubers) kubersName.push(o.name);
                 const sUsers = kubersName.length == 0 ? '[Aucun]'  : kubersName.join(', ');
-                hiddenFooterMain.innerHTML = '';
                 hiddenFooterMain.insertAdjacentElement('beforeend',stringToNodes(`<p>Kubeurs : \${sUsers}</p>`)[0]);
+
+                const oHitters = {}; for (const o of commOctohits) {
+                    oHitters[o.user.dbId] ??= {totalAmount:0, times:0, hits:[], username:o.user.name};
+                    oHitters[o.user.dbId].totalAmount += o.amount;
+                    oHitters[o.user.dbId].hits.push(o.amount);
+                    oHitters[o.user.dbId].times++;
+                }
+                const oSortedHitters = Object.values(oHitters);
+                oSortedHitters.push({totalAmount:3000, times:1, hits:[3,53], username:'test'});
+                oSortedHitters.sort((a,b) => {
+                    if (a.totalAmount > b.totalAmount) return -1;
+                    else if (a.totalAmount < b.totalAmount) return 1;
+                    return 0;
+                });
+                let sHitters = '<ul>';
+                for (const o of oSortedHitters) {
+                    sHitters += '<li>' + o.username + ' : ';
+                    if (o.hits.length > 1) {
+                        let sAdds = '';
+                        for (const v of o.hits) {
+                            if (sAdds != '') sAdds += ' + ';
+                            sAdds += v;
+                        }
+                        sHitters += sAdds + ' = ' + o.totalAmount + '</li>';
+                    } else {
+                        sHitters += o.totalAmount + '</li>';
+                    }
+                }
+                sHitters += '</ul>';
+                hiddenFooterMain.insertAdjacentElement('beforeend',stringToNodes(`<p>Frappeurs : </p>`)[0]);
+                hiddenFooterMain.insertAdjacentElement('beforeend',stringToNodes(`\${sHitters}`)[0]);
 
                 processComment(commNodeMain,stringToNodes(comment.node.content));
 
@@ -3052,7 +3091,11 @@ function getForumMainElem() {
         text-align: left;
         transition: all 0.5s;
         overflow: hidden;
-        max-height: 1.2em;
+        /* max-height: 1.2em; */
+    }
+    #mainDiv_forum .hiddenFooter > .main ul {
+        list-style: disc;
+        margin: 0px 0px 0px 2em;
     }
     #mainDiv_forum .hiddenFooter.hidden > .main {
         height: 0%;
