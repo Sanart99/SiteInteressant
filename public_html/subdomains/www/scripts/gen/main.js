@@ -273,6 +273,7 @@ function getIndexElems() {
     });  
     document.querySelector('#rightBar_optionsDiv_forum').addEventListener('click',(e) => {
         e.preventDefault();
+        if (location.href == "$root/pages/forum") return;
         loadPage("$root/pages/forum",StateAction.PushState);
     });
     document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));
@@ -1296,11 +1297,7 @@ function getForumMainElem() {
                 cont.innerHTML = '';
                 const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="{$res}/icons/back.png"/></button>')[0];
                 cont.insertAdjacentElement('beforeend',back);
-                back.addEventListener('click', () => {
-                    if (!mobileMode) return;
-                    forumR.style.display = 'none';
-                    forumL.style.display = '';
-                });
+                back.addEventListener('click', () => { loadPage("$root/forum",StateAction.PushState); });
                 back.style.display = mobileMode ? '' : 'none';
                 const reply = stringToNodes('<button class="button1 reply" type="button"><img src="{$res}/icons/edit.png"/>Répondre</button>')[0];
                 cont.insertAdjacentElement('beforeend',reply);
@@ -1371,6 +1368,7 @@ function getForumMainElem() {
     }
     function highlightThread(threadId) {
         for (const e of forumL.querySelectorAll(`#forum_threads tbody tr`)) e.dataset.selected = false;
+        if (threadId == null) return;
         const e = forumL.querySelector(`tr[data-node-id="\${threadId}"]`);
         if (e == null) return;
         e.dataset.selected = true;
@@ -2247,9 +2245,15 @@ function getForumMainElem() {
     if (m != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
     _loadPageMidProcesses['forumMP'] = (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
-        const m = new RegExp("^$root/forum/(\\\d+)").exec(displayedURL);
+        const m = new RegExp("^$root/forum(?:/(\\\d+)?)?$").exec(displayedURL);
         if (m == null) return false;
-        loadThread(`forum_\${m[1]}`,10);
+        else if (m[1] != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
+        else {
+            forumR.innerHTML = '';
+            if (mobileMode) { forumR.style.display = 'none'; forumL.style.display = ''; }
+            highlightThread(null);
+        }
+
         switch (stateAction) {
             case StateAction.PushState: history.pushState({pageUrl:url}, "", displayedURL); break;
             case StateAction.ReplaceState: history.replaceState({pageUrl:url}, "", displayedURL); break;
@@ -2260,10 +2264,12 @@ function getForumMainElem() {
 
     const mql = window.matchMedia("(max-width: 800px)");
     const fmql = (mql) => {
-        if (mql.matches && !mobileMode) {
-            if (forumR.innerHTML == '') forumL.style.display = 'none';
-            else forumR.style.display = 'none';
-            for (const e of forumR.querySelectorAll('.mobile.back')) e.style.display = '';
+        if (mql.matches) {
+            if (!mobileMode) {
+                if (forumR.innerHTML.trim() != '') { forumL.style.display = 'none'; forumR.style.display = ''; }
+                else { forumR.style.display = 'none'; forumL.style.display = ''; }
+                for (const e of forumR.querySelectorAll('.mobile.back')) e.style.display = '';
+            }
             mobileMode = true;
         } else {
             forumL.style.display = forumR.style.display = '';
