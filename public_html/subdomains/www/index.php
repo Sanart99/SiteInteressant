@@ -57,6 +57,15 @@ header('Content-Type: text/html');
             loadPage(url == null ? window.location : url);
         });
 
+        LinkInterceptor.addPreProcess('/forum/', (url,stateAction) => {
+            if (document.querySelector('#mainDiv_forum') != null) return url;
+            console.log('a ' + url);
+            const m = new RegExp('^<?=$root?>/forum(/\\d+?)?$').exec(url);
+            if (m == null) return url;
+            console.log(m);
+            return `<?=$root?>/pages/forum.php?urlEnd=${m[1]}`;
+        },0);
+
         <?= getPopupDiv()['js']; ?>
         <?php if (!isset($_COOKIE['sid'])): ?>
         popupDiv.insertAdjacentHTML('beforeend',`<?= getConnexionForm()['html']; ?>`);
