@@ -1169,7 +1169,6 @@ function getForumMainElem() {
                     oHitters[o.user.dbId].times++;
                 }
                 const oSortedHitters = Object.values(oHitters);
-                oSortedHitters.push({totalAmount:3000, times:1, hits:[3,53], username:'test'});
                 oSortedHitters.sort((a,b) => {
                     if (a.totalAmount > b.totalAmount) return -1;
                     else if (a.totalAmount < b.totalAmount) return 1;
