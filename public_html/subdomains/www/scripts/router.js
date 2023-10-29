@@ -40,8 +40,13 @@ class LinkInterceptor {
         return true;
     }
 
-    static addMidProcess(name,f,priority) {
-        if (LinkInterceptor.namesTaken.get(name) == true) return false;
+    static addMidProcess(name,f,priority,replace=true) {
+        if (LinkInterceptor.namesTaken.get(name) == true) {
+            if (replace) {
+                for (const o of LinkInterceptor.midProcesses)
+                    if (o.name == name) { LinkInterceptor.midProcesses.splice(LinkInterceptor.midProcesses.indexOf(o),1); break; }
+            } else return false;
+        }
         LinkInterceptor.namesTaken.set(name,true);
 
         LinkInterceptor.midProcesses.push({name:name,f:f,priority:priority});
