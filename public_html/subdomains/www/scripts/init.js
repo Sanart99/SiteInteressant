@@ -13,7 +13,7 @@ var __debug = $debug;
 var __feat_serviceWorker = 'serviceWorker' in navigator;
 var __feat_notifications = 'body' in Notification?.prototype;
 var __settingsInitialized = false;
-var __online = null;
+var __online = true;
 
 navigator.onLine ? switchToOnline() : switchToOffline();
 __authenticated ? switchToAuthenticated() : switchToNotAuthenticated();

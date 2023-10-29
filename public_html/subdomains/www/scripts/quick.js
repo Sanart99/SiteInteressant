@@ -20,7 +20,7 @@ function doubleToFloat(v) {
 }
 
 function basicQueryResultCheck(operationResult, preventThrow = false) {
-    if (!__online) { alert('No internet connection detected.'); return false; }
+    if (!__online && operationResult == null) { alert('No internet connection detected.'); return false; }
     if (__authenticated && operationResult == null) {
         sendQuery('query { viewer { id } }').then((json) => {
             if (json?.data?.viewer == null) switchToNotAuthenticated();

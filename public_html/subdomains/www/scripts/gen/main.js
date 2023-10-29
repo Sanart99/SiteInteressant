@@ -1994,6 +1994,7 @@ function getForumMainElem() {
         }
         
         replyForm.addEventListener('submit',async (e) => {
+            e.preventDefault();
             const res = await onSubmit(e,filesToUpload);
             if (contentSaveName != null && res === true) sessionRem(contentSaveName);
         });
