@@ -8,7 +8,6 @@ header('Content-Type: text/javascript');
 echo <<<JAVASCRIPT
 let _routerElement = null;
 let _urlFormatter = null;
-let _loadPageMidProcesses = {};
 
 const StateAction = {
     None:-1,
@@ -20,6 +19,38 @@ class RouterError extends Error {
     constructor(message) {
         super(message);
         this.name = "RouterError";
+    }
+}
+
+class LinkInterceptor {
+    static preProcesses = [];
+    static midProcesses = [];
+    static namesTaken = new Map();
+
+    static addPreProcess(name,f,priority) {
+        if (LinkInterceptor.namesTaken.get(name) == true) return false;
+        LinkInterceptor.namesTaken.set(name,true);
+
+        LinkInterceptor.preProcesses.push({name:name,f:f,priority:priority});
+        LinkInterceptor.preProcesses.sort((a,b) => {
+            if (a.priority > b.priority) return -1;
+            if (a.priority < b.priority) return 1;
+            return 0;
+        });
+        return true;
+    }
+
+    static addMidProcess(name,f,priority) {
+        if (LinkInterceptor.namesTaken.get(name) == true) return false;
+        LinkInterceptor.namesTaken.set(name,true);
+
+        LinkInterceptor.midProcesses.push({name:name,f:f,priority:priority});
+        LinkInterceptor.midProcesses.sort((a,b) => {
+            if (a.priority > b.priority) return -1;
+            if (a.priority < b.priority) return 1;
+            return 0;
+        });
+        return true;
     }
 }
 
@@ -45,6 +76,11 @@ function configRouter(rootElem, urlFormatter = null) {
 }
 
 async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseHandler = null) {
+    for (const o of LinkInterceptor.preProcesses) {
+        url = o.f(url,stateAction);
+        if (url === false) return;
+    }
+
     return fetch(url, {cache: "no-cache"}).then((response) => {
         if (!response.ok) {
             if (nonOkResponseHandler == null) throw `Failed to load '\${url}'.`;
@@ -55,7 +91,13 @@ async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseH
         if (__debug) console.log("loading page at: "+url);
 
         displayedURL = urlFormatter == null ? _urlFormatter(url) : urlFormatter(url);
-        for (const k in _loadPageMidProcesses) if (_loadPageMidProcesses[k](url,displayedURL,stateAction) == true) return;
+        for (const o of LinkInterceptor.midProcesses) if (o.f(url,displayedURL,stateAction) == true) return;
+
+        switch (stateAction) {
+            case StateAction.PushState: history.pushState({pageUrl:url}, "", displayedURL); break;
+            case StateAction.ReplaceState: history.replaceState({pageUrl:url}, "", displayedURL); break;
+            default: break;
+        }
 
         _routerElement.innerHTML = "";
         const template = document.createElement("template");
@@ -74,12 +116,6 @@ async function loadPage(url, stateAction=-1, urlFormatter = null, nonOkResponseH
                 _routerElement.appendChild(scrE);
             } else _routerElement.appendChild(cNode);
         });
-        
-        switch (stateAction) {
-            case StateAction.PushState: history.pushState({pageUrl:url}, "", displayedURL); break;
-            case StateAction.ReplaceState: history.replaceState({pageUrl:url}, "", displayedURL); break;
-            default: break;
-        }
 
         return url;
     });

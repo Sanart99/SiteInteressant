@@ -2291,7 +2291,7 @@ function getForumMainElem() {
 
     const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
     if (m != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
-    _loadPageMidProcesses['forumMP'] = (url,displayedURL,stateAction) => {
+    LinkInterceptor.addMidProcess('forumMP', (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
         const m = new RegExp("^$root/forum(?:/(\\\d+)?)?$").exec(displayedURL);
         if (m == null) return false;
@@ -2308,7 +2308,7 @@ function getForumMainElem() {
             default: break;
         }
         return true;
-    };
+    },5);
 
     const mql = window.matchMedia("(max-width: 800px)");
     const fmql = (mql) => {
