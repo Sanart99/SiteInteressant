@@ -458,10 +458,10 @@ function get_random_card_value($arg) {
     };
 
     foreach ($vals as $val) {
-        if (preg_match('/(\d+)(?:-(\d+))?((?:,?(?:Trèfle|Pique|Carreau|Coeur|T|P|Ca|Co))+)?/i',$val,$m) > 0) {
-            $min = isset($m[2]) ? min((int)$m[1],(int)$m[2]) : (int)$m[1];
-            $max = isset($m[2]) ? max((int)$m[1],(int)$m[2]) : $min;
-            if (!isset($m[3])) {
+        if (preg_match('/(\d+)(?:-(\d+))?((?:,?(?:Trèfle|Pique|Carreau|Coeur|T|P|Ca|Co))+)?/i',$val,$m,PREG_UNMATCHED_AS_NULL) > 0) {
+            $min = $m[2] != null ? min((int)$m[1],(int)$m[2]) : (int)$m[1];
+            $max = $m[2] != null ? max((int)$m[1],(int)$m[2]) : $min;
+            if ($m[3] == null) {
                 for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Trèfle', $conv($i).' de Pique', $conv($i).' de Carreau', $conv($i).' de Coeur');
             } else {
                 $aKind = explode(',',$m[3]);
@@ -522,7 +522,7 @@ function get_random_letter_value($arg, &$sType='') {
 
     foreach ($vals as $val) {
         if ($val == 'inspect') continue;
-        if (preg_match('/(consonne|voyelle)\s*(?:,\s*(noscrabble))?/i',$val,$m) > 0) {
+        if (preg_match('/(consonne|voyelle)\s*(?:,\s*(noscrabble))?/i',$val,$m,PREG_UNMATCHED_AS_NULL) > 0) {
             $noscrabble = ($m[2]??null) === 'noscrabble';
             switch ($m[1]) {
                 case 'consonne':
@@ -534,16 +534,15 @@ function get_random_letter_value($arg, &$sType='') {
                     else $scrabblePush($letters,'A','E','I','O','U','Y');
                     break;
             }
-        } else if (preg_match('/([a-z])(?:-([a-z]))?\s*(?:,\s*(noscrabble))?/i',$val,$m) > 0) {
+        } else if (preg_match('/([a-z])(?:-([a-z]))?\s*(?:,\s*(noscrabble))?/i',$val,$m,PREG_UNMATCHED_AS_NULL) > 0) {
             $noscrabble = ($m[3]??null) === 'noscrabble';
-            if (!isset($m[2])) {
+            if ($m[2] == null) {
                 if ($noscrabble) array_push($letters,strtoupper($m[1]));
                 else $scrabblePush($letters,strtoupper($m[1]));
                 continue;
             }
-            $min = min(ord(strtoupper($m[1])),ord(strtoupper($m[2])));
-            $max = max(ord(strtoupper($m[1])),ord(strtoupper($m[2])));
-            $noscrabble = ($m[3]??null) === 'noscrabble';
+            $min = $m[2] != null ? min(ord(strtoupper($m[1])),ord(strtoupper($m[2]))) : ord(strtoupper($m[1]));
+            $max = $m[2] != null ? max(ord(strtoupper($m[1])),ord(strtoupper($m[2]))) : ord(strtoupper($m[1]));
             for ($i=$min; $i<=$max && $i <= 90; $i++) {
                 if ($noscrabble) array_push($letters, chr($i));
                 else $scrabblePush($letters,chr($i));
