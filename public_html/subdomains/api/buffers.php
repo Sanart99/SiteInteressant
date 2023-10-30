@@ -659,7 +659,8 @@ class ForumBuffer {
                     $user = RegisteredUser::initFromRow($rowUser);
                     $sRegistrationDate = $user->registrationDate->format('Y-m-d H:i:s');
                 }
-                $whereCond = is_null($user) ?  '' : "creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."'";
+
+                $whereCond = $user->titles->contains('oldInteressant') ?  '' : "creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."'";
 
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
