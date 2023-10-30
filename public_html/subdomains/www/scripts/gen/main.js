@@ -2182,6 +2182,7 @@ function getForumMainElem() {
         const forPreview = withData?.forPreview === true;
         const o = {filesToUpload:{}};
         for (const node of Array.from(commNodes)) {
+            // processThis
             const nodesToProcess = [];
             if (node.classList.contains('processThis')) nodesToProcess.push(node);
             for (const n of node.querySelectorAll('.processThis')) nodesToProcess.push(n);
@@ -2279,6 +2280,23 @@ function getForumMainElem() {
                         break;
                 }
             }
+
+            // gadgets
+            const letterGadgets = [];
+            if (node.classList.contains('gadget') && node.classlist.contains('letter')) letterGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.letter')) letterGadgets.push(n);
+            for (const node of letterGadgets) {
+                const regex = new RegExp('^;*(?:A\-Z|consonne|voyelle|inspect)(?:(?:;inspect|;)+)?$')
+                if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+            }
+
+            if (node.classList.contains('gadget') && node.classlist.contains('card')) letterGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.card')) letterGadgets.push(n);
+            for (const node of letterGadgets) {
+                const regex = new RegExp('^;*(?:inspect)(?:(?:;inspect|;)+)?$')
+                if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+            }
+
             container.insertAdjacentElement('beforeend',node);
         }
         return o;
@@ -2538,7 +2556,7 @@ function getForumMainElem() {
     #mainDiv_forum .replyFormDiv .preview .gadget,
     #mainDiv_forum .comment .body .gadget,
     #mainDiv_forum #searchFormResults .content .gadget {
-        background-color: #3B4151;
+        background-color: #DF0000;
         color: white;
         padding: 0.15em 0.4em 0.15em 0.4em;
         border-radius: 0.2rem;
@@ -2547,17 +2565,19 @@ function getForumMainElem() {
         font-size: 80%;
         vertical-align: middle;
         margin: 0.1em;
+        align-items: center;
     }
-    #mainDiv_forum .replyFormDiv .preview .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]),
-    #mainDiv_forum .comment .body .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]),
-    #mainDiv_forum #searchFormResults .content .gadget:not([data-generator=""]):not([data-generator="consonne"]):not([data-generator="voyelle"]) {
-        background-color: #DF0000;
+    #mainDiv_forum .replyFormDiv .preview .gadget.approved,
+    #mainDiv_forum .comment .body .gadget.approved,
+    #mainDiv_forum #searchFormResults .content .gadget.approved {
+        background-color: #3B4151;
     }
     #mainDiv_forum .replyFormDiv .preview .gadget .value,
     #mainDiv_forum .comment .body .gadget .value,
     #mainDiv_forum #searchFormResults .content .gadget .value {
         margin: 0.1rem 0px 0px 0.2rem;
         text-indent: 0px;
+        word-break: break-all;
     }
     #mainDiv_forum .inserted {
         max-width: 85%;
