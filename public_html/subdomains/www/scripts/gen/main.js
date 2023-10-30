@@ -1246,7 +1246,7 @@ function getForumMainElem() {
                 }`.trim(),{threadId:json.data.node.dbId,commNumbers:unreadCommentsNumbers}).then((json) => {
                     if (!basicQueryResultCheck(json?.data?.f)) { b = false; return; }
 
-                    for (const comm of eUnreadComments) if (comm.classList.contains('new')) comm.classList.remove('new');
+                    // for (const comm of eUnreadComments) if (comm.classList.contains('new')) setTimeout(() => comm.classList.remove('new'), 10000);
                     sendQuery(`query (\$threadId:ID!) {
                         node(id:\$threadId) {
                             id
