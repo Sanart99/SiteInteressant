@@ -803,7 +803,7 @@ function getForumMainElem() {
                 if (!basicQueryResultCheck(json?.data?.f)) return null;
 
                 reloadInfos2(json.data.f.thread);
-                return json.data.f.thread.kubedBy.length;
+                return {amount:json.data.f.thread.kubedBy.length};
             }), async () => sendQuery(`mutation UnkubeThread (\$threadId:Int!) {
                 f:forum_unkubeThread(threadId:\$threadId) {
                     success
@@ -819,7 +819,7 @@ function getForumMainElem() {
                 if (!basicQueryResultCheck(json?.data?.f)) return;
 
                 reloadInfos2(json.data.f.thread);
-                return json.data.f.thread.kubedBy.length;
+                return {amount:json.data.f.thread.kubedBy.length};
             }));
             kubeDiv.set(kubersIds.length,kubersIds.includes(viewerId));
             eInfos1.insertAdjacentElement('beforeend',kubeDiv);
