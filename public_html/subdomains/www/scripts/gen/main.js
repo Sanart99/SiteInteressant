@@ -2003,6 +2003,13 @@ function getForumMainElem() {
                 replyFormTA.dispatchEvent(new Event('input'));
             }
         });
+        replyFormTA.addEventListener('drop',(e) => {
+            e.preventDefault();
+            const a = [];
+            for (const v of [...e.dataTransfer.items]) if (v.kind === 'file') a.push(v.getAsFile());
+            if (a.length > 0) inputFile(a);
+        });
+        replyFormTA.addEventListener('dragover',(e) => e.preventDefault());
         if (contentSaveName != null) {
             replyFormTA.value = sessionGet(contentSaveName)??'';
             replyFormTA.dispatchEvent(new Event('input'));
