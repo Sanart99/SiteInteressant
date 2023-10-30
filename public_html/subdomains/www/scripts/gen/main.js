@@ -2974,7 +2974,7 @@ function getForumMainElem() {
     }
     #forum_comments .body > .main {
         white-space: pre-wrap;
-        min-height: 5rem;
+        min-height: 3rem;
         margin: 0rem 0px 0.25rem 0px;
     }
     #forum_comments .comment.new .body {
