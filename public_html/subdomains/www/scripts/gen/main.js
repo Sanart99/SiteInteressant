@@ -1982,6 +1982,13 @@ function getForumMainElem() {
             },100);
         });
         replyFormTA.addEventListener('paste',(e) => {
+            if (e.clipboardData.files.length > 0) {
+                const a = [...e.clipboardData.files];
+                for (const file of a) {
+                    inputFile(file);
+                }
+            }
+
             if (new RegExp('^(https?|ftp)://[^\\.]+\.[^\\.]+$').test(e.clipboardData.getData('text/plain'))) {
                 e.preventDefault();
                 const v = e.clipboardData.getData('text/plain');
@@ -2043,13 +2050,17 @@ function getForumMainElem() {
         replyForm.querySelector('.buttonBar .rp').addEventListener('click',() => quickInputInsert('[rp]','[/rp]'));
         replyForm.querySelector('.buttonBar .code').addEventListener('click',() => quickInputInsert('[code]','[/code]'));
         replyForm.querySelector('.buttonBar .file').addEventListener('click',() => eFileInput.click());
-        eFileInput.addEventListener('change', () => {
-            const file = eFileInput.files[0]??null;
-            if (file == null) return;
-            if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
-            files.push(file);
-            quickInputInsert(`[file=\${escapeCharacters(file.name)}/]`);
-        });
+        eFileInput.addEventListener('change', () => { inputFile(eFileInput.files); eFileInput.value = null; });
+
+        function inputFile(filesToAdd) {
+            if (!Array.isArray(filesToAdd)) filesToAdd = [filesToAdd];
+            
+            for (const file of filesToAdd) {
+                if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
+                files.push(file);
+                quickInputInsert(`[file=\${escapeCharacters(file.name)}/]`);
+            }
+        }
 
         // Emojis
         if (savedCategories == null) sendQuery(`query {
