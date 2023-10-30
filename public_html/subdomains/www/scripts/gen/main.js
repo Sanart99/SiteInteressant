@@ -258,11 +258,12 @@ function getIndexElems() {
     const topBarRSlideArea = document.querySelector('#topBar_r_slideArea');
     topBarRSlideArea.addEventListener('click',openRightBar);
     let tbrTimeout = null;
-    topBarRSlideArea.addEventListener('mouseenter',() => { tbrTimeout = setTimeout(openRightBar, 400); });
+    topBarRSlideArea.addEventListener('mouseenter',() => { tbrTimeout = setTimeout(openRightBar, 150); });
     topBarRSlideArea.addEventListener('mouseleave',() => { if (tbrTimeout != null) clearTimeout(tbrTimeout); });
     let rbTimeout = null;
     rightBar.addEventListener('mouseenter',() => { if (rbTimeout != null) clearTimeout(rbTimeout); });
     rightBar.addEventListener('mouseleave',() => { rbTimeout = setTimeout(closeRightBar, 150); });
+    document.querySelector('#bodyDiv').addEventListener('click',closeRightBar);
 
     document.querySelector('#rightBar_optionsDiv_editAvatar').addEventListener('click',(e) => {
         e.preventDefault();
