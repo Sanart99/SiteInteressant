@@ -668,7 +668,7 @@ function getForumMainElem() {
             document.querySelector('#forumL .forum_footer .left').dataset.cursor = threads.pageInfo.startCursor;
             document.querySelector('#forumL .forum_footer .right').dataset.cursor = threads.pageInfo.endCursor;
             
-            highlightThread(currThreadId);
+            if (!mobileMode) highlightThread(currThreadId);
         });
     }
     function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false,toFirstUnreadComment=false) {
@@ -1344,7 +1344,10 @@ function getForumMainElem() {
                 cont.innerHTML = '';
                 const back = stringToNodes('<button class="button1 mobile back" type="button"><img src="{$res}/icons/back.png"/></button>')[0];
                 cont.insertAdjacentElement('beforeend',back);
-                back.addEventListener('click', () => { loadPage("$root/forum",StateAction.PushState); });
+                back.addEventListener('click', () => {
+                    loadPage("$root/forum",StateAction.PushState);
+                    document.querySelector('.refreshThreads').click();
+                });
                 back.style.display = mobileMode ? '' : 'none';
                 const reply = stringToNodes('<button class="button1 reply" type="button"><img src="{$res}/icons/edit.png"/>Répondre</button>')[0];
                 cont.insertAdjacentElement('beforeend',reply);
