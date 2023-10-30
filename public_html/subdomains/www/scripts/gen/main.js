@@ -1227,7 +1227,9 @@ function getForumMainElem() {
                                 e.querySelector('.statusIcons .new').style.display = 'none';
                             }
                         });
-                    })
+
+                        if (json.data.f.resultMessage == 'refresh') getRecentEvents();
+                    });
                 });
 
                 // Add element
@@ -1262,7 +1264,9 @@ function getForumMainElem() {
                             if (eNew != null) eNew.style.display = 'none';
                         }
                     });
-                })
+
+                    if (json.data.f.resultMessage == 'refresh') getRecentEvents();
+                });
             }
 
             const n = first ?? last;

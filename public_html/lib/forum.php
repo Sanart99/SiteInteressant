@@ -507,9 +507,12 @@ function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $th
         $stmt2 = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number={$row['number']} LIMIT 1");
         $stmt2->execute([json_encode($readBy)]);
     }
+
+    $stmt = $conn->query("DELETE FROM notifications WHERE user_id={$user->id} AND JSON_CONTAINS(details,'$threadId','\$.threadId')=1 AND JSON_CONTAINS(details,'{$commNumbers[0]}','\$.commentNumber')=1");
+    $msg = ($stmt->rowCount() > 0) ? 'refresh' : '';
     
     $conn->query('COMMIT');
-    return new OperationResult(SuccessType::SUCCESS);
+    return new OperationResult(SuccessType::SUCCESS,$msg);
 }
 
 function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
