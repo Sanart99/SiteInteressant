@@ -635,7 +635,7 @@ function getForumMainElem() {
                 if (!isNaN(date.getTime())) {
                     const sDate = getDateAsString(date).slice(0,4).join(' ');
 
-                    if (date.toISOString().substr(0,10) == now.toISOString().substr(0,10)) {
+                    if (date.toString().substr(0,15) == now.toString().substr(0,15)) {
                         if (lastDelimiter != "Aujourd'hui") {
                             tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>Aujourd'hui</p></td></tr>`);
                             lastDelimiter = "Aujourd'hui";
