@@ -27,6 +27,9 @@ function getIndexElems() {
     </div>
     <div id="rightBar" style="display:none">
         <div id="rightBar_titleDiv">
+            <div id="rightBar_titleDiv_collapse">
+                <img src="$res/design/collapseRight.png" />
+            </div>
             <p></p>
         </div>
         <div id="rightBar_optionsDiv">
@@ -265,6 +268,7 @@ function getIndexElems() {
     rightBar.addEventListener('mouseenter',() => { if (rbTimeout != null) clearTimeout(rbTimeout); });
     rightBar.addEventListener('mouseleave',() => { rbTimeout = setTimeout(closeRightBar, 150); });
     document.querySelector('#bodyDiv').addEventListener('click',closeRightBar);
+    document.querySelector('#rightBar_titleDiv_collapse').addEventListener('click',closeRightBar);
 
     document.querySelector('#rightBar_optionsDiv_editAvatar').addEventListener('click',(e) => {
         e.preventDefault();
@@ -382,6 +386,22 @@ function getIndexElems() {
         justify-content: center;
         color: white;
         font-size: 1.4rem;
+    }
+    #rightBar_titleDiv > p {
+        width: 88%;
+        text-align: center;
+    }
+    #rightBar_titleDiv_collapse {
+        background-color: #feb500;
+        width: 12%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #rightBar_titleDiv_collapse:hover {
+        background-color: #ffe193;
+        cursor: pointer;
     }
     #rightBar_optionsDiv a {
         display: flex;
