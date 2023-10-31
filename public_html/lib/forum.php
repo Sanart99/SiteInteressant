@@ -52,7 +52,7 @@ class Thread {
     }
 
     public function isAccessibleToUser(RegisteredUser $user) {
-        return $this->permission == ThreadPermission::ALL_USERS || ($this->permission == ThreadPermission::CURRENT_USERS && $user->registrationDate <= $this->creationDate);
+        return $this->permission == ThreadPermission::ALL_USERS || $user->titles->contains('oldInteressant') || ($this->permission == ThreadPermission::CURRENT_USERS && $user->registrationDate <= $this->creationDate);
     }
 
     public static function initFromRow(array $row) {
