@@ -515,6 +515,31 @@ function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $th
     return new OperationResult(SuccessType::SUCCESS,$msg);
 }
 
+function thread_mark_comments_as_notread(LDPDO $conn, RegisteredUser $user, int $threadId, array $commNumbers):OperationResult {
+    if (count($commNumbers) == 0) return new OperationResult(SuccessType::SUCCESS);
+    $conn->query('START TRANSACTION');
+
+    $sqlWhere = "";
+    foreach ($commNumbers as $n) {
+        if (strlen($sqlWhere) > 0) $sqlWhere .= " OR ";
+        $sqlWhere .= "number=$n";
+    }
+    $stmt = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND ($sqlWhere)");
+    while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+        $readBy = json_decode($row['read_by']);
+        if (!in_array($user->id,$readBy)) continue;
+
+        unset($readBy[array_search($user->id,$readBy,true)]);
+        $readBy = array_values($readBy);
+
+        $stmt2 = $conn->prepare("UPDATE comments SET read_by=? WHERE thread_id=$threadId AND number={$row['number']} LIMIT 1");
+        $stmt2->execute([json_encode($readBy)]);
+    }
+    
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
 function thread_follow(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
     $ids = new \DS\Set(json_decode($conn->query("SELECT following_ids FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_NUM)[0],true));
     $ids->add($user->id);

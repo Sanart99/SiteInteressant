@@ -897,6 +897,8 @@ function getForumMainElem() {
                 const aFooter = [];
                 const aHidden = [];
 
+                let hoverForReadCD = 0;
+
                 // Footer: Kubes
                 const kubersIds = []; for (const o of comment.node.kubedBy) kubersIds.push(o.dbId);
                 const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeComment (\$threadId:Int!, \$commNumber:Int!) {
@@ -1017,6 +1019,29 @@ function getForumMainElem() {
                 });
                 aFooter.push(nodeCite);
 
+                // Footer: MarkAsNotRead
+                const nodeMarkAsNotRead = stringToNodes('<a class="cite" href="#" onclick="return false;">Marquer en non lu</a>')[0];
+                let to_notRead = null;
+                nodeMarkAsNotRead.addEventListener('click',() => {
+                    sendQuery(`mutation MarkCommentsAsNotRead(\$threadId:Int!,\$commNumbers:[Int!]!) {
+                        f:forumThread_markCommentsAsNotRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
+                            success
+                            resultCode
+                            resultMessage
+                        }
+                    }`,{threadId:threadDbId,commNumbers:[comment.node.number]}).then((json) => {
+                        if (!basicQueryResultCheck(json?.data?.f)) return;
+                        if (to_notRead != null) clearTimeout(to_notRead);
+                        commentNode.classList.add('new');
+                        hoverForReadCD = 1;
+                        console.log(hoverForReadCD);
+                        
+                        to_notRead = setTimeout(() => { hoverForReadCD = 0; }, 1000);
+                    });
+                });
+                aHidden.push(nodeMarkAsNotRead);
+
+                // Footer: Edit
                 if (comment.node.canEdit) {
                     const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
                     nodeEdit.addEventListener('click',() => {
@@ -1076,6 +1101,7 @@ function getForumMainElem() {
                     else aHidden.push(nodeEdit);
                 }
                 
+                // Footer: Remove
                 if (comment.node.canRemove || json.data.node.canRemove) {
                     const nodeDel = stringToNodes('<a class="delete" href="#" onclick="return false;">Supprimer</a>')[0];
                     nodeDel.addEventListener('click',() => {
@@ -1199,7 +1225,7 @@ function getForumMainElem() {
                 // Events
                 let b = false;
                 if (!autoMarkPagesAsRead) commentNode.querySelector('.body').addEventListener('mouseover',() => {
-                    if (!commentNode.classList.contains('new') || b) return;
+                    if (!commentNode.classList.contains('new') || b || hoverForReadCD > 0) return;
                     b = true;
                     sendQuery(`mutation MarkCommentsAsRead (\$threadId:Int!, \$commNumbers:[Int!]!) {
                         f:forumThread_markCommentsAsRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
