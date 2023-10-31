@@ -679,7 +679,10 @@ function getForumMainElem() {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
                     e.href=`$root/forum/\${edge.node.dbId}`;
                 }
-                if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="{$res}/icons/recent.png"/>');
+
+                const nodeImgNew = stringToNodes('<img class="new" src="{$res}/icons/recent.png"/>')[0];
+                tr.querySelector('.statusIcons a div').insertAdjacentElement('afterbegin',nodeImgNew);
+                if (edge.node.isRead) nodeImgNew.style.display = 'none';
             }
 
             const eNPage = document.querySelector('#forumL .nPage');
@@ -1053,6 +1056,9 @@ function getForumMainElem() {
                         if (!basicQueryResultCheck(json?.data?.f)) return;
                         if (to_notRead != null) clearTimeout(to_notRead);
                         commentNode.classList.add('new');
+                        const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                        if (e != null) { e.classList.add('new'); e.querySelector('.statusIcons .new').style.display = ''; }
+
                         hoverForReadCD = 1;
                         console.log(hoverForReadCD);
                         
