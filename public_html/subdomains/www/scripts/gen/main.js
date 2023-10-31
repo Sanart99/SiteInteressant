@@ -186,7 +186,7 @@ function getIndexElems() {
                                 <p class="title">\${record.thread.title}</p>
                                 <p class="description">\${currEvent.n} \${sComm}</p>
                             </a>`)[0];
-                            node.addEventListener('click',() => loadPage(node.href,StateAction.PushState));
+                            node.addEventListener('click',() => { loadPage(node.href,StateAction.PushState); closeRightBar(); } );
                             histCont.insertAdjacentElement('afterbegin',node);
                             break;
                     }
@@ -246,6 +246,7 @@ function getIndexElems() {
                             setRecentEventsN(--recentEventsN);
                         });
                     });
+                    closeRightBar();
                 });
                 node.addEventListener('mouseleave',() => { if (timeout != null) clearTimeout(timeout); timeout = null; });
                 notifCont.insertAdjacentElement('beforeend',node); 
