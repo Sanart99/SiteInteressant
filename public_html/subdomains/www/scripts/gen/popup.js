@@ -27,7 +27,7 @@ function getPopupDiv() {
         height: 100%;
         z-index: 100;
     }
-    #popupDiv > form, #popupDiv > div {
+    #popupDiv > form:not(.removeDefaultStyle), #popupDiv > div:not(.removeDefaultStyle) {
         position: relative;
         top: 50%;
         left: 50%;
@@ -68,8 +68,19 @@ function getPopupDiv() {
     .popupContainer input[type="submit"]:hover, .popupContainer input[type="button"]:hover {
         border: 1px solid white;
     }
+    .imgBetterView {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+    }
+    .imgBetterView img {
+        max-width: 95%;
+        max-height: 95%;
+    }
     @media screen and (max-width: 425px) { 
-        #popupDiv > form, #popupDiv > div {
+        #popupDiv > form:not(.removeDefaultStyle), #popupDiv > div:not(.removeDefaultStyle) {
             color: black;
             width: 90%;
         }

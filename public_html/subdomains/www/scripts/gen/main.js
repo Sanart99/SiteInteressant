@@ -2288,7 +2288,17 @@ function getForumMainElem() {
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
                                 if (imgRegex.test(blob.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]);
+                                    const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
+                                    viewNode.replaceWith(imgNode);
+                                    imgNode.addEventListener('click',() => {
+                                        const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
+                                            <img src="$res/file/\${keyName}" />
+                                        </div>`)[0];
+                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); } );
+                                        pop.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+                                        popupDiv.insertAdjacentElement('beforeend',pop);
+                                        popupDiv.openTo('.imgBetterView');
+                                    });
                                 } else if (vidRegex.test(blob.type)) {
                                     viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
                                 } else {
