@@ -2228,7 +2228,7 @@ function getForumMainElem() {
                             --><button class="button1 code" type="button">Code</button>
                         </div>
                         <div>
-                            <input type="file" style="display:none;" />
+                            <input type="file" style="display:none;" multiple="true"/>
                             <button class="button1 file" type="button">Insérer un fichier</button>
                         </div>
                     </div>
