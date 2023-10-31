@@ -2108,7 +2108,7 @@ function getForumMainElem() {
         eFileInput.addEventListener('change', () => { inputFile(eFileInput.files); eFileInput.value = null; });
 
         function inputFile(filesToAdd) {
-            if (!Array.isArray(filesToAdd)) filesToAdd = [filesToAdd];
+            if (!isIterable(filesToAdd)) filesToAdd = [filesToAdd];
             
             for (const file of filesToAdd) {
                 if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
