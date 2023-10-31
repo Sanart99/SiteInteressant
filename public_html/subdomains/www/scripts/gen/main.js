@@ -281,9 +281,10 @@ function getIndexElems() {
         e.preventDefault();
         if (location.href == "$root/pages/forum") return;
         loadPage("$root/pages/forum",StateAction.PushState);
+        closeRightBar();
     });
-    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));
-    document.querySelector('#rightBar_optionsDiv_versionHistory').addEventListener('click',() => loadPage("$root/pages/versionhistory",StateAction.PushState));  
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => { loadPage("$root/pages/usersettings",StateAction.PushState); closeRightBar(); });
+    document.querySelector('#rightBar_optionsDiv_versionHistory').addEventListener('click',() => { loadPage("$root/pages/versionhistory",StateAction.PushState); closeRightBar(); });  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS
