@@ -1008,7 +1008,7 @@ function getForumMainElem() {
                     const sel = getSelection();
                     const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
                         `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
-                        : `[cite=\${citedUsername}]\${contentToText(stringToNodes(comment.node.content))}[/cite]`;
+                        : `[cite=\${citedUsername}]\${contentToText(commNodeMain.children)}[/cite]`;
                     
                     const textarea = replyFormDiv.querySelector('textarea');
                     const start = textarea.selectionStart;
