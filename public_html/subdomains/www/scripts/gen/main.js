@@ -1230,6 +1230,7 @@ function getForumMainElem() {
                         });
 
                         if (json.data.f.resultMessage == 'refresh') getRecentEvents();
+                        b = false;
                     });
                 });
 
