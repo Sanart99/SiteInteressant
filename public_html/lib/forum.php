@@ -410,6 +410,8 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
 
     ForumBuffer::storeComment($commentRow);
     $comment = Comment::initFromRow($commentRow);
+
+    if ($user->settings->forum_followThreadsOnComment) thread_follow($conn,$user,$threadId);
     return new OperationResult(SuccessType::SUCCESS, null, [$comment->nodeId], [$comment]);
 }
 

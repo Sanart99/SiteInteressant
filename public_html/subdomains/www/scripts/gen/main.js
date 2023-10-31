@@ -3573,6 +3573,7 @@ function getUserSettings() {
                 <div class="sectionContent">
                     <ul>
                         <li><input id="settings_forum_autoMarkPagesAsRead" name="forum_autoMarkPagesAsRead" type="checkbox" disabled><label for="settings_forum_autoMarkPagesAsRead">Automatiquement marquer les pages comme lu</label></li>
+                        <li><input id="settings_forum_followThreadsOnComment" name="forum_followThreadsOnComment" type="checkbox" disabled><label for="settings_forum_followThreadsOnComment">Automatiquement suivre un topic après l'avoir commenté</label></li>
                     </ul>
                 </div>
             </section>
@@ -3606,6 +3607,7 @@ function getUserSettings() {
     const globalSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input:not(.local)');
 
     const eForum_MarkPagesAsRead = document.querySelector('#settings_forum_autoMarkPagesAsRead');
+    const eForum_followThreadsOnComment = document.querySelector('#settings_forum_followThreadsOnComment');
     const eNotif = document.querySelector('#settings_notif');
     // const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
@@ -3638,6 +3640,7 @@ function getUserSettings() {
     }
     function loadInputVals() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
+        eForum_followThreadsOnComment.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
 
         eNotif.checked = localGet('settings_notifications') === 'true';
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;

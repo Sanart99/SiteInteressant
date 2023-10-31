@@ -1258,6 +1258,10 @@ class UserSettingsType extends ObjectType {
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->forum_autoMarkPagesAsRead)
                 ],
+                'forum_followThreadsOnComment' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->forum_followThreadsOnComment)
+                ],
                 'notificationsEnabled' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notificationsEnabled)
