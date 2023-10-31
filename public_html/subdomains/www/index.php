@@ -59,10 +59,8 @@ header('Content-Type: text/html');
 
         LinkInterceptor.addPreProcess('/forum/', (url,stateAction) => {
             if (document.querySelector('#mainDiv_forum') != null) return url;
-            console.log('a ' + url);
             const m = new RegExp('^<?=$root?>/forum(/\\d+?)?$').exec(url);
             if (m == null) return url;
-            console.log(m);
             return `<?=$root?>/pages/forum.php?urlEnd=${m[1]}`;
         },0);
 

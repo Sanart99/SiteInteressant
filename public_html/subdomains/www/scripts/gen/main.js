@@ -992,7 +992,6 @@ function getForumMainElem() {
                             }
                         }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                             if (!basicQueryResultCheck(json?.data?.f)) return null;
-                            console.log(json.data.f.comment.totalOctohitAmount);
                             let comment = json.data.f.comment;
 
                             // anim p value
@@ -1060,7 +1059,6 @@ function getForumMainElem() {
                         if (e != null) { e.classList.add('new'); e.querySelector('.statusIcons .new').style.display = ''; }
 
                         hoverForReadCD = 1;
-                        console.log(hoverForReadCD);
                         
                         to_notRead = setTimeout(() => { hoverForReadCD = 0; }, 1000);
                     });
