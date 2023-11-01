@@ -691,8 +691,15 @@ function getForumMainElem() {
             const eMaxPages = document.querySelector('#forumL .maxPages');
             eNPage.innerHTML = threads.pageInfo.currPage;
             eMaxPages.innerHTML = `/ <span class="nMaxPages">\${threads.pageInfo.pageCount}</span>`;
-            document.querySelector('#forumL .forum_footer .left').dataset.cursor = threads.pageInfo.startCursor;
-            document.querySelector('#forumL .forum_footer .right').dataset.cursor = threads.pageInfo.endCursor;
+
+            const first = document.querySelector('#forumL .forum_footer .first'); 
+            const left = document.querySelector('#forumL .forum_footer .left'); 
+            const right = document.querySelector('#forumL .forum_footer .right');
+            const last = document.querySelector('#forumL .forum_footer .last');
+            left.dataset.cursor = threads.pageInfo.startCursor;
+            right.dataset.cursor = threads.pageInfo.endCursor;
+            left.disabled = first.disabled = !threads.pageInfo.hasPreviousPage;
+            right.disabled = last.disabled = !threads.pageInfo.hasNextPage;
             
             if (!mobileMode) highlightThread(currThreadId);
         });
@@ -1332,10 +1339,14 @@ function getForumMainElem() {
                     e.querySelector('.nPage').innerHTML = comments.pageInfo.currPage;
                     e.querySelector('.nMaxPages').innerHTML = comments.pageInfo.pageCount;
 
+                    const first = e.querySelector('.first'); 
                     const left = e.querySelector('.left'); 
                     const right = e.querySelector('.right');
+                    const last = e.querySelector('.last'); 
                     left.dataset.cursor = comments.pageInfo.startCursor;
                     right.dataset.cursor = comments.pageInfo.endCursor;
+                    left.disabled = first.disabled = !comments.pageInfo.hasPreviousPage;
+                    right.disabled = last.disabled = !comments.pageInfo.hasNextPage;
                 }
             }
 
@@ -1854,10 +1865,16 @@ function getForumMainElem() {
                 if ((pageInfo.hasNextPage | pageInfo.hasPreviousPage) == true) {
                     for (const node of pagDivs) {
                         node.style.display = '';
-                        const left = node.querySelector('.left');
+
+                        const first = node.querySelector('.first'); 
+                        const left = node.querySelector('.left'); 
                         const right = node.querySelector('.right');
+                        const last = node.querySelector('.last'); 
                         left.dataset.cursor = pageInfo.startCursor;
                         right.dataset.cursor = pageInfo.endCursor;
+                        left.disabled = first.disabled = !pageInfo.hasPreviousPage;
+                        right.disabled = last.disabled = !pageInfo.hasNextPage;
+
                         node.querySelector('.nPage').innerHTML = pageInfo.currPage;
                         node.querySelector('.nMaxPages').innerHTML = pageInfo.pageCount;
                     }
@@ -2450,13 +2467,18 @@ function getForumMainElem() {
         font-size: 0.7rem;
         font-weight: bold;
     }
-    #mainDiv_forum .button1:hover {
+    #mainDiv_forum .button1:hover:not(:disabled) {
         background-color: #3b4151;
         border-color: var(--color-black-1);
     }
     #mainDiv_forum .button1 img {
         vertical-align: -0.4em;
         margin-right: 0.2rem;
+    }
+    #mainDiv_forum .button1:disabled {
+        border: 0;
+        outline: 0;
+        background-color: unset;
     }
     #mainDiv_forum .button2 {
         border: 0;
