@@ -2182,12 +2182,8 @@ function getForumMainElem() {
                             const start = replyFormTA.selectionStart;
                             let s1 = '';
                             for (const s of emoji.aliases) if (testAlias(s)) { s1 = s; break; }
-                            if (s1 == '') { replyFormTA.focus(); return; }
-
-                            replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start);
-                            replyFormTA.focus();
-                            replyFormTA.selectionStart = replyFormTA.selectionEnd = start+s1.length;
-                            replyForm.dispatchEvent(new InputEvent('input'));
+                            if (s1 == '') { return; }
+                            quickInputInsert(s1);
                         });
                     }
                 });
