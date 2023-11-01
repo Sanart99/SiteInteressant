@@ -329,7 +329,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         }
 
         if ($sEmoji != null) {
-            if (preg_match('/^[\w\?\!]$/',$char) == 0) {
+            if (preg_match('/^[^:\s]$/',$char) == 0) {
                 if ($char == ':') {
                     $sEmoji .= $char;
                     if ($useBufferManager) {
