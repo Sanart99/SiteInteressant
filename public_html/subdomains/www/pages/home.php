@@ -7,6 +7,7 @@ require_once $scriptsLib.'/gen/main.js';
 ob_end_clean();
 
 $root = get_root_link();
+$isAuth = (int)isset($_COOKIE['sid']);
 
 header('Content-Type: text/html');
 ?>
@@ -14,5 +15,7 @@ header('Content-Type: text/html');
 <?= getHomeMainDiv()['html']; ?>
 
 <script>
-    location.href = "<?=$root?>/forum";
+    if (<?=$isAuth?> === 1) {
+        location.href = "<?=$root?>/forum";
+    }
 </script>
