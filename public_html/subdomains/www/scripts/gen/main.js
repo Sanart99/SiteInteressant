@@ -387,6 +387,7 @@ function getIndexElems() {
         justify-content: center;
         color: white;
         font-size: 1.4rem;
+        flex-direction: row-reverse;
     }
     #rightBar_titleDiv > p {
         width: 88%;
