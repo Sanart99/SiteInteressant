@@ -6,6 +6,7 @@ async function loadGlobalSettings(fromServer=true) {
         viewer {
             settings {
                 forum_autoMarkPagesAsRead
+                forum_followThreadsOnComment
                 notificationsEnabled
                 notif_newThread
                 notif_newCommentOnFollowedThread
@@ -15,6 +16,7 @@ async function loadGlobalSettings(fromServer=true) {
         if (json?.data?.viewer?.settings == null) { basicQueryResultCheck(); return; }
         const settings = json.data.viewer.settings;
         localSet('settings_forum_autoMarkPagesAsRead',settings.forum_autoMarkPagesAsRead);
+        localSet('settings_forum_followThreadsOnComment',settings.forum_followThreadsOnComment);
         localSet('settings_notifications',settings.notificationsEnabled);
         localSet('settings_notif_newThread',settings.notif_newThread);
         localSet('settings_notif_newCommentOnFollowedThread',settings.notif_newCommentOnFollowedThread);

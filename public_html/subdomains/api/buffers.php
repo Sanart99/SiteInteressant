@@ -492,25 +492,27 @@ class UsersBuffer {
                 $alias = $v[1][0];
                 $userId = $v[1][1];
 
-                $row = $conn->query("SELECT * FROM emojis WHERE JSON_CONTAINS(aliases,'\"$alias\"') LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
-                if ($row === false || !isset(json_decode($row['aliases'])[0])) {
-                    $bufRes['emojis'][$alias] = null;
-                    $bufRes['usersEmojis'][$userId][$alias] = null;
-                    array_push($toRemove,$v);
-                    break;
-                }
-                $aliases = json_decode($row['aliases']);
-                $bufRes['emojis'][$aliases[0]] = ['data' => $row, 'metadata' => null];
+                $stmt = $conn->query("SELECT * FROM emojis WHERE JSON_CONTAINS(aliases,'\"$alias\"')");
+                while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+                    $aliases = json_decode($row['aliases']);
+                    if (!is_array($aliases)) continue;
 
-                $authorized = false;
-                foreach ($mandatoryEmojis as $s) if (str_starts_with($row['id'], $s)) { $authorized = true; break; }
-                if (!$authorized) {
-                    $row2 = $conn->query("SELECT * FROM users_emojis WHERE user_id=$userId AND emoji_id='{$row['id']}'")->fetch(\PDO::FETCH_ASSOC);
-                    if ($row2 != false) $authorized = true;
-                }
+                    foreach ($aliases as $al) {
+                        $bufRes['emojis'][$al] = ['data' => $row, 'metadata' => null];
 
-                if (!$authorized) $bufRes['usersEmojis'][$userId][$alias] = null;
-                else foreach ($aliases as $al) $bufRes['usersEmojis'][$userId][$al] =& $bufRes['emojis'][$aliases[0]];
+                        if ($userId > 0) {
+                            $authorized = false;
+                            foreach ($mandatoryEmojis as $s) if (str_starts_with($row['id'], $s)) { $authorized = true; break; }
+                            if (!$authorized) {
+                                $row2 = $conn->query("SELECT * FROM users_emojis WHERE user_id=$userId AND emoji_id='{$row['id']}'")->fetch(\PDO::FETCH_ASSOC);
+                                if ($row2 != false) $authorized = true;
+                            }
+
+                            if ($authorized) $bufRes['usersEmojis'][$userId][$al] =& $bufRes['emojis'][$al];
+                            else $bufRes['usersEmojis'][$userId][$al] = null;
+                        }
+                    }
+                }
                 
                 array_push($toRemove,$v);
                 break;

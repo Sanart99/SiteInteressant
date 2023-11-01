@@ -27,6 +27,9 @@ function getIndexElems() {
     </div>
     <div id="rightBar" style="display:none">
         <div id="rightBar_titleDiv">
+            <div id="rightBar_titleDiv_collapse">
+                <img src="$res/design/collapseRight.png" />
+            </div>
             <p></p>
         </div>
         <div id="rightBar_optionsDiv">
@@ -186,7 +189,7 @@ function getIndexElems() {
                                 <p class="title">\${record.thread.title}</p>
                                 <p class="description">\${currEvent.n} \${sComm}</p>
                             </a>`)[0];
-                            node.addEventListener('click',() => loadPage(node.href,StateAction.PushState));
+                            node.addEventListener('click',() => { loadPage(node.href,StateAction.PushState); closeRightBar(); } );
                             histCont.insertAdjacentElement('afterbegin',node);
                             break;
                     }
@@ -246,6 +249,7 @@ function getIndexElems() {
                             setRecentEventsN(--recentEventsN);
                         });
                     });
+                    closeRightBar();
                 });
                 node.addEventListener('mouseleave',() => { if (timeout != null) clearTimeout(timeout); timeout = null; });
                 notifCont.insertAdjacentElement('beforeend',node); 
@@ -264,6 +268,7 @@ function getIndexElems() {
     rightBar.addEventListener('mouseenter',() => { if (rbTimeout != null) clearTimeout(rbTimeout); });
     rightBar.addEventListener('mouseleave',() => { rbTimeout = setTimeout(closeRightBar, 150); });
     document.querySelector('#bodyDiv').addEventListener('click',closeRightBar);
+    document.querySelector('#rightBar_titleDiv_collapse').addEventListener('click',closeRightBar);
 
     document.querySelector('#rightBar_optionsDiv_editAvatar').addEventListener('click',(e) => {
         e.preventDefault();
@@ -276,9 +281,10 @@ function getIndexElems() {
         e.preventDefault();
         if (location.href == "$root/pages/forum") return;
         loadPage("$root/pages/forum",StateAction.PushState);
+        closeRightBar();
     });
-    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => loadPage("$root/pages/usersettings",StateAction.PushState));
-    document.querySelector('#rightBar_optionsDiv_versionHistory').addEventListener('click',() => loadPage("$root/pages/versionhistory",StateAction.PushState));  
+    document.querySelector('#rightBar_optionsDiv_userSettings').addEventListener('click',() => { loadPage("$root/pages/usersettings",StateAction.PushState); closeRightBar(); });
+    document.querySelector('#rightBar_optionsDiv_versionHistory').addEventListener('click',() => { loadPage("$root/pages/versionhistory",StateAction.PushState); closeRightBar(); });  
     document.querySelector('#rightBar_optionsDiv_disconnect').addEventListener('click',() => {
         popupDiv.insertAdjacentHTML('beforeend',`$getDisconnectElemHTML`);
         $getDisconnectElemJS
@@ -381,6 +387,23 @@ function getIndexElems() {
         justify-content: center;
         color: white;
         font-size: 1.4rem;
+        flex-direction: row-reverse;
+    }
+    #rightBar_titleDiv > p {
+        width: 88%;
+        text-align: center;
+    }
+    #rightBar_titleDiv_collapse {
+        background-color: #feb500;
+        width: 12%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #rightBar_titleDiv_collapse:hover {
+        background-color: #ffe193;
+        cursor: pointer;
     }
     #rightBar_optionsDiv a {
         display: flex;
@@ -658,15 +681,25 @@ function getForumMainElem() {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
                     e.href=`$root/forum/\${edge.node.dbId}`;
                 }
-                if (!edge.node.isRead) tr.querySelector('.statusIcons a div').insertAdjacentHTML('afterbegin', '<img class="new" src="{$res}/icons/recent.png"/>');
+
+                const nodeImgNew = stringToNodes('<img class="new" src="{$res}/icons/recent.png"/>')[0];
+                tr.querySelector('.statusIcons a div').insertAdjacentElement('afterbegin',nodeImgNew);
+                if (edge.node.isRead) nodeImgNew.style.display = 'none';
             }
 
             const eNPage = document.querySelector('#forumL .nPage');
             const eMaxPages = document.querySelector('#forumL .maxPages');
             eNPage.innerHTML = threads.pageInfo.currPage;
             eMaxPages.innerHTML = `/ <span class="nMaxPages">\${threads.pageInfo.pageCount}</span>`;
-            document.querySelector('#forumL .forum_footer .left').dataset.cursor = threads.pageInfo.startCursor;
-            document.querySelector('#forumL .forum_footer .right').dataset.cursor = threads.pageInfo.endCursor;
+
+            const first = document.querySelector('#forumL .forum_footer .first'); 
+            const left = document.querySelector('#forumL .forum_footer .left'); 
+            const right = document.querySelector('#forumL .forum_footer .right');
+            const last = document.querySelector('#forumL .forum_footer .last');
+            left.dataset.cursor = threads.pageInfo.startCursor;
+            right.dataset.cursor = threads.pageInfo.endCursor;
+            left.disabled = first.disabled = !threads.pageInfo.hasPreviousPage;
+            right.disabled = last.disabled = !threads.pageInfo.hasNextPage;
             
             if (!mobileMode) highlightThread(currThreadId);
         });
@@ -896,6 +929,8 @@ function getForumMainElem() {
                 const aFooter = [];
                 const aHidden = [];
 
+                let hoverForReadCD = 0;
+
                 // Footer: Kubes
                 const kubersIds = []; for (const o of comment.node.kubedBy) kubersIds.push(o.dbId);
                 const kubeDiv = getKubeDiv(async () => sendQuery(`mutation KubeComment (\$threadId:Int!, \$commNumber:Int!) {
@@ -966,7 +1001,6 @@ function getForumMainElem() {
                             }
                         }`,{threadId:threadDbId,commNumber:comment.node.number}).then((json) => {
                             if (!basicQueryResultCheck(json?.data?.f)) return null;
-                            console.log(json.data.f.comment.totalOctohitAmount);
                             let comment = json.data.f.comment;
 
                             // anim p value
@@ -1005,7 +1039,7 @@ function getForumMainElem() {
                     const sel = getSelection();
                     const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
                         `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
-                        : `[cite=\${citedUsername}]\${contentToText(stringToNodes(comment.node.content))}[/cite]`;
+                        : `[cite=\${citedUsername}]\${contentToText(commNodeMain.children)}[/cite]`;
                     
                     const textarea = replyFormDiv.querySelector('textarea');
                     const start = textarea.selectionStart;
@@ -1016,6 +1050,31 @@ function getForumMainElem() {
                 });
                 aFooter.push(nodeCite);
 
+                // Footer: MarkAsNotRead
+                const nodeMarkAsNotRead = stringToNodes('<a class="cite" href="#" onclick="return false;">Marquer en non lu</a>')[0];
+                let to_notRead = null;
+                nodeMarkAsNotRead.addEventListener('click',() => {
+                    sendQuery(`mutation MarkCommentsAsNotRead(\$threadId:Int!,\$commNumbers:[Int!]!) {
+                        f:forumThread_markCommentsAsNotRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
+                            success
+                            resultCode
+                            resultMessage
+                        }
+                    }`,{threadId:threadDbId,commNumbers:[comment.node.number]}).then((json) => {
+                        if (!basicQueryResultCheck(json?.data?.f)) return;
+                        if (to_notRead != null) clearTimeout(to_notRead);
+                        commentNode.classList.add('new');
+                        const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                        if (e != null) { e.classList.add('new'); e.querySelector('.statusIcons .new').style.display = ''; }
+
+                        hoverForReadCD = 1;
+                        
+                        to_notRead = setTimeout(() => { hoverForReadCD = 0; }, 1000);
+                    });
+                });
+                aHidden.push(nodeMarkAsNotRead);
+
+                // Footer: Edit
                 if (comment.node.canEdit) {
                     const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
                     nodeEdit.addEventListener('click',() => {
@@ -1075,6 +1134,7 @@ function getForumMainElem() {
                     else aHidden.push(nodeEdit);
                 }
                 
+                // Footer: Remove
                 if (comment.node.canRemove || json.data.node.canRemove) {
                     const nodeDel = stringToNodes('<a class="delete" href="#" onclick="return false;">Supprimer</a>')[0];
                     nodeDel.addEventListener('click',() => {
@@ -1198,7 +1258,7 @@ function getForumMainElem() {
                 // Events
                 let b = false;
                 if (!autoMarkPagesAsRead) commentNode.querySelector('.body').addEventListener('mouseover',() => {
-                    if (!commentNode.classList.contains('new') || b) return;
+                    if (!commentNode.classList.contains('new') || b || hoverForReadCD > 0) return;
                     b = true;
                     sendQuery(`mutation MarkCommentsAsRead (\$threadId:Int!, \$commNumbers:[Int!]!) {
                         f:forumThread_markCommentsAsRead(threadId:\$threadId,commentNumbers:\$commNumbers) {
@@ -1229,6 +1289,7 @@ function getForumMainElem() {
                         });
 
                         if (json.data.f.resultMessage == 'refresh') getRecentEvents();
+                        b = false;
                     });
                 });
 
@@ -1278,10 +1339,14 @@ function getForumMainElem() {
                     e.querySelector('.nPage').innerHTML = comments.pageInfo.currPage;
                     e.querySelector('.nMaxPages').innerHTML = comments.pageInfo.pageCount;
 
+                    const first = e.querySelector('.first'); 
                     const left = e.querySelector('.left'); 
                     const right = e.querySelector('.right');
+                    const last = e.querySelector('.last'); 
                     left.dataset.cursor = comments.pageInfo.startCursor;
                     right.dataset.cursor = comments.pageInfo.endCursor;
+                    left.disabled = first.disabled = !comments.pageInfo.hasPreviousPage;
+                    right.disabled = last.disabled = !comments.pageInfo.hasNextPage;
                 }
             }
 
@@ -1800,10 +1865,16 @@ function getForumMainElem() {
                 if ((pageInfo.hasNextPage | pageInfo.hasPreviousPage) == true) {
                     for (const node of pagDivs) {
                         node.style.display = '';
-                        const left = node.querySelector('.left');
+
+                        const first = node.querySelector('.first'); 
+                        const left = node.querySelector('.left'); 
                         const right = node.querySelector('.right');
+                        const last = node.querySelector('.last'); 
                         left.dataset.cursor = pageInfo.startCursor;
                         right.dataset.cursor = pageInfo.endCursor;
+                        left.disabled = first.disabled = !pageInfo.hasPreviousPage;
+                        right.disabled = last.disabled = !pageInfo.hasNextPage;
+
                         node.querySelector('.nPage').innerHTML = pageInfo.currPage;
                         node.querySelector('.nMaxPages').innerHTML = pageInfo.pageCount;
                     }
@@ -2060,7 +2131,7 @@ function getForumMainElem() {
         eFileInput.addEventListener('change', () => { inputFile(eFileInput.files); eFileInput.value = null; });
 
         function inputFile(filesToAdd) {
-            if (!Array.isArray(filesToAdd)) filesToAdd = [filesToAdd];
+            if (!isIterable(filesToAdd)) filesToAdd = [filesToAdd];
             
             for (const file of filesToAdd) {
                 if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
@@ -2129,12 +2200,8 @@ function getForumMainElem() {
                             const start = replyFormTA.selectionStart;
                             let s1 = '';
                             for (const s of emoji.aliases) if (testAlias(s)) { s1 = s; break; }
-                            if (s1 == '') { replyFormTA.focus(); return; }
-
-                            replyFormTA.value = msg.substring(0,start) + s1 + msg.substring(start);
-                            replyFormTA.focus();
-                            replyFormTA.selectionStart = replyFormTA.selectionEnd = start+s1.length;
-                            replyForm.dispatchEvent(new InputEvent('input'));
+                            if (s1 == '') { return; }
+                            quickInputInsert(s1);
                         });
                     }
                 });
@@ -2180,7 +2247,7 @@ function getForumMainElem() {
                             --><button class="button1 code" type="button">Code</button>
                         </div>
                         <div>
-                            <input type="file" style="display:none;" />
+                            <input type="file" style="display:none;" multiple="true"/>
                             <button class="button1 file" type="button">Insérer un fichier</button>
                         </div>
                     </div>
@@ -2236,7 +2303,17 @@ function getForumMainElem() {
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
                                 if (imgRegex.test(blob.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]);
+                                    const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
+                                    viewNode.replaceWith(imgNode);
+                                    imgNode.addEventListener('click',() => {
+                                        const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
+                                            <img src="$res/file/\${keyName}" />
+                                        </div>`)[0];
+                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); } );
+                                        pop.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+                                        popupDiv.insertAdjacentElement('beforeend',pop);
+                                        popupDiv.openTo('.imgBetterView');
+                                    });
                                 } else if (vidRegex.test(blob.type)) {
                                     viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
                                 } else {
@@ -2390,13 +2467,18 @@ function getForumMainElem() {
         font-size: 0.7rem;
         font-weight: bold;
     }
-    #mainDiv_forum .button1:hover {
+    #mainDiv_forum .button1:hover:not(:disabled) {
         background-color: #3b4151;
         border-color: var(--color-black-1);
     }
     #mainDiv_forum .button1 img {
         vertical-align: -0.4em;
         margin-right: 0.2rem;
+    }
+    #mainDiv_forum .button1:disabled {
+        border: 0;
+        outline: 0;
+        background-color: unset;
     }
     #mainDiv_forum .button2 {
         border: 0;
@@ -3525,6 +3607,7 @@ function getUserSettings() {
                 <div class="sectionContent">
                     <ul>
                         <li><input id="settings_forum_autoMarkPagesAsRead" name="forum_autoMarkPagesAsRead" type="checkbox" disabled><label for="settings_forum_autoMarkPagesAsRead">Automatiquement marquer les pages comme lu</label></li>
+                        <li><input id="settings_forum_followThreadsOnComment" name="forum_followThreadsOnComment" type="checkbox" disabled><label for="settings_forum_followThreadsOnComment">Automatiquement suivre un topic après l'avoir commenté</label></li>
                     </ul>
                 </div>
             </section>
@@ -3558,6 +3641,7 @@ function getUserSettings() {
     const globalSettings = document.querySelectorAll('#mainDiv_userSettings .sectionContent input:not(.local)');
 
     const eForum_MarkPagesAsRead = document.querySelector('#settings_forum_autoMarkPagesAsRead');
+    const eForum_followThreadsOnComment = document.querySelector('#settings_forum_followThreadsOnComment');
     const eNotif = document.querySelector('#settings_notif');
     // const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
@@ -3590,6 +3674,7 @@ function getUserSettings() {
     }
     function loadInputVals() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
+        eForum_followThreadsOnComment.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
 
         eNotif.checked = localGet('settings_notifications') === 'true';
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;

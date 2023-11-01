@@ -44,7 +44,7 @@ footer, header, hgroup, menu, nav, section) {
 	border-style: unset;
 	outline: unset;
 }
-:where(button:hover, input[type="submit"]:hover) {
+:where(button:hover, input[type="submit"]:hover):not(:disabled) {
 	cursor: pointer;
 }
 :where(p, h1, h2, h3, h4, h5, h6) {
