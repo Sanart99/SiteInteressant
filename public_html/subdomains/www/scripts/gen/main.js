@@ -3355,14 +3355,15 @@ function getForumMainElem() {
 }
 
 function getVersionHistoryElem() {
-    global $isAuth;
+    global $isAuth,$root,$res;
     return ['html' => <<<HTML
     <div id="mainDiv_versionHistory" class="authPadded" data-is-auth="$isAuth">
         <div id="versions">
             <button>0.1</button><!--
             --><button>0.1b</button><!--
             --><button>0.2</button><!--
-            --><button>0.3</button>
+            --><button>0.3</button><!--
+            --><button>1.0</button>
         </div>
         <div id="versionDescription"></div>
     </div>
@@ -3515,6 +3516,55 @@ function getVersionHistoryElem() {
                                 <h4>Messages d'erreurs</h4>
                                 <p>A partir de maintenant les messages d'erreur "Erreur Interne" sont beaucoup plus rare et vous aurez plutôt quelque chose de plus descriptif.</p>
                                 <p>Si vous tombez encore sur ce genre d'erreurs pendant une utilisation normale du site hésitez pas à me le dire car maintenant c'est très probablement quelque chose que j'ai zappé.</p>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
+            case '1.0':
+                div.innerHTML = `
+                    <h2>Version 1.0 <span>Sortie : 2 Novembre 2023</span></h2>
+                    <p class="subheader">— </p>
+                    <div class="main">
+                        <section>
+                            <h3>Général</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>L'apparence du site a été grandement améliorée.</li>
+                                    <li>Le site est maintenant une <a href="https://en.wikipedia.org/wiki/Progressive_web_app" target="_blank">Progressive Web App</a>.</li>
+                                    <li>Ajout de la page "Paramètres" et du bouton "Financer".</li>
+                                    <li>Ajout des notifications push, et les notifications du site vous notifie plus rapidement.</li>
+                                    <li>Les pages se chargent plus rapidement et la navigation a été améliorée.</li>
+                                    <li>Ajout de la case "Se souvenir de moi" pour rester connecté plus longtemps.</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>Ajout de la bannière.</li>
+                                    <li>Possibilité de kuber les commentaires.</li>
+                                    <li>Possibilité de frapper via les commentaires.</li>
+                                    <li>Des stats basiques sont maintenant affichés.</li>
+                                    <li>Possibilité d'uploader et télécharger des fichiers avec visualisation directe des images/vidéos uploadés dans les commentaires.</li>
+                                    <li>Ajout des gadgets Carte<img src="$res/design/balises/card.png"/> et Lettre<img src="$res/design/balises/letter.png"/><img src="$res/design/balises/conson.png"/><img src="$res/design/balises/vowel.png"/> (<a href="$root/forum/317" target="_blank">Guide d'utilisation</a>)</li>
+                                    <li>Possibilité de marquer les commentaires comme non-lu.</li>
+                                    <li>Les liens collés sont automatiquement écrit avec les balises Lien ([link]).</li>
+                                    <li>Les liens s'ouvrent dans un nouvel onglet.</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Paramètres</h3>
+                            <section>
+                                <h4>Nouveaux paramètres :</h4>
+                                <ul>
+                                    <li>Automatiquement marquer les pages comme lu</li>
+                                    <li>Automatiquement suivre un topic après l'avoir commenté</li>
+                                    <li>Contrôle des notifications pushs.</li>
+                                </ul>
                             </section>
                         </section>
                     </div>`.trim();
