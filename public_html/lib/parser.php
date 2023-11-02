@@ -462,7 +462,7 @@ function get_random_card_value($arg) {
             $min = $m[2] != null ? min((int)$m[1],(int)$m[2]) : (int)$m[1];
             $max = $m[2] != null ? max((int)$m[1],(int)$m[2]) : $min;
             if ($m[3] == null) {
-                for ($i=$min; $i<=$max; $i++) array_push($cards, $conv($i).' de Trèfle', $conv($i).' de Pique', $conv($i).' de Carreau', $conv($i).' de Coeur');
+                for ($i=$min; $i<=$max && $i<=13; $i++) array_push($cards, $conv($i).' de Trèfle', $conv($i).' de Pique', $conv($i).' de Carreau', $conv($i).' de Coeur');
             } else {
                 $aKind = explode(',',$m[3]);
                 foreach ($aKind as $s) switch (strtolower($s)) {
