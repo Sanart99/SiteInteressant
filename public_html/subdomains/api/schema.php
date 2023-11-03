@@ -737,7 +737,7 @@ class MutationType extends ObjectType {
                         $stmt->execute($valsThreads);
 
                         $conn->query('COMMIT');
-                        return true;
+                        return new OperationResult(SuccessType::SUCCESS);
                     }
                 ]
             ]
