@@ -3064,7 +3064,7 @@ function getForumMainElem() {
         max-height: 80px;
     }
     #forum_comments .body {
-        background-color: white;
+        background-color: #F4F3F2;
         margin: 0px 0.2rem 2.3rem 0.3rem;
         box-shadow: 0px 0px min(3px,0.2rem) 0px #00000088;
         padding: 0.6rem 0.5rem 0.4rem 5.9rem;
