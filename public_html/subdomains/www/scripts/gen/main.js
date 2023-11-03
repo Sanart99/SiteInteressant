@@ -1038,8 +1038,8 @@ function getForumMainElem() {
                     const citedUsername = commentNode.querySelector('.header .name').innerText;
                     const sel = getSelection();
                     const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
-                        `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
-                        : `[cite=\${citedUsername}]\${contentToText(commNodeMain.children)}[/cite]`;
+                        `[cite=\${citedUsername}]\${escapeCharacters(sel.toString())}[/cite]`
+                        : `[cite=\${citedUsername}]\${escapeCharacters(contentToText(commNodeMain.children))}[/cite]`;
                     
                     const textarea = replyFormDiv.querySelector('textarea');
                     const start = textarea.selectionStart;
@@ -2026,10 +2026,6 @@ function getForumMainElem() {
         const files = [];
         const objectURLs = new Map();
         let filesToUpload = {};
-
-        function escapeCharacters(s) {
-            return s.replaceAll(/[\\*\\/\\-\\[\\]]/g,(s) => '\\\\'+s);
-        }
         
         replyFormTA.addEventListener('input',() => {
             if (toReplyForm != null) clearTimeout(toReplyForm);
@@ -2398,6 +2394,9 @@ function getForumMainElem() {
             container.insertAdjacentElement('beforeend',node);
         }
         return o;
+    }
+    function escapeCharacters(s) {
+        return s.replaceAll(/[\\*\\/\\-\\[\\]:]/g,(s) => '\\\\'+s);
     }
 
     document.querySelector('.newThreadLoader').addEventListener('click',loadNewThreadForm);
