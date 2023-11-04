@@ -1038,8 +1038,8 @@ function getForumMainElem() {
                     const citedUsername = commentNode.querySelector('.header .name').innerText;
                     const sel = getSelection();
                     const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
-                        `[cite=\${citedUsername}]\${escapeCharacters(sel.toString())}[/cite]`
-                        : `[cite=\${citedUsername}]\${escapeCharacters(contentToText(commNodeMain.children))}[/cite]`;
+                        `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
+                        : `[cite=\${citedUsername}]\${contentToText(commNodeMain.children)}[/cite]`;
                     
                     const textarea = replyFormDiv.querySelector('textarea');
                     const start = textarea.selectionStart;
