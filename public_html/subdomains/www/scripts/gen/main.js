@@ -3056,12 +3056,12 @@ function getForumMainElem() {
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: black;
         transform: translate(-0%, -50%);
     }
     #forum_comments .avatar {
         max-width: 80px;
         max-height: 80px;
+        filter: drop-shadow(0.1em 0.1em 0.2em rgba(0, 0, 0, 0.3));
     }
     #forum_comments .body {
         background-color: #F4F3F2;
