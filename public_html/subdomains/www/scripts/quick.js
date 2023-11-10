@@ -80,8 +80,8 @@ function getDateAsString2(date) {
     const nowDate = new Date(Date.now());
     const daysDiff = hoursDiff / 24;
     const sDate = getDateAsString(date);
-    if (nowDate.getDate() == date.getDate()) return `Aujourd'hui à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
-    if (nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
+    if (nowDate.getDate() == date.getDate()) return `Aujourd'hui à \${sDate[4].substr(0,2)}:\${sDate[4].substr(3,2)}`;
+    if (nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,2)}:\${sDate[4].substr(3,2)}`;
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
 }
 

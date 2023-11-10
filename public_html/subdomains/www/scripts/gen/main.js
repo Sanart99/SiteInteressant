@@ -555,7 +555,7 @@ function getForumMainElem() {
         <div id="forum_content">
             <div id="forumL">
                 <div class="forum_mainBar">
-                    <div class="forum_mainBar_sub1"><p>Asile Intéressant</p></div>
+                    <div class="forum_mainBar_sub1"><p>arche intéressante</p></div>
                     <div class="forum_mainBar_sub2">
                         <div>
                             <button class="searchLoader button1" type="button"><img src="{$res}/icons/search.png"/></button><!--
