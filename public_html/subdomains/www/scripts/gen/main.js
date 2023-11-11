@@ -1921,7 +1921,7 @@ function getForumMainElem() {
         let sPreQuote = '';
         for (const node of s) {
             switch (node.nodeName) {
-                case '#text': res += node.textContent; break;
+                case '#text': res += escapeCharacters(node.textContent); break;
                 case 'IMG': res += node.alt; break;
                 case 'BR': res += '\\n'; break;
                 case 'B': res +=  '**' + contentToText(node.childNodes) + '**'; break;
