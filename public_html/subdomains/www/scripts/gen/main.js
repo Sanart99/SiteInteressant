@@ -87,11 +87,13 @@ function getIndexElems() {
     'js' => <<<JAVASCRIPT
     const topBar = document.querySelector('#topBar');
     const rightBar = document.querySelector('#rightBar');
+    let lastRefresh = 0;
 
     function openRightBar() {
         rightBar.setAttribute('open',1);
         topBarRSlideArea.style.cursor = 'default';
         topBarRSlideArea.dispatchEvent(new MouseEvent('mouseleave'));
+        if (Date.now() - lastRefresh >= 10000) getRecentEvents();
     }
     function closeRightBar() {
         rightBar.setAttribute('open',0);
@@ -101,6 +103,7 @@ function getIndexElems() {
     let gettingEvents = false;
     async function getRecentEvents() {
         if (gettingEvents) return; else gettingEvents = true;
+        lastRefresh = Date.now();
         const notifCont = rightBar.querySelector('#rightBar_recentEvents');
         const histCont = rightBar.querySelector('#rightBar_history > div');
         notifCont.innerHTML = '<p>Loading...</p>';
@@ -258,6 +261,9 @@ function getIndexElems() {
             setRecentEventsN(recentEventsN);
         });
     }
+    setInterval(() => {
+        if (Date.now() - lastRefresh >= 150000) getRecentEvents();
+    }, 300000);
 
     const topBarRSlideArea = document.querySelector('#topBar_r_slideArea');
     topBarRSlideArea.addEventListener('click',openRightBar);
