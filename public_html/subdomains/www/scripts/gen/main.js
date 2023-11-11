@@ -1399,7 +1399,7 @@ function getForumMainElem() {
                         loadThreads(20);
                         return true;
                     });
-                },'forum_replyText');
+                },`forum_replyText_\${threadId}`);
             });
             loadReplyForm('reply');
             replyFormDiv.classList.add('hide');
