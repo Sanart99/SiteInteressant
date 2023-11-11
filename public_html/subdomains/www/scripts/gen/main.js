@@ -1079,7 +1079,7 @@ function getForumMainElem() {
                     const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
                     nodeEdit.addEventListener('click',() => {
                         const replyFormId = `edit_\${comment.node.id}`;
-                        const titleId = replyFormId+'_title';
+                        const titleId = `edit_title_\${comment.node.id}`; // replyFormId+'_title';
                         if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
 
                         commentNode.classList.add('selected');
@@ -1091,8 +1091,8 @@ function getForumMainElem() {
                                     </div>`)[0];
                                     div.querySelector('.replyForm').insertAdjacentElement('afterbegin',nodeTitle);
                                     const input = nodeTitle.querySelector('#editThread_title');
-                                    input.value = sessionGet('title') ?? json.data.node.title;
-                                    input.addEventListener('input',() => sessionSet('title',input.value));
+                                    input.value = sessionGet(titleId) ?? json.data.node.title;
+                                    input.addEventListener('input',() => sessionSet(titleId,input.value));
                                 }
                                 div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
                                 setupReplyForm(div,async (e) => {
