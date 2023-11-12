@@ -2090,8 +2090,17 @@ function getForumMainElem() {
         
         replyForm.addEventListener('submit',async (e) => {
             e.preventDefault();
+
+            let preventPageLeave = (e) => {
+                e.preventDefault();
+                return "The message isn't done being sent. Leave anyway?";
+            };
+
+            if (!isObjEmpty(filesToUpload)) addEventListener('beforeunload',preventPageLeave);
+
             const res = await onSubmit(e,filesToUpload);
             if (contentSaveName != null && res === true) sessionRem(contentSaveName);
+            removeEventListener('beforeunload',preventPageLeave);
         });
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
