@@ -85,6 +85,11 @@ function getDateAsString2(date) {
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
 }
 
+function isObjEmpty(obj) {
+    for (var prop in obj) if (Object.prototype.hasOwnProperty.call(obj, prop)) return false;
+    return true
+}
+
 async function isServerInTestMode() {
     return await sendQuery(`query { testMode }`).then((json) => json?.data?.testMode == true);
 }
