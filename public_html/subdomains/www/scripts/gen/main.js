@@ -1661,7 +1661,7 @@ function getForumMainElem() {
         </div>
         <form id="searchForm">
             <div class="parameters">
-                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords" pattern="^[\\\\w\\\\+\\\\~\\\\-,\\\\s]+$"/>
+                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords" pattern="^[^\`]+$"/>
                 <label for="search_threadType">Type de topic :</label><div>
                     <input id="searchForm_threadType_standard" name="threadType" type="radio" value="Standard" checked="true"/><label for="searchForm_threadType_standard">SiteInteressant</label>
                     <input id="searchForm_threadType_twinoid" name="threadType" type="radio" value="Twinoid"/><label for="searchForm_threadType_twinoid">Twinoid</label>
