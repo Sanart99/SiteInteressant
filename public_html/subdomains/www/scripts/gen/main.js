@@ -570,6 +570,10 @@ function getForumMainElem() {
                         </div>
                     </div>
                 </div>
+                <div id="forum_threadsFilter">
+                    <input id="forum_threadsFilter_notReadOnly" type="checkbox" name="onlyNotRead"/><!--
+                    --><label for="forum_threadsFilter_notReadOnly" >Afficher uniquement les topics non lus.</label>
+                </div>
                 <table id="forum_threads">
                     <thead>
                         <tr>
@@ -608,14 +612,15 @@ function getForumMainElem() {
     'js' => <<<JAVASCRIPT
     const forumR = document.querySelector('#forumR');
     const forumL = document.querySelector('#forumL');
+    const eThreadNotReadOnly = document.querySelector('#forum_threadsFilter_notReadOnly');
     let mobileMode = false;
     let currThreadId = null;
 
     function loadThreads(first,last,after,before,skipPages) {
         if (skipPages == null) skipPages = 0;
-        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int,\$onlyNotRead:Boolean!) {
             forum {
-                threads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true) {
+                threads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true,onlyNotRead:\$onlyNotRead) {
                     edges {
                         node {
                             id
@@ -651,7 +656,7 @@ function getForumMainElem() {
                     }
                 }
             }
-        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((json) => {
+        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages,onlyNotRead:eThreadNotReadOnly.checked}).then((json) => {
             if (json?.data?.forum?.threads?.edges == null) { basicQueryResultCheck(); return; }
             const tBody = document.querySelector('#forum_threads tbody');
             const threads = json.data.forum.threads;
@@ -2421,6 +2426,7 @@ function getForumMainElem() {
         if (isNaN(pageNumber)) return;
         loadThreads(20,null,null,null,pageNumber-1);
     });
+    eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));
 
     loadThreads(20);
 
@@ -3185,7 +3191,7 @@ function getForumMainElem() {
         font-size: 0.7rem;
     }
     #mainDiv_forum .forum_mainBar {
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
         box-shadow: 0px 0px 0.2rem rgba(0,0,0,0.35);
     }
     #mainDiv_forum .forum_mainBar_sub1 {
@@ -3322,6 +3328,17 @@ function getForumMainElem() {
     #mainDiv_forum .octohitDiv .octohitDiv_mid p {
         color: darkRed;
         line-height: 1.1;
+    }
+    #forum_threadsFilter {
+        font-size: 0.7rem;
+        display: flex;
+        align-items: center;
+        margin: 0px 0px 0.4em 0px;
+    }
+    #forum_threadsFilter input[type="checkbox"] {
+        margin: 0px 0.3em;
+        width: 0.9em;
+        height: 0.9em;
     }
     @media screen and (max-width: 800px) {
         #forumR, #forumL{

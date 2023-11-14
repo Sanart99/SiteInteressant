@@ -1335,7 +1335,8 @@ class ForumType extends ObjectType {
                         'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
                         'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ],
                         'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
-                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0],
+                        'onlyNotRead' => ['type' => Type::nonNull(Type::boolean()), 'defaultValue' => false]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         $user = Context::getAuthenticatedUser();
@@ -1344,6 +1345,7 @@ class ForumType extends ObjectType {
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                         $pag->sortBy = $args['sortBy']??'';
                         $pag->skipPages = $args['skipPages'];
+                        $pag->data['onlyNotRead'] = $args['onlyNotRead'];
                         ForumBuffer::requestThreads($pag,$user->id);
                         return quickReactPromise(function() use($o,$args,$pag,$ri,&$user) {
                             return ForumBuffer::getThreads($pag,$user->id);

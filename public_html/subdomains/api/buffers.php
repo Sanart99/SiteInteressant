@@ -662,7 +662,11 @@ class ForumBuffer {
                     $sRegistrationDate = $user->registrationDate->format('Y-m-d H:i:s');
                 }
 
-                $whereCond = $user->titles->contains('oldInteressant') ?  '' : "creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."'";
+                $whereCond = $user->titles->contains('oldInteressant') ?  '' : "(creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."')";
+                if ($pag->data['onlyNotRead']??false) {
+                    if ($whereCond != '') $whereCond .= ' AND ';
+                    $whereCond .= "JSON_CONTAINS(read_by,$userId)=0";
+                }
 
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
