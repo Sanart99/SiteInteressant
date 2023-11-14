@@ -11,6 +11,7 @@ class PaginationVals {
     public bool $requestPageCount;
     public bool $lastPageSpecialBehavior;
     public int $skipPages = 0;
+    public array $data = [];
     private ?string $after;
     private ?string $before;
     private string $s;
@@ -23,24 +24,24 @@ class PaginationVals {
         $this->before = $before;
         $this->requestPageCount = $requestPageCount;
         $this->lastPageSpecialBehavior = $lastPageSpecialBehavior;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy,$this->data);
     }
 
     public function setAfterCursor(string $after) {
         $this->after = $after;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy,$this->data);
     }
 
     public function setBeforeCursor(string $before) {
         $this->before = $before;
-        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy);
+        $this->s = self::asString($this->first,$this->last,$this->after,$this->before,$this->sortBy,$this->data);
     }
 
     public function getAfterCursor() { return $this->after; }
     public function getBeforeCursor() { return $this->before; }
     public function getString() { return $this->s; }
 
-    public static function asString(?int $first, ?int $last, ?string $after, ?string $before, ?string $sortBy):string {
+    public static function asString(?int $first, ?int $last, ?string $after, ?string $before, ?string $sortBy, ?array $data):string {
         $s = '';
         if ($first != null && $first > 0) $s .= "f-{$first}";
         else if ($last != null && $last > 0) $s .= "l-{$last}";
@@ -50,6 +51,8 @@ class PaginationVals {
         else if ($before != null) $s .= "-b-{$before}";
 
         if ($sortBy!=null) $s .= "-sort:$sortBy";
+
+        if ($data != null) $s .= '-data:'.implode('|',$data);
 
         return $s;
     }
