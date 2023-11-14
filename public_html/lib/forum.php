@@ -505,6 +505,11 @@ function mark_all_threads_as_read(LDPDO $conn, RegisteredUser $user):OperationRe
     return new OperationResult(SuccessType::SUCCESS);
 }
 
+function mark_thread_as_read(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
+    $conn->query("UPDATE comments SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE thread_id=$threadId AND JSON_CONTAINS(read_by,{$user->id})=0");
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
 function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, array $commNumbers):OperationResult {
     if (count($commNumbers) == 0) return new OperationResult(SuccessType::SUCCESS);
     $conn->query('START TRANSACTION');
