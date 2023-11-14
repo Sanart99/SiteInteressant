@@ -491,6 +491,20 @@ function check_can_remove_comment(LDPDO $conn, RegisteredUser $user, int $thread
     return $minutes < 1.5;
 }
 
+function mark_all_threads_as_read(LDPDO $conn, RegisteredUser $user):OperationResult {
+    $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+
+    $row = $conn->query("SELECT * FROM records WHERE user_id={$user->id} AND action_group='forum' AND action='markAllThreadsAsRead' ORDER BY date DESC LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($row !== false && (strtotime($sNow) - strtotime($row['date'])) < 36000) return new OperationResult(ErrorType::PROHIBITED, 'Wait 10 hours before marking all threads as read again.');
+
+    $conn->query('START TRANSACTION');
+    $conn->query("UPDATE comments SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE JSON_CONTAINS(read_by,{$user->id})=0");
+    $conn->query("INSERT INTO records (user_id,action_group,action,date) VALUES ({$user->id},'forum','markAllThreadsAsRead','$sNow')");
+    $conn->query('COMMIT');
+
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
 function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, array $commNumbers):OperationResult {
     if (count($commNumbers) == 0) return new OperationResult(SuccessType::SUCCESS);
     $conn->query('START TRANSACTION');

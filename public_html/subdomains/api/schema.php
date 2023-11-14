@@ -53,7 +53,7 @@ use function LDLib\Forum\{
     kube_thread, unkube_thread, kube_comment, unkube_comment, octohit_comment,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment,
-    thread_mark_comments_as_read, thread_mark_comments_as_notread,
+    mark_all_threads_as_read, thread_mark_comments_as_read, thread_mark_comments_as_notread,
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
@@ -345,6 +345,14 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
+                    }
+                ],
+                'forumThread_markAllThreadsAsRead' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'resolve' => function() {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return mark_all_threads_as_read(DBManager::getConnection(),$user);
                     }
                 ],
                 'forumThread_markCommentsAsRead' => [
