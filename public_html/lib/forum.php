@@ -169,8 +169,8 @@ function create_thread(LDPDO $conn, RegisteredUser $user, string $title, array $
     $conn->query('START TRANSACTION');
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
 
-    $stmt = $conn->prepare('INSERT INTO threads (author_id,title,tags,creation_date,last_update_date,permission,following_ids) VALUES (?,?,?,?,?,?,?) RETURNING *');
-    $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value,"[$user->id]"]);
+    $stmt = $conn->prepare('INSERT INTO threads (author_id,title,tags,creation_date,last_update_date,permission,following_ids,read_by) VALUES (?,?,?,?,?,?,?,?) RETURNING *');
+    $stmt->execute([$user->id,$title,implode(',',$tags),$sNow,$sNow,$permission->value,"[$user->id]","[$user->id]"]);
     $threadRow = $stmt->fetch(\PDO::FETCH_ASSOC);
 
     $stmt = $conn->prepare('INSERT INTO comments (thread_id,number,author_id,content,creation_date,read_by) VALUES (?,?,?,?,?,?) RETURNING *');
@@ -353,7 +353,8 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     $aDetails = ['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']];
 
     // update thread
-    $conn->query("UPDATE threads SET last_update_date='$sNow' WHERE id=$threadId LIMIT 1");
+    $conn->query("UPDATE threads SET last_update_date='$sNow', read_by='[]' WHERE id=$threadId LIMIT 1");
+    $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");
 
     // add record
     $rowThread = $conn->query("SELECT * FROM threads WHERE id=$threadId LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
@@ -436,8 +437,10 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
         ':threadId' => $threadId
     ];
     if ($title != null && $commentRow['number'] == 0) { $v[':title'] = $title; $sSet .= ', title=:title'; }
-    $stmt = $conn->prepare("UPDATE threads SET $sSet WHERE id=:threadId LIMIT 1");
+    $stmt = $conn->prepare("UPDATE threads SET $sSet, read_by='[]' WHERE id=:threadId LIMIT 1");
     $stmt->execute($v);
+
+    $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");
 
     // Insert record
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
@@ -474,6 +477,9 @@ function thread_remove_comment(LDPDO $conn, RegisteredUser $user, int $threadId,
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
     $stmt->execute([$user->id,'forum','remComment',json_encode(['threadId' => $commentRow['thread_id'], 'commentNumber' => $commentRow['number']]),$sNow]);
 
+    $userIds = json_decode($conn->query('SELECT read_by FROM threads')->fetch(\PDO::FETCH_NUM)[0]);
+    foreach ($userIds as $userId) $conn->query("CALL threads_upd_readBy($threadId, $userId)");
+
     $conn->query('COMMIT');
     $comment = Comment::initFromRow($commentRow);
     ForumBuffer::forgetComment($comment->nodeId);
@@ -498,6 +504,7 @@ function mark_all_threads_as_read(LDPDO $conn, RegisteredUser $user):OperationRe
     if ($row !== false && (strtotime($sNow) - strtotime($row['date'])) < 36000) return new OperationResult(ErrorType::PROHIBITED, 'Wait 10 hours before marking all threads as read again.');
 
     $conn->query('START TRANSACTION');
+    $conn->query("UPDATE threads SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE JSON_CONTAINS(read_by,{$user->id})=0");
     $conn->query("UPDATE comments SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE JSON_CONTAINS(read_by,{$user->id})=0");
     $conn->query("INSERT INTO records (user_id,action_group,action,date) VALUES ({$user->id},'forum','markAllThreadsAsRead','$sNow')");
     $conn->query('COMMIT');
@@ -506,7 +513,10 @@ function mark_all_threads_as_read(LDPDO $conn, RegisteredUser $user):OperationRe
 }
 
 function mark_thread_as_read(LDPDO $conn, RegisteredUser $user, int $threadId):OperationResult {
+    $conn->query('START TRANSACTION');
+    $conn->query("UPDATE threads SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE id=$threadId AND JSON_CONTAINS(read_by,{$user->id})=0");
     $conn->query("UPDATE comments SET read_by=JSON_ARRAY_APPEND(read_by,'\$',{$user->id}) WHERE thread_id=$threadId AND JSON_CONTAINS(read_by,{$user->id})=0");
+    $conn->query('COMMIT');
     return new OperationResult(SuccessType::SUCCESS);
 }
 
@@ -531,6 +541,8 @@ function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $th
 
     $stmt = $conn->query("DELETE FROM notifications WHERE user_id={$user->id} AND JSON_CONTAINS(details,'$threadId','\$.threadId')=1 AND JSON_CONTAINS(details,'{$commNumbers[0]}','\$.commentNumber')=1");
     $msg = ($stmt->rowCount() > 0) ? 'refresh' : '';
+
+    $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");
     
     $conn->query('COMMIT');
     return new OperationResult(SuccessType::SUCCESS,$msg);
@@ -546,7 +558,10 @@ function thread_mark_comments_as_notread(LDPDO $conn, RegisteredUser $user, int 
         $sqlWhere .= "number=$n";
     }
     $stmt = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND ($sqlWhere)");
+    $i = 0;
     while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+        if ($i++ == 0) $conn->query("UPDATE threads SET read_by=JSON_REMOVE(read_by,JSON_UNQUOTE(JSON_SEARCH(read_by,'one',{$user->id}))) WHERE id=$threadId AND JSON_CONTAINS(read_by,{$user->id})=1");
+        
         $readBy = json_decode($row['read_by']);
         if (!in_array($user->id,$readBy)) continue;
 
