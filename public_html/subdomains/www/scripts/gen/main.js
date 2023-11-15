@@ -1092,6 +1092,8 @@ function getForumMainElem() {
                 if (comment.node.canEdit) {
                     const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
                     nodeEdit.addEventListener('click',() => {
+                        for (const e of forumR.querySelectorAll('.comment')) if (e.classList.contains('selected') && e != commentNode) e.classList.remove('selected');
+
                         const replyFormId = `edit_\${comment.node.id}`;
                         const titleId = `edit_title_\${comment.node.id}`; // replyFormId+'_title';
                         if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
