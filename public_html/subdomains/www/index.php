@@ -31,7 +31,7 @@ header('Content-Type: text/html');
 		<link rel="stylesheet" href="<?php echo $root ?>/style.css" type="text/css">
         <link rel="manifest" href="<?php echo $root ?>/manifest.webmanifest" />
         <link rel="icon" href="<?php echo $res ?>/icons/icon_interessant.svg"/>
-        <title>Site Interessant</title>
+        <title>Site Intéressant</title>
 
         <?php foreach ($scriptsToLoad as $s) echo "<script src=\"$root/scripts/$s\"></script>" ?>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
