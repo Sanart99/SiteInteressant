@@ -85,6 +85,11 @@ function getDateAsString2(date) {
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
 }
 
+function setNumberInTitle(n) {
+    const m = new RegExp('^(?:\\\((\\\d+)\\\))?\\\s*(.*)$').exec(document.title);
+    document.title = (n > 0 ? `(\${n}) ` : '') + m[2];
+}
+
 function isObjEmpty(obj) {
     for (var prop in obj) if (Object.prototype.hasOwnProperty.call(obj, prop)) return false;
     return true
