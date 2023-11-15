@@ -176,7 +176,8 @@ function getIndexElems() {
                     e.style.display = '';
                     const ss = n > 1 ? 'notifications' : 'notification';
                     e.innerHTML = `<p>\${n} \${ss}</p>`;
-                } else e.style.display = 'none';  
+                } else e.style.display = 'none';
+                setNumberInTitle(n);
             }
 
             const history = {};
