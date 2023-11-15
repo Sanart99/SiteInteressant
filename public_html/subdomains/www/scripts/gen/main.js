@@ -1292,11 +1292,7 @@ function getForumMainElem() {
                         }`,{threadId:threadId}).then((json) => {
                             if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                             if (json.data.node.isRead == false) return;
-                            const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
-                            if (e != null) {
-                                e.classList.remove('new');
-                                e.querySelector('.statusIcons .new').style.display = 'none';
-                            }
+                            removeThreadNewIcon();
                         });
 
                         if (json.data.f.resultMessage == 'refresh') getRecentEvents();
@@ -1329,12 +1325,7 @@ function getForumMainElem() {
                     }`,{threadId:threadId}).then((json) => {
                         if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                         if (json.data.node.isRead == false) return;
-                        const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
-                        if (e != null) {
-                            e.classList.remove('new');
-                            const eNew = e.querySelector('.statusIcons .new');
-                            if (eNew != null) eNew.style.display = 'none';
-                        }
+                        removeThreadNewIcon();
                     });
 
                     if (json.data.f.resultMessage == 'refresh') getRecentEvents();
@@ -1484,6 +1475,13 @@ function getForumMainElem() {
             } else {
                 for (const cont of document.querySelectorAll('#forumR .actions'))
                     cont.insertAdjacentElement('beforeend',getFollowButton());
+            }
+            function removeThreadNewIcon() {
+                const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                if (e == null) return;
+                e.classList.remove('new');
+                const eNew = e.querySelector('.statusIcons .new');
+                if (eNew != null) eNew.style.display = 'none';
             }
 
             if (pushState) {
