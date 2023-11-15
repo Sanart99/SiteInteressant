@@ -729,6 +729,7 @@ function getForumMainElem() {
                     title
                     followingIds
                     canRemove
+                    isRead
                     kubedBy {
                         dbId
                         name
@@ -1078,6 +1079,8 @@ function getForumMainElem() {
                         const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
                         if (e != null) { e.classList.add('new'); e.querySelector('.statusIcons .new').style.display = ''; }
 
+                        displayButMarkThreadAsRead(true);
+
                         hoverForReadCD = 1;
                         
                         to_notRead = setTimeout(() => { hoverForReadCD = 0; }, 1000);
@@ -1293,6 +1296,7 @@ function getForumMainElem() {
                             if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                             if (json.data.node.isRead == false) return;
                             removeThreadNewIcon();
+                            displayButMarkThreadAsRead(false);
                         });
 
                         if (json.data.f.resultMessage == 'refresh') getRecentEvents();
@@ -1326,6 +1330,7 @@ function getForumMainElem() {
                         if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                         if (json.data.node.isRead == false) return;
                         removeThreadNewIcon();
+                        displayButMarkThreadAsRead(false);
                     });
 
                     if (json.data.f.resultMessage == 'refresh') getRecentEvents();
@@ -1422,6 +1427,30 @@ function getForumMainElem() {
                     for (const e of document.querySelectorAll('#forum_comments .comment.selected')) e.classList.remove("selected");
                     loadReplyForm('reply');
                 });
+
+                if (json.data.node.followingIds.includes(json.data.viewer.dbId)) cont.insertAdjacentElement('beforeend',getUnfollowButton());                 
+                else cont.insertAdjacentElement('beforeend',getFollowButton());
+
+                const markThreadAsRead = stringToNodes('<button class="button1 markThreadAsRead" type="button"><p>Marquer comme lu</p></button>')[0];
+                markThreadAsRead.style.display = json.data.node.isRead ? 'none' : '';
+                cont.insertAdjacentElement('beforeend',markThreadAsRead);
+                markThreadAsRead.addEventListener('click', () => {
+                    markThreadAsRead.disabled = true;
+                    sendQuery(`mutation MarkThreadAsRead(\$threadDbId:Int!) {
+                        f:forumThread_markThreadAsRead(threadId:\$threadDbId) {
+                            success
+                            resultCode
+                        }
+                    }`,{threadDbId:threadDbId}).then((json) => {
+                        markThreadAsRead.disabled = false;
+                        if (!basicQueryResultCheck(json.data.f)) return;
+                        for (const e of eUnreadComments) e.classList.remove('new');
+                        displayButMarkThreadAsRead(false);
+                        removeThreadNewIcon();
+
+                        getRecentEvents(); //! should know when to do it
+                    });
+                });
             }
             function getFollowButton() {
                 const e = stringToNodes('<button class="button1 follow" type="button"><p><img src="{$res}/icons/mail.png" />Suivre</p></button>')[0];
@@ -1469,19 +1498,15 @@ function getForumMainElem() {
                 });
                 return e;
             }
-            if (json.data.node.followingIds.includes(json.data.viewer.dbId)) {
-                for (const cont of document.querySelectorAll('#forumR .actions'))
-                    cont.insertAdjacentElement('beforeend',getUnfollowButton());                 
-            } else {
-                for (const cont of document.querySelectorAll('#forumR .actions'))
-                    cont.insertAdjacentElement('beforeend',getFollowButton());
-            }
             function removeThreadNewIcon() {
                 const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
                 if (e == null) return;
                 e.classList.remove('new');
                 const eNew = e.querySelector('.statusIcons .new');
                 if (eNew != null) eNew.style.display = 'none';
+            }
+            function displayButMarkThreadAsRead(b = true) {
+                forumR.querySelectorAll('.markThreadAsRead').forEach((e) => e.style.display = b ? '' : 'none');
             }
 
             if (pushState) {
@@ -3205,6 +3230,9 @@ function getForumMainElem() {
         background-color: #B63B00;
         opacity: 0.83;
         padding: 0.4rem;
+    }
+    #mainDiv_forum .actions .button1 {
+        height: 1.5rem;
     }
     #mainDiv_forum .subheader .infos1 {
         font-size: 0.8em;
