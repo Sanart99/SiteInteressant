@@ -1111,6 +1111,11 @@ function getForumMainElem() {
                                     input.addEventListener('input',() => sessionSet(titleId,input.value));
                                 }
                                 div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
+                                div.querySelector('.optDiv').insertAdjacentHTML('beforeend', `<div>
+                                    <label for="opt_markAsUnreadToUsers_\${comment.node.id}">Marquer ce commentaire en non lu pour les autres : </label><!--
+                                    --><input id="opt_markAsUnreadToUsers_\${comment.node.id}" class="opt_markAsUnreadToUsers" type="checkbox" name="markAsUnreadToUsers">
+                                </div>`);
+
                                 setupReplyForm(div,async (e,moreData) => {
                                     e.preventDefault();
                                     const submitButton = e.target.querySelector('input[type="submit"]');
@@ -1119,14 +1124,15 @@ function getForumMainElem() {
 
                                     const data = new FormData(e.target);
                                     const title = data.get('title');
-                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
-                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
+                                    const markAsUnreadToUsers = data.get('markAsUnreadToUsers') === 'on';
+                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!,\$markAsUnreadToUsers:Boolean!) {
+                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content,markAsUnreadToUsers:\$markAsUnreadToUsers) {
                                             __typename
                                             success
                                             resultCode
                                             resultMessage
                                         }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")},null,null,null,moreData).then((json) => {
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg"),markAsUnreadToUsers:markAsUnreadToUsers},null,null,null,moreData).then((json) => {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
@@ -2308,7 +2314,9 @@ function getForumMainElem() {
                     </div>
                     <textarea name="msg"></textarea>
                     <div class="optDiv">
-                        <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                        <div>
+                            <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                        </div>
                     </div>
                     <div class="emojisDiv">
                         <div class="emojisButtons"></div>

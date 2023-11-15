@@ -327,12 +327,13 @@ class MutationType extends ObjectType {
                         'threadId' => Type::nonNull(Type::int()),
                         'commentNumber' => Type::nonNull(Type::int()),
                         'content' => Type::nonNull(Type::string()),
-                        'title' => Type::string()
+                        'title' => Type::string(),
+                        'markAsUnreadToUsers' => ['type' => Type::nonNull(Type::boolean()), 'defaultValue' => false]
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
-                        return thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null);
+                        return thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null,$args['markAsUnreadToUsers']);
                     }
                 ],
                 'forumThread_removeComment' => [

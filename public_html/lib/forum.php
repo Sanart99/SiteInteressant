@@ -416,7 +416,7 @@ function thread_add_comment(LDPDO $conn, RegisteredUser $user, int $threadId, st
     return new OperationResult(SuccessType::SUCCESS, null, [$comment->nodeId], [$comment]);
 }
 
-function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg, ?string $title = null):OperationResult {
+function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber, string $msg, ?string $title=null, bool $markAsUnreadToUsers=false):OperationResult {
     if (mb_strlen($msg) === 0) return new OperationResult(ErrorType::INVALID_DATA, 'The content must contain at least one character.');
     if (mb_strlen($msg) > 6000) return new OperationResult(ErrorType::INVALID_DATA, 'The content must not contain more than 6000 characters.');
 
@@ -426,8 +426,19 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
     if (!check_can_edit_comment($conn,$user,$threadId,$commNumber,$now)) return new OperationResult(ErrorType::PROHIBITED, "This comment can't be edited.");
 
     // Edit comment
-    $stmt = $conn->prepare("UPDATE comments SET content=?, last_edition_date=?, read_by=? WHERE thread_id=? AND number=? LIMIT 1");
-    $stmt->execute([textToHTML($user->id, $msg, true),$sNow,json_encode([$user->id]),$threadId,$commNumber]);
+    $sqlChange = 'content=:content, last_edition_date=:lastEditionDate';
+    $sqlVals = [
+        ':content' => textToHTML($user->id, $msg, true),
+        ':lastEditionDate' => $sNow,
+        ':threadId' => $threadId,
+        ':number' => $commNumber
+    ];
+    if ($markAsUnreadToUsers) {
+        $sqlChange .= ', read_by=:readBy';
+        $sqlVals[':readBy'] = json_encode([$user->id]);
+    }
+    $stmt = $conn->prepare("UPDATE comments SET $sqlChange WHERE thread_id=:threadId AND number=:number LIMIT 1");
+    $stmt->execute($sqlVals);
     $commentRow = $conn->query("SELECT * FROM comments WHERE thread_id=$threadId AND number=$commNumber LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
 
     // Update thread data
@@ -437,10 +448,10 @@ function thread_edit_comment(LDPDO $conn, RegisteredUser $user, int $threadId, i
         ':threadId' => $threadId
     ];
     if ($title != null && $commentRow['number'] == 0) { $v[':title'] = $title; $sSet .= ', title=:title'; }
-    $stmt = $conn->prepare("UPDATE threads SET $sSet, read_by='[]' WHERE id=:threadId LIMIT 1");
+    if ($markAsUnreadToUsers) { $v[':readBy'] = '[]'; $sSet .= ', read_by=:readBy'; }
+    $stmt = $conn->prepare("UPDATE threads SET $sSet WHERE id=:threadId LIMIT 1");
     $stmt->execute($v);
-
-    $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");
+    if ($markAsUnreadToUsers) $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");
 
     // Insert record
     $stmt = $conn->prepare("INSERT INTO records (user_id,action_group,action,details,date) VALUES (?,?,?,?,?)");
