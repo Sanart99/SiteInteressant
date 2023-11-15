@@ -1293,6 +1293,10 @@ class UserSettingsType extends ObjectType {
                 'notif_newCommentOnFollowedThread' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notif_newCommentOnFollowedThread)
+                ],
+                'minusculeMode' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->minusculeMode)
                 ]
             ]
         ];

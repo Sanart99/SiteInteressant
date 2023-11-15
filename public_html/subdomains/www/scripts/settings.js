@@ -10,6 +10,7 @@ async function loadGlobalSettings(fromServer=true) {
                 notificationsEnabled
                 notif_newThread
                 notif_newCommentOnFollowedThread
+                minusculeMode
             }
         }
     }`).then((json) => {
@@ -20,6 +21,7 @@ async function loadGlobalSettings(fromServer=true) {
         localSet('settings_notifications',settings.notificationsEnabled);
         localSet('settings_notif_newThread',settings.notif_newThread);
         localSet('settings_notif_newCommentOnFollowedThread',settings.notif_newCommentOnFollowedThread);
+        localSet('settings_minusculeMode',settings.minusculeMode);
     });
 }
 

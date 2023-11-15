@@ -53,7 +53,8 @@ class RegisteredUser extends User {
                     'followThreadsOnComment' => $this->settings->forum_followThreadsOnComment,
                     'notif_newThread' => $this->settings->notif_newThread,
                     'notif_newCommentOnFollowedThread' => $this->settings->notif_newCommentOnFollowedThread,
-                ]
+                ],
+                'minusculeMode' => $this->settings->minusculeMode
             ],JSON_THROW_ON_ERROR)
         ]);
 
@@ -76,8 +77,11 @@ class UserSettings {
     public bool $notif_newThread;
     public bool $notif_newCommentOnFollowedThread;
 
+    public bool $minusculeMode;
+
     public function __construct(?array $settings) {
         $this->notificationsEnabled = (bool)($settings['notifications']??false);
+        $this->minusculeMode = (bool)($settings['minusculeMode']??false);
         
         if ($settings != null && isset($settings['forum'])) {
             $a = $settings['forum'];
@@ -114,6 +118,7 @@ function set_user_setting(LDPDO $conn, int $userId, array $names, array $values)
                 case 'notifications': $user->settings->notificationsEnabled = (bool)$values[$i]; break;
                 case 'notif_newThread': $user->settings->notif_newThread = (bool)$values[$i]; break;
                 case 'notif_newCommentOnFollowedThread': $user->settings->notif_newCommentOnFollowedThread = (bool)$values[$i]; break;
+                case 'minusculeMode': $user->settings->minusculeMode = (bool)$values[$i]; break;
                 default: throw new \Exception("");
             }
         } catch (\Throwable $e) { return new OperationResult(ErrorType::INVALID_DATA, "Setting '{$names[$i]}' is either invalid or was set to an invalid value."); }

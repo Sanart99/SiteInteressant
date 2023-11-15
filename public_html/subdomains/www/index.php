@@ -64,6 +64,8 @@ header('Content-Type: text/html');
             return `<?=$root?>/pages/forum.php?urlEnd=${m[1]}`;
         },0);
 
+        if (localGet('settings_minusculeMode') === 'true') document.title = 'site intéressant';
+
         <?= getPopupDiv()['js']; ?>
         <?php if (!isset($_COOKIE['sid'])): ?>
         popupDiv.insertAdjacentHTML('beforeend',`<?= getConnexionForm()['html']; ?>`);

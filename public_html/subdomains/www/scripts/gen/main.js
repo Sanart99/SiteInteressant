@@ -617,6 +617,8 @@ function getForumMainElem() {
     let mobileMode = false;
     let currThreadId = null;
 
+    const minusculeModeEnabled = localGet('settings_minusculeMode') === 'true';
+
     function loadThreads(first,last,after,before,skipPages) {
         if (skipPages == null) skipPages = 0;
         sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int,\$onlyNotRead:Boolean!) {
@@ -2517,6 +2519,11 @@ function getForumMainElem() {
     mql.addEventListener('change',fmql);
     fmql(mql);
 
+    if (minusculeModeEnabled) {
+        const a = [];
+        a.push(document.querySelector('#forumL .forum_mainBar_sub1'));
+        for (const e of a) e.textContent = e.textContent.toLowerCase();
+    }
 
     JAVASCRIPT,
     'css' => <<<CSS
@@ -3762,6 +3769,14 @@ function getUserSettings() {
                     </ul>
                 </div>
             </section>
+            <section>
+                <h2>Accessibilité</h2>
+                <div class="sectionContent">
+                    <ul>
+                        <li><input id="settings_minusculeMode" name="minusculeMode" type="checkbox" disabled><label for="settings_minusculeMode">Forcer les minuscules dans certains textes</label></li>
+                    </ul>
+                </div>
+            </section>
             <input id="settings_submit" type="submit" value="Enregistrer" disabled/>
         </form>
     </div>
@@ -3778,6 +3793,8 @@ function getUserSettings() {
     // const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
     const eNotifNewCommentOnFollowedThread = document.querySelector('#settings_notif_newCommentOnFollowedThread');
+
+    const eMinusculeMode = document.querySelector('#settings_minusculeMode');
 
     toggleInputs(false);
     initAfterSettingsSync();
@@ -3812,6 +3829,8 @@ function getUserSettings() {
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
         eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
+
+        eMinusculeMode.checked = localGet('settings_minusculeMode') === 'true';
     }
     
     settingsForm.addEventListener('submit',(e) => {
