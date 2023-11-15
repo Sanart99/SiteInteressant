@@ -1109,7 +1109,7 @@ function getForumMainElem() {
                                     input.addEventListener('input',() => sessionSet(titleId,input.value));
                                 }
                                 div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
-                                setupReplyForm(div,async (e) => {
+                                setupReplyForm(div,async (e,moreData) => {
                                     e.preventDefault();
                                     const submitButton = e.target.querySelector('input[type="submit"]');
                                     if (submitButton.disabled === true) return;
@@ -1124,7 +1124,7 @@ function getForumMainElem() {
                                             resultCode
                                             resultMessage
                                         }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((json) => {
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")},null,null,null,moreData).then((json) => {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
@@ -1964,6 +1964,20 @@ function getForumMainElem() {
                 case 'PRE': res += '[code]' + contentToText(node.childNodes) + '[/code]\\n'; break;
                 case 'CODE': res += contentToText(node.childNodes); break;
                 case 'A': res += `[link=\${node.href}]` + contentToText(node.childNodes) + '[/link]'; break;
+                case 'BUTTON': 
+                    if (node.classList.contains('file')) {
+                        const regex = new RegExp('/([^/]*)$');
+                        const m = regex.exec(node.querySelector('a').href);
+                        res += `[file=get;\${m[1]}/]`;
+                    }
+                    break;
+                case 'VIDEO':
+                    if (node.classList.contains('file')) {
+                        const regex = new RegExp('/([^/]*)$');
+                        const m = regex.exec(node.querySelector('source').src);
+                        res += `[file=get;\${m[1]}/]`;
+                    }
+                    break;
                 case 'BLOCKQUOTE':
                     if (sPreQuote != '') res += `[cite=\${sPreQuote}]` + contentToText(node.childNodes) + '[/cite]\\n';
                     else res += '[cite]' + contentToText(node.childNodes) + '[/cite]\\n';
