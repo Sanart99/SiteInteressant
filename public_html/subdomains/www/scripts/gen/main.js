@@ -299,6 +299,7 @@ function getIndexElems() {
     });
 
     const moreDiv = document.querySelector('#rightBar_optionsDiv > .more');
+    const moreDivMain = document.querySelector('#rightBar_optionsDiv > .more > div');
     const moreBut = document.querySelector('#rightBar_more_button');
     moreBut.addEventListener('click',() => {
         if (moreDiv.classList.contains('expanded')) {
@@ -309,10 +310,21 @@ function getIndexElems() {
     if ($isAuth === 1) {
         topBar.style.display = rightBar.style.display = '';
 
-        sendQuery(`query { viewer { name avatarURL } }`).then((json) => {
+        sendQuery(`query {
+            viewer {
+                name
+                avatarURL
+                titles
+            }
+        }`).then((json) => {
             if (json?.data?.viewer?.name == null) { basicQueryResultCheck(); return; }
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
+            if (json.data.viewer.titles.includes('oldInteressant')) {
+                const node = stringToNodes('<a id="rightBar_optionsDiv_asile" href="//forum/tid" onclick="return false;"><p>Asile Intéressant</p></a>')[0];
+                node.addEventListener('click',() => loadPage('$root/pages/forum?urlEnd=/tid',StateAction.PushState));
+                moreDivMain.insertAdjacentElement('afterbegin',node);
+            }
         });
 
         navigator.serviceWorker.addEventListener('message', (s) => {
@@ -562,7 +574,7 @@ function getForumMainElem() {
         <div id="forum_content">
             <div id="forumL">
                 <div class="forum_mainBar">
-                    <div class="forum_mainBar_sub1"><p>Arche Intéressante</p></div>
+                    <div class="forum_mainBar_sub1"><p></p></div>
                     <div class="forum_mainBar_sub2">
                         <div>
                             <button class="searchLoader button1" type="button"><img src="{$res}/icons/search.png"/></button><!--
@@ -616,6 +628,7 @@ function getForumMainElem() {
     const eThreadNotReadOnly = document.querySelector('#forum_threadsFilter_notReadOnly');
     let mobileMode = false;
     let currThreadId = null;
+    let forumMode = '';
 
     const minusculeModeEnabled = localGet('settings_minusculeMode') === 'true';
 
@@ -699,6 +712,95 @@ function getForumMainElem() {
                 const nodeImgNew = stringToNodes('<img class="new" src="{$res}/icons/recent.png"/>')[0];
                 tr.querySelector('.statusIcons a div').insertAdjacentElement('afterbegin',nodeImgNew);
                 if (edge.node.isRead) nodeImgNew.style.display = 'none';
+            }
+
+            const eNPage = document.querySelector('#forumL .nPage');
+            const eMaxPages = document.querySelector('#forumL .maxPages');
+            eNPage.innerHTML = threads.pageInfo.currPage;
+            eMaxPages.innerHTML = `/ <span class="nMaxPages">\${threads.pageInfo.pageCount}</span>`;
+
+            const first = document.querySelector('#forumL .forum_footer .first'); 
+            const left = document.querySelector('#forumL .forum_footer .left'); 
+            const right = document.querySelector('#forumL .forum_footer .right');
+            const last = document.querySelector('#forumL .forum_footer .last');
+            left.dataset.cursor = threads.pageInfo.startCursor;
+            right.dataset.cursor = threads.pageInfo.endCursor;
+            left.disabled = first.disabled = !threads.pageInfo.hasPreviousPage;
+            right.disabled = last.disabled = !threads.pageInfo.hasNextPage;
+            
+            if (!mobileMode) highlightThread(currThreadId);
+        });
+    }
+    function loadTidThreads(first,last,after,before,skipPages) {
+        if (skipPages == null) skipPages = 0;
+        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+            forum {
+                tidThreads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true) {
+                    edges {
+                        node {
+                            id
+                            dbId
+                            deducedDate
+                            title
+                            commentCount
+                            comments(last:1) {
+                                edges {
+                                    node {
+                                        id
+                                        dbId
+                                        author {
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        cursor
+                    }
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                        pageCount
+                        currPage
+                    }
+                }
+            }
+        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((json) => {
+            if (json?.data?.forum?.tidThreads?.edges == null) { basicQueryResultCheck(); return; }
+            const tBody = document.querySelector('#forum_threads tbody');
+            const threads = json.data.forum.tidThreads;
+            tBody.innerHTML = '';
+            const now = new Date();
+            let lastDelimiter = '';
+            for (const edge of threads.edges) {
+                const comment = edge.node.comments.edges[0].node;
+                const date = new Date(edge.node.deducedDate);
+                if (!isNaN(date.getTime())) {
+                    const sDate = getDateAsString(date).slice(0,4).join(' ');
+                    if (lastDelimiter != sDate) {
+                        tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>\${sDate}</p></td></tr>`);
+                        lastDelimiter = sDate;
+                    }
+                } else if (lastDelimiter != 'Date inconnue') {
+                    tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>Date inconnue</p></td></tr>`);
+                    lastDelimiter = 'Date inconnue';
+                }
+                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread tid">
+                    <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="{$res}/icons/selected.png"/></div></a></td>
+                    <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
+                    <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.dbId}</p><p class="author">\${comment.author.name}</p></a></td>
+                </tr>`)[0];
+                tBody.insertAdjacentElement('beforeend',tr);
+                for (const e of tr.querySelectorAll('a')) {
+                    e.addEventListener('click',() => loadTidThread(edge.node.id,{first:10,pushState:true}));
+                    e.href=`$root/forum/tid/\${edge.node.dbId}`;
+                }
+
+                const nodeImgNew = stringToNodes('<img class="new" src="{$res}/icons/recent.png"/>')[0];
+                tr.querySelector('.statusIcons a div').insertAdjacentElement('afterbegin',nodeImgNew);
+                nodeImgNew.style.display = 'none';
             }
 
             const eNPage = document.querySelector('#forumL .nPage');
@@ -1526,6 +1628,120 @@ function getForumMainElem() {
             }
         });
     }
+    function loadTidThread(threadId,params) {
+        sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+            node(id:\$threadId) {
+                ... on TidThread {
+                    dbId
+                    title
+                    comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,withPageCount:true) {
+                        edges {
+                            node {
+                                authorId
+                                author {
+                                    name
+                                }
+                                content
+                                deducedDate
+                            }
+                        }
+                        pageInfo {
+                            startCursor
+                            endCursor
+                            hasNextPage
+                            hasPreviousPage
+                            currPage
+                            pageCount
+                        }
+                    }
+                }
+            }
+        }`,{threadId:threadId,first:params?.first,last:params?.last,after:params?.after,before:params?.before,skipPages:params?.skipPages}).then((json) => {
+            if (json?.data?.node?.comments?.edges == null) { basicQueryResultCheck(); return; }
+            if (params == null) params = {};
+            if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
+            currThreadId = threadId;
+            highlightThread(currThreadId);
+
+            forumR.innerHTML = '';
+            const e = stringToNodes(`<div class="forum_mainBar">
+                <div class="forum_mainBar_sub1"><p>\${json.data.node.title}</p></div>
+                <div class="forum_mainBar_sub2">
+                    <div class="actions"></div>
+                </div>
+            </div>
+            <div class="subheader">
+                <div class="infos1"></div>
+                <div class="infos2 hide">
+                    <div class="main"></div>
+                    <p><a class="infos2Msg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                </div>
+            </div>
+            <div id="forum_comments"></div>
+            <div class="forum_footer">
+                <div class="actions"></div>
+            </div>`);
+            for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+            for (const cont of [forumR.querySelector('.forum_mainBar_sub2'),forumR.querySelector('.forum_footer')]) {
+                const paginationDiv = setupPagInput(null,10,() => loadTidThread(threadId,{first:10}),() => loadTidThread(threadId,{last:10}),
+                    (n,cursor,skipPages) => loadTidThread(threadId,{last:n,before:cursor,skipPages:skipPages}),
+                    (n,cursor,skipPages) => loadTidThread(threadId,{first:n,after:cursor,skipPages:skipPages})
+                );
+                cont.insertAdjacentElement('beforeend', paginationDiv);
+            }
+
+            const eComments = document.querySelector('#forum_comments');
+            const comments = json.data.node.comments;
+            eComments.innerHTML = '';
+            for (const comment of comments.edges) {
+                const date = new Date(comment.node.deducedDate);
+                const commentNode = stringToNodes(`<div class="comment tid">
+                    <div class="header">
+                        <div class="avatarDiv">
+                            <img class="avatar" src="$res/avatars/default.jpg" />
+                        </div>
+                        <p class="name">\${comment.node.author.name}</p>
+                        <p class="date" title="\${date.toString()}">\${getDateAsString2(date).split(',')[0]}</p>
+                        <p class="stats">Topics : ? · Commentaires : ?</p>    
+                   </div>
+                    <div class="body">
+                        <div class="main">\${comment.node.content}</div>
+                        <div class="footer"><p class="infos"></p><p class="commActions"></p></div>
+                        <div class="hiddenFooter hidden" style="display:none;">
+                            <div class="main"></div>
+                            <p><a class="hiddenFooterMsg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                        </div>
+                    </div>
+                </div>`)[0];
+                eComments.insertAdjacentElement('beforeend',commentNode);
+            }
+
+            const n = params?.first ?? params?.last;
+            const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
+            if (comments.pageInfo.pageCount == 1) for (const e of forumRPaginations) e.style.display = 'none';
+            else {
+                for (const e of forumRPaginations) {
+                    e.style.display = '';
+                    e.querySelector('.nPage').innerHTML = comments.pageInfo.currPage;
+                    e.querySelector('.nMaxPages').innerHTML = comments.pageInfo.pageCount;
+
+                    const first = e.querySelector('.first'); 
+                    const left = e.querySelector('.left'); 
+                    const right = e.querySelector('.right');
+                    const last = e.querySelector('.last'); 
+                    left.dataset.cursor = comments.pageInfo.startCursor;
+                    right.dataset.cursor = comments.pageInfo.endCursor;
+                    left.disabled = first.disabled = !comments.pageInfo.hasPreviousPage;
+                    right.disabled = last.disabled = !comments.pageInfo.hasNextPage;
+                }
+            }
+
+            if (params?.pushState === true) {
+                const url = `$root/forum/tid/\${json.data.node.dbId}`;
+                history.pushState({pageUrl:url}, "", url);
+            }
+        });
+    }
     function highlightThread(threadId) {
         for (const e of forumL.querySelectorAll(`#forum_threads tbody tr`)) e.dataset.selected = false;
         if (threadId == null) return;
@@ -1887,7 +2103,7 @@ function getForumMainElem() {
                                 </div>
                                 <div class="content">\${item.comment.content}</div>
                                 <div class="footer">
-                                    <p>\${item.comment.deducedDate}</p>
+                                    <p>\${item.comment.deducedDate} - <a href="$root/forum/tid/\${item.thread.dbId}" target="_blank">Lien</a></p>
                                 </div>
                             </div>`)[0];
                             break;
@@ -2068,10 +2284,10 @@ function getForumMainElem() {
     }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
     setupPagInput(forumFooter,20,
-        () => loadThreads(20),
-        () => loadThreads(null,20),
-        (n,cursor,skipPages) => loadThreads(null,n,null,cursor,skipPages),
-        (n,cursor,skipPages) => loadThreads(n,null,cursor,null,skipPages)
+        () => forumMode == 'arche' ? loadThreads(20) : loadTidThreads(20),
+        () => forumMode == 'arche' ? loadThreads(null,20) : loadTidThreads(null,20),
+        (n,cursor,skipPages) => forumMode == 'arche' ? loadThreads(null,n,null,cursor,skipPages) : loadTidThreads(null,n,null,cursor,skipPages),
+        (n,cursor,skipPages) => forumMode == 'arche' ? loadThreads(n,null,cursor,null,skipPages) : loadTidThreads(n,null,cursor,null,skipPages)
     );
     
     let savedCategories = null;
@@ -2479,6 +2695,21 @@ function getForumMainElem() {
         return s.replaceAll(/[\\*\\/\\-\\[\\]:]/g,(s) => '\\\\'+s);
     }
 
+    function switchToAsile() {
+        if (forumMode == 'asile') return;
+        forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Asile Intéressant';
+        forumL.querySelector('#forum_threadsFilter').style.display = 'none';
+        loadTidThreads(20);
+        forumMode = 'asile';
+    }
+    function switchToArche() {
+        if (forumMode == 'arche') return;
+        forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Arche Intéressante';
+        forumL.querySelector('#forum_threadsFilter').style.display = '';
+        loadThreads(20);
+        forumMode = 'arche';
+    }
+
     document.querySelector('.newThreadLoader').addEventListener('click',loadNewThreadForm);
     document.querySelector('.searchLoader').addEventListener('click',loadSearchForm);
     document.querySelector('.refreshThreads').addEventListener('click',() => {
@@ -2486,21 +2717,34 @@ function getForumMainElem() {
         if (isNaN(pageNumber)) return;
         loadThreads(20,null,null,null,pageNumber-1);
     });
-    eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));
 
-    loadThreads(20);
+    eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));    
 
-    const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
-    if (m != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
+    const m = new RegExp("^$root/forum(/tid)?(?:/(\\\d+))?").exec(location.href);
+    if (m[1] == null) {
+        switchToArche();
+        if (m[2] != null) loadThread(`forum_\${m[2]}`,10,null,null,null,0,false,true);
+    }
+    else {
+        switchToAsile();
+        if (m[2] != null) loadTidThread(`forum_tid_\${m[2]}`,{first:10});
+    }
+
     LinkInterceptor.addMidProcess('forumMP', (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
-        const m = new RegExp("^$root/forum(?:/(\\\d+)?)?$").exec(displayedURL);
+        const m = new RegExp("^$root/forum(/tid)?(?:/(\\\d+))?").exec(displayedURL);
         if (m == null) return false;
-        else if (m[1] != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
-        else {
+        
+        if (m[2] != null) {
+            if (m[1] == null) loadThread(`forum_\${m[2]}`,10,null,null,null,0,false,true);
+            else loadTidThread(`forum_tid_\${m[2]}`,{first:10});
+        } else {
             forumR.innerHTML = '';
             if (mobileMode) { forumR.style.display = 'none'; forumL.style.display = ''; }
             highlightThread(null);
+
+            if (m[1] != null) switchToAsile()
+            else switchToArche();
         }
 
         switch (stateAction) {
@@ -2531,7 +2775,7 @@ function getForumMainElem() {
 
     if (minusculeModeEnabled) {
         const a = [];
-        a.push(document.querySelector('#forumL .forum_mainBar_sub1'));
+        a.push(document.querySelector('#forumL .forum_mainBar_sub1 p'));
         for (const e of a) e.textContent = e.textContent.toLowerCase();
     }
 
