@@ -1167,6 +1167,14 @@ class TidUserType extends ObjectType {
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ],
+                'associatedRegisteredUser' => [
+                    'type' => fn() => Types::RegisteredUser(),
+                    'resolve' => fn($o) => self::process($o, function($o) {
+                        $tidId =& $o['data']['id'];
+                        UsersBuffer::requestTidAssociatedRegisteredUser($tidId);
+                        return quickReactPromise(fn() => UsersBuffer::getTidAssociatedRegisteredUser($tidId)['data']['id_a']??null);
+                    })
                 ]
             ]
         ];
@@ -1356,6 +1364,31 @@ class ForumType extends ObjectType {
                             return ForumBuffer::getThreads($pag,$user->id);
                         });
                     }
+                ],
+                'tidThreads' => [
+                    'type' => fn() => Types::getConnectionObjectType('TidThread'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ],
+                        'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0],
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null || !$user->titles->contains('oldInteressant')) return null;
+
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
+                        $pag->sortBy = $args['sortBy']??'';
+                        $pag->skipPages = $args['skipPages'];
+                        ForumBuffer::requestTidThreads($pag);
+                        return quickReactPromise(function() use($pag) {
+                            return ForumBuffer::getTidThreads($pag);
+                        });
+                    }
                 ]
             ]
         ];
@@ -1393,6 +1426,10 @@ class TidThreadType extends ObjectType {
                 ],
                 'authorId' => [
                     'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
+                'author' => [
+                    'type' => fn() => Types::TidUser(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
                 ],
                 'title' => [
@@ -1434,10 +1471,12 @@ class TidThreadType extends ObjectType {
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
                         'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
-                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $pag->skipPages = $args['skipPages'];
                         return self::process($o,function($row) use($pag) {
                             ForumBuffer::requestTidComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
@@ -1620,7 +1659,7 @@ class TidCommentType extends ObjectType {
                     'resolve' => fn($o) => self::process($o, fn($row) => TidComment::getIdFromRow($row))
                 ],
                 'dbId' => [
-                    'type' => fn() => Type::id(),
+                    'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['id'])
                 ],
                 'threadId' => [
@@ -1629,6 +1668,10 @@ class TidCommentType extends ObjectType {
                 ],
                 'authorId' => [
                     'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
+                'author' => [
+                    'type' => fn() => Types::TidUser(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
                 ],
                 'states' => [
