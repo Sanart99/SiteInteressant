@@ -2194,6 +2194,13 @@ function getForumMainElem() {
                 case 'PRE': res += '[code]' + contentToText(node.childNodes) + '[/code]\\n'; break;
                 case 'CODE': res += contentToText(node.childNodes); break;
                 case 'A': res += `[link=\${node.href}]` + contentToText(node.childNodes) + '[/link]'; break;
+                case 'AUDIO':
+                    if (node.classList.contains('file')) {
+                        const regex = new RegExp('/([^/]*)$');
+                        const m = regex.exec(node.src);
+                        res += `[file=get;\${m[1]}/]`;
+                    }
+                    break;
                 case 'BUTTON': 
                     if (node.classList.contains('file')) {
                         const regex = new RegExp('/([^/]*)$');
@@ -2587,6 +2594,7 @@ function getForumMainElem() {
 
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
+                                const audioRegex = new RegExp('^audio\\/*');
                                 if (imgRegex.test(blob.type)) {
                                     const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
                                     viewNode.replaceWith(imgNode);
@@ -2601,6 +2609,8 @@ function getForumMainElem() {
                                     });
                                 } else if (vidRegex.test(blob.type)) {
                                     viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                } else if (audioRegex.test(blob.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
@@ -2617,6 +2627,7 @@ function getForumMainElem() {
                             viewNode.addEventListener('click',() => {
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
+                                const audioRegex = new RegExp('^audio\\/*');
                                 if (imgRegex.test(file.type)) {
                                     const imgNode = stringToNodes(`<img class="inserted file" src="\${url}" />`)[0];
                                     viewNode.replaceWith(imgNode);
@@ -2631,6 +2642,8 @@ function getForumMainElem() {
                                     });
                                 } else if (vidRegex.test(file.type)) {
                                     viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="\${url}" /> </video>`)[0]);
+                                } else if (audioRegex.test(file.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="\${url}"> <a href="\${url}">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
