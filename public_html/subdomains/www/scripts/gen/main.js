@@ -2096,6 +2096,7 @@ function getForumMainElem() {
                                     <p>\${item.comment.creationDate} - <a href="$root/forum/\${item.thread.dbId}" target="_blank">Lien</a></p>
                                 </div>
                             </div>`)[0];
+                            processComment(e.querySelector('.content'),stringToNodes(item.comment.content));
                             break;
                         case 'TidThread':
                             e = stringToNodes(`<div class="searchItem tid">
