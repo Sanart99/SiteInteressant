@@ -1449,6 +1449,7 @@ function getForumMainElem() {
                     if (json.data.f.resultMessage == 'refresh') getRecentEvents();
                 });
             }
+            document.querySelector('#forum_banner').scrollIntoView();
 
             const n = first ?? last;
             const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
@@ -1715,6 +1716,7 @@ function getForumMainElem() {
                 </div>`)[0];
                 eComments.insertAdjacentElement('beforeend',commentNode);
             }
+            document.querySelector('#forum_banner').scrollIntoView();
 
             const n = params?.first ?? params?.last;
             const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
