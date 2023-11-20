@@ -9,6 +9,8 @@ ob_end_clean();
 use LDLib\AWS\AWS;
 use Aws\Exception\AwsException;
 
+header('Accept-Ranges: bytes');
+
 if (preg_match('/^\/file\/(\d+_[^\/?]*)/',urldecode($_SERVER['REQUEST_URI']),$m) == 0) {
     http_response_code(404);
     echo 'File not found.';
@@ -16,6 +18,8 @@ if (preg_match('/^\/file\/(\d+_[^\/?]*)/',urldecode($_SERVER['REQUEST_URI']),$m)
 }
 $s3Key = $m[1];
 $redisKey = "s3:general:$s3Key";
+$headers = [];
+foreach (getallheaders() as $k => $v) $headers[strtolower($k)] = $v;
 
 if (class_exists('\Redis')) {
     $redis = new \Redis();
@@ -32,8 +36,7 @@ if (class_exists('\Redis')) {
                 http_response_code($vCache['errorCode']);
                 echo $vCache['errorMsg'];
             } else {
-                header("Content-Type: {$vCache['mimetype']}");
-                echo $vCache['data'];
+                echo serveData($vCache['data'],$vCache['mimetype']);
             }
             return;
         }
@@ -70,6 +73,57 @@ if ($redisRes === true && $res['ContentLength'] <= 25000000) {
     $redis->expire($redisKey,3600);
 }
 
-header("Content-Type: $mimeType");
-echo $data;
+function serveData(string $data, string $mimeType) {
+    global $headers;
+
+    if (isset($headers['range'])) {
+        $sRanges = str_replace(['bytes=',' '],'',$headers['range']);
+        $aRanges = explode(',',$sRanges);
+        $isMultipart = count($aRanges) > 1;
+        $boundary = bin2hex(random_bytes(8));
+        $dataLength = strlen($data);
+        if ($isMultipart) header("Content-Type: multipart/byteranges; boundary=$boundary");
+        else header("Content-Type: $mimeType");
+        http_response_code(206);
+        $s = '';
+
+        $i = 0;
+        foreach ($aRanges as $sRange) {
+            if (preg_match('/^(\d+)?\-(\d+)?$/',$sRange,$m,PREG_UNMATCHED_AS_NULL) == 0) continue;
+
+            if (($m[2]??0) > $dataLength) { // abort
+                http_response_code(200);
+                header("Content-Type: $mimeType");
+                echo $data;
+                return;
+            }
+
+            $v = substr($data, $m[1]??0, ($m[2] == null ? null : ($m[2]-$m[1]) + 1));
+            
+            if ($isMultipart) {
+                if ($i++ != 0) $s .= "\n";
+                $s .= <<< EOF
+                --$boundary
+                Content-Type: $mimeType
+                Content-Range: bytes {$sRange}/{$dataLength}
+
+                $v
+                EOF;
+            } else {
+                preg_match('/^(\d+)?\-(\d+)?$/',$sRange,$m,PREG_UNMATCHED_AS_NULL);
+                $v1 = $m[1]??0;
+                $v2 = $m[2]??($dataLength-1);
+                header("Content-Range: bytes {$v1}-{$v2}/{$dataLength}");
+                $s .= $v;
+            }
+        }
+        if ($isMultipart) $s .= "\n--$boundary--";
+
+        echo $s;
+    } else {
+        header("Content-Type: $mimeType");
+        echo $data;
+    }
+}
+serveData($data, $mimeType);
 ?>
