@@ -2697,9 +2697,10 @@ function getForumMainElem() {
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
             }
 
-            if (node.classList.contains('gadget') && node.classlist.contains('card')) letterGadgets.push(node);
-            for (const n of node.querySelectorAll('.gadget.card')) letterGadgets.push(n);
-            for (const node of letterGadgets) {
+            const cardGadgets = [];
+            if (node.classList.contains('gadget') && node.classlist.contains('card')) cardGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.card')) cardGadgets.push(n);
+            for (const node of cardGadgets) {
                 const regex = new RegExp('^;*(?:inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
             }
