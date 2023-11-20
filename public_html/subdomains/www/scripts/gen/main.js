@@ -2513,6 +2513,27 @@ function getForumMainElem() {
                 const vowelNode = stringToNodes(`<button type="button"><img src="$res/design/balises/vowel.png" alt="[letter=voyelle/]"/></button>`)[0];
                 vowelNode.addEventListener('click',() => quickInputInsert('[letter=voyelle/]'));
                 emojisCont.insertAdjacentElement('beforeend',vowelNode);
+                const dice100Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice100.png" alt="[dice=1-100/]"/></button>`)[0];
+                dice100Node.addEventListener('click',() => quickInputInsert('[dice=1-100/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice100Node);
+                const dice20Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice20.png" alt="[dice=1-20/]"/></button>`)[0];
+                dice20Node.addEventListener('click',() => quickInputInsert('[dice=1-20/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice20Node);
+                const dice12Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice12.png" alt="[dice=1-12/]"/></button>`)[0];
+                dice12Node.addEventListener('click',() => quickInputInsert('[dice=1-12/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice12Node);
+                const dice10Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice10.png" alt="[dice=1-10/]"/></button>`)[0];
+                dice10Node.addEventListener('click',() => quickInputInsert('[dice=1-10/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice10Node);
+                const dice8Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice8.png" alt="[dice=1-8/]"/></button>`)[0];
+                dice8Node.addEventListener('click',() => quickInputInsert('[dice=1-8/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice8Node);
+                const dice6Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice6.png" alt="[dice=1-6/]"/></button>`)[0];
+                dice6Node.addEventListener('click',() => quickInputInsert('[dice=1-6/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice6Node);
+                const dice4Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice4.png" alt="[dice=1-4/]"/></button>`)[0];
+                dice4Node.addEventListener('click',() => quickInputInsert('[dice=1-4/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice4Node);
             });
             emojisButtons.insertAdjacentElement('beforeend',gadgetsCat);
         }
@@ -2703,6 +2724,18 @@ function getForumMainElem() {
             for (const node of cardGadgets) {
                 const regex = new RegExp('^;*(?:inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+            }
+
+            const diceGadgets = [];
+            if (node.classList.contains('gadget') && node.classlist.contains('dice')) diceGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.dice')) diceGadgets.push(n);
+            for (const node of diceGadgets) {
+                switch (node.dataset.generator) {
+                    case '1-100': case '1-20': case '1-12': case '1-10':
+                    case '1-8': case '1-6': case '1-4': case '':
+                        node.classList.add('approved');
+                        break;
+                }
             }
 
             container.insertAdjacentElement('beforeend',node);

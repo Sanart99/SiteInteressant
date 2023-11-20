@@ -199,6 +199,21 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 default: $src = "$resPath/design/balises/letter.png"; break;
             }
             return "<span class=\"gadget letter\" data-generator=\"$arg\"><img src=\"$src\"/><span class=\"value\">".($showValue ? $v : '??')."</span></span>";
+        }, $result),
+        new SoloKeywordMarker('dice',function($arg) use(&$commitData, &$resPath) {
+            $arg = preg_replace('/\s/','',$arg);
+            $v = get_random_dice_value($arg,$type);
+            $showValue = $commitData;
+            switch ($type) {
+                case 'd20': $src = "$resPath/design/balises/dice20.png"; break;
+                case 'd12': $src = "$resPath/design/balises/dice12.png"; break;
+                case 'd10': $src = "$resPath/design/balises/dice10.png"; break;
+                case 'd8': $src = "$resPath/design/balises/dice8.png"; break;
+                case 'd6': $src = "$resPath/design/balises/dice6.png"; break;
+                case 'd4': $src = "$resPath/design/balises/dice4.png"; break;
+                default: $src = "$resPath/design/balises/dice100.png"; break;
+            }
+            return "<span class=\"gadget dice\" data-generator=\"$arg\"><img src=\"$src\"/><span class=\"value\">".($showValue ? $v : '??')."</span></span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
@@ -575,5 +590,34 @@ function get_random_letter_value($arg, &$sType='') {
     }
 
     return $letters[random_int(0,count($letters)-1)];
+}
+
+function get_random_dice_value($arg, &$sType='') {
+    $vals = explode(';',$arg);
+    if ($arg == '') $arg = '1-100';
+    
+    $pool = [];
+    foreach ($vals as $val) {
+        if (preg_match('/^(\d+)?(-)?(\d+)?$/', $val, $m, PREG_UNMATCHED_AS_NULL) > 0) if ($m[1] != null) array_push($pool,$val);
+    }
+    if (count($pool) == 0) $pool[0] = '0';
+
+    $sType = 'd100';
+    if (count($pool) == 1) {
+        switch ($pool[0]) {
+            case '1-20': $sType = 'd20'; break;
+            case '1-12': $sType = 'd12'; break;
+            case '1-10': $sType = 'd10'; break;
+            case '1-8': $sType = 'd8'; break;
+            case '1-6': $sType = 'd6'; break;
+            case '1-4': $sType = 'd4'; break;
+        }
+    }
+
+    preg_match('/^(\d+)?(-)?(\d+)?$/', $pool[random_int(0,count($pool)-1)], $m, PREG_UNMATCHED_AS_NULL);
+    if ($m[2] == null) return $m[1];
+    else if ($m[3] != null) return random_int((int)$m[1],(int)$m[3]);
+
+    return $m[1];
 }
 ?>
