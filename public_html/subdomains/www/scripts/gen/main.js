@@ -2597,7 +2597,7 @@ function getForumMainElem() {
                                         popupDiv.openTo('.imgBetterView');
                                     });
                                 } else if (vidRegex.test(blob.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
@@ -2627,7 +2627,7 @@ function getForumMainElem() {
                                         popupDiv.openTo('.imgBetterView');
                                     });
                                 } else if (vidRegex.test(file.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="\${url}" /> </video>`)[0]);
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="\${url}" /> </video>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
