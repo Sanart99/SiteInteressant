@@ -85,6 +85,21 @@ function getDateAsString2(date) {
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
 }
 
+function stringDateToISO(sDate) {
+    const m = /(\\d{4}-\\d\\d-\\d\\d)?(T|\\s+)?(\\d\\d:\\d\\d:\\d\\d)?\\s*(Z)?/.exec(sDate);
+    const sNow = new Date().toISOString();
+    const s1 = sNow.substr(0,10);
+    const s2 = sNow.substr(11,8);
+
+    let s = '';
+    s += m[1] != null ? m[1] : s1;
+    s += 'T';
+    s += m[3] != null ? m[3] : s2;
+    s += 'Z';
+
+    return s;
+}
+
 function setNumberInTitle(n) {
     const m = new RegExp('^(?:\\\((\\\d+)\\\))?\\\s*(.*)$').exec(document.title);
     document.title = (n > 0 ? `(\${n}) ` : '') + m[2];
