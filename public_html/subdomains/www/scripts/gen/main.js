@@ -4068,6 +4068,7 @@ function getUserSettings() {
     }
     function toggleInputs(enable) {
         for (const e of allInputs) e.disabled = !enable;
+        if (!__feat_notifications) eNotif.disabled = true;
         // if (!__feat_notifications) eDeviceNotif.disabled = true;
 
         if (enable) {
@@ -4081,7 +4082,7 @@ function getUserSettings() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
         eForum_followThreadsOnComment.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
 
-        eNotif.checked = localGet('settings_notifications') === 'true';
+        eNotif.checked = __feat_notifications && localGet('settings_notifications') === 'true';
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
         eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
@@ -4098,7 +4099,7 @@ function getUserSettings() {
         }
 
         if (eNotif.checked) {
-            if (Notification.permission !== 'granted') {
+            if (!__feat_notifications || Notification.permission !== 'granted') {
                 alert('You didn\'t grant notification permission.');
                 Notification.requestPermission();
                 toggleInputs(true);

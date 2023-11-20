@@ -11,7 +11,7 @@ echo <<<JAVASCRIPT
 var __authenticated = $isAuth;
 var __debug = $debug;
 var __feat_serviceWorker = 'serviceWorker' in navigator;
-var __feat_notifications = 'body' in Notification?.prototype;
+var __feat_notifications = ('serviceWorker' in navigator && 'PushManager' in window);
 var __settingsInitialized = false;
 var __online = true;
 

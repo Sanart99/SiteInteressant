@@ -21,7 +21,8 @@ let settingsSynced = false;
 let authenticated = true; //?
 let online = false; //?
 const __feat_cacheStorage = 'caches' in self;
-const __feat_notifications = 'body' in Notification?.prototype;
+let __feat_notifications = false;
+try { __feat_notifications = 'body' in Notification?.prototype; } catch(e) { }
 
 self.addEventListener('install', (event) => {
     if (!__feat_cacheStorage) return;
@@ -104,7 +105,7 @@ self.addEventListener('push', async (event) => {
             clients.forEach(client => client.postMessage('checkNotifs'));
         });
 
-        if (!__feat_notifications || Notification.permission !== 'granted' || permissions?.notifications !== true) return;
+        if (!__feat_notifications || Notification?.permission !== 'granted' || permissions?.notifications !== true) return;
         
         const options = {};
         if (notif?.title == null) continue;
