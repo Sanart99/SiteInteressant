@@ -2411,7 +2411,7 @@ function getForumMainElem() {
             const link = prompt("Le lien que vous voulez insérer :");
             if (link == null) return;
             const txt = replyFormTA.selectionStart === replyFormTA.selectionEnd ? prompt("Entrer le texte de votre lien :")??''  : '';
-            quickInputInsert(`[link=\${link}]\${txt}`,'[/link]');
+            quickInputInsert(`[link=\${link}]\${escapeCharacters(txt)}`,'[/link]');
         });
         replyForm.querySelector('.buttonBar .cite').addEventListener('click',() => quickInputInsert('[cite]','[/cite]'));
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
