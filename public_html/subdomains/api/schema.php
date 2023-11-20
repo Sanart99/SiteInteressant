@@ -2107,7 +2107,7 @@ class Cache {
 
         self::$redis = new \Redis();
         try {
-            $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],1);
+            $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT']);
             if ($res == false) {
                 self::$redis = null;
                 Context::addLog('Redis','Redis connection failure.');
