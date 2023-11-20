@@ -2906,6 +2906,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview blockquote,
     #mainDiv_forum .comment .body blockquote,
+    #mainDiv_forum .comment .body cite,
     #mainDiv_forum #searchFormResults .content blockquote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite {
         padding: 0.3rem 0px 0.3rem 0.3rem;
@@ -2917,6 +2918,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .preQuote,
     #mainDiv_forum .comment .body .preQuote,
+    #mainDiv_forum .comment .body .tid_preCite *:not(.tid_user),
     #mainDiv_forum #searchFormResults .content .preQuote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preCite *:not(.tid_user) {
         font-size: 80%;
@@ -2925,6 +2927,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .spoil,
     #mainDiv_forum .comment .body .spoil,
+    #mainDiv_forum .comment .tid_spoil,
     #mainDiv_forum #searchFormResults .content .spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil {
         cursor: help;
@@ -2932,24 +2935,28 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt,
     #mainDiv_forum .comment .body .spoil .spoilTxt,
+    #mainDiv_forum .comment .tid_wspoil,
     #mainDiv_forum #searchFormResults .content .spoil .spoilTxt,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil {
         opacity:0;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover,
     #mainDiv_forum .comment .body .spoil:hover,
+    #mainDiv_forum .comment .tid_spoil:hover,
     #mainDiv_forum #searchFormResults .content .spoil:hover,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil:hover {
         background-image: url({$res}/design/spoiler_hover.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt,
     #mainDiv_forum .comment .body .spoil:hover .spoilTxt,
+    #mainDiv_forum .comment .tid_wspoil:hover,
     #mainDiv_forum #searchFormResults .content .spoil:hover .spoilTxt,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil:hover {
         opacity:unset;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before,
     #mainDiv_forum .comment .body .rpTextSpeaker > p::before,
+    #mainDiv_forum .comment .tid_preRoleplay::before,
     #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay::before {
         content: url({$res}/icons/rp.png);
@@ -2957,6 +2964,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker,
     #mainDiv_forum .comment .body .rpTextSpeaker,
+    #mainDiv_forum .comment .tid_preRoleplay,
     #mainDiv_forum #searchFormResults .content .rpTextSpeaker,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay {
         font-weight: bold;
@@ -2966,6 +2974,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpText::before,
     #mainDiv_forum .comment .body .rpText::before,
+    #mainDiv_forum .comment .tid_roleplay::before,
     #mainDiv_forum #searchFormResults .content .rpText::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay::before {
         display: block;
@@ -2975,6 +2984,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpText,
     #mainDiv_forum .comment .body .rpText,
+    #mainDiv_forum .comment .tid_roleplay,
     #mainDiv_forum #searchFormResults .content .rpText,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         background: #dddbd8;
@@ -3030,12 +3040,17 @@ function getForumMainElem() {
     #mainDiv_forum .inserted {
         max-width: 85%;
     }
+    #mainDiv_forum .comment cite,
+    #mainDiv_forum .comment .tid_spoil,
+    #mainDiv_forum .comment .tid_preRoleplay,
+    #mainDiv_forum .comment .tid_roleplay,
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         display: block;
     }
+    #mainDiv_forum .comment .tid_questionModule,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule {
         margin: 20px 0px;
         padding: 10px;
@@ -3050,12 +3065,14 @@ function getForumMainElem() {
         background-position: center top;
         background-repeat: repeat-x;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionLine,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionLine {
         opacity: 0.85;
         padding: 15px;
         border-bottom: 1px dashed rgba(0,0,0,0.15);
         color: black;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionResults,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults {
         display: block;
         float: right;
@@ -3066,12 +3083,15 @@ function getForumMainElem() {
         white-space: nowrap;
         text-align: right;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionResults .tid_value,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults .tid_value {
         vertical-align: middle;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_button.tid_mini.tid_bVote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_button.tid_mini.tid_bVote {
         display:none;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_barBG,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barBG {
         height: 15px;
         display: inline-block;
@@ -3082,11 +3102,13 @@ function getForumMainElem() {
         border-radius: 3px;
         box-shadow: inset 0px 0px 8px rgba(0,0,0,0.3);
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_barInner,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barInner {
         background-color: #fe7d00;
         height: 100%;
         box-shadow: inset 0px -8px 0px rgba(0,0,0,0.15), inset 1px 0px 2px #5B1E00;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_footer,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_footer {
         margin-left: -10px;
         margin-right: -10px;
@@ -3099,6 +3121,7 @@ function getForumMainElem() {
         box-shadow: 0px -4px 4px rgba(0,0,0,0.15);
         display: none;
     }
+    #mainDiv_forum .comment .tid_user,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_user {
         background-image: url({$res}/icons/notContact.png);
         background-repeat: no-repeat;
@@ -3113,6 +3136,7 @@ function getForumMainElem() {
         padding-right: 13px !important;
         cursor: default;
     }
+    #mainDiv_forum .comment .tid_announce,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce {
         display: block;
         margin: 1em;
@@ -3127,12 +3151,14 @@ function getForumMainElem() {
         background-repeat: no-repeat;
         background-color: #3b4151;
     }
+    #mainDiv_forum .comment .tid_mod::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod::before {
         content: "Message d'un modérateur";
         position: absolute;
         top: 0.5em;
         color: #F4DF8B;
     }
+    #mainDiv_forum .comment .tid_mod,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod {
         display: block;
         margin: 1em;
@@ -3144,16 +3170,20 @@ function getForumMainElem() {
         color: white;
         position: relative;
     }
+    #mainDiv_forum .comment .tid_strike,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_strike {
         text-decoration: line-through;
         opacity: 0.8;
     }
+    #mainDiv_forum .comment em,
     #mainDiv_forum #searchFormResults .searchItem.tid .content em {
         opacity: 0.7;
     }
+    #mainDiv_forum .comment strong,
     #mainDiv_forum #searchFormResults .searchItem.tid .content strong {
         color: #3b4151;
     }
+    #mainDiv_forum .comment .tid_announce strong,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce strong {
         color: inherit;
     }
