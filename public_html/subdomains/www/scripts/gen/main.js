@@ -1002,7 +1002,7 @@ function getForumMainElem() {
             eComments.innerHTML = '';
             currThreadId = threadId;
             for (const comment of comments.edges) {
-                const date = new Date(comment.node.creationDate+'Z');
+                const date = new Date(stringDateToISO(comment.node.creationDate));
                 const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}">
                     <div class="header">
                         <div class="avatarDiv">
@@ -1033,7 +1033,7 @@ function getForumMainElem() {
                 const footerInfos = commentNode.querySelector('.footer p.infos');
                 let aFooterInfos = [];
                 if (comment.node.lastEditionDate != null) {
-                    const date = new Date(comment.node.lastEditionDate+'Z');
+                    const date = new Date(stringDateToISO(comment.node.lastEditionDate));
                     aFooterInfos.push(`Dernière édition : \${getDateAsString2(date)}`);
                     const nodeDate = commentNode.querySelector('.date');
                     nodeDate.title = nodeDate.title + `\nEdit: \${date.toString()}`;
