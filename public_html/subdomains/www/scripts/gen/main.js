@@ -2599,11 +2599,12 @@ function getForumMainElem() {
                                     const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
                                     viewNode.replaceWith(imgNode);
                                     imgNode.addEventListener('click',() => {
+                                        enableZoom(true);
                                         const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
                                             <img src="$res/file/\${keyName}" />
                                         </div>`)[0];
-                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); } );
-                                        pop.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); enableZoom(false); } );
+                                        pop.querySelector('img').addEventListener('click', (e) => { e.stopPropagation(); } );
                                         popupDiv.insertAdjacentElement('beforeend',pop);
                                         popupDiv.openTo('.imgBetterView');
                                     });
