@@ -199,7 +199,8 @@ function getIndexElems() {
                     }
                 }
             }
-            for (const edge of records.edges.toReversed()) {
+
+            for (const edge of [...records.edges].reverse()) {
                 const record = edge.node;
                 if (record.actionGroupName == 'FORUM') switch (record.actionName) {
                     case 'addComment':
