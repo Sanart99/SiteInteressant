@@ -34,6 +34,9 @@ footer, header, hgroup, menu, nav, section) {
 :where(input, button, textarea, select) {
 	font: inherit;
 }
+:where(input):focus {
+	outline-offset: 0px;
+}
 :where(input:disabled, button:disabled, select:disabled) {
 	opacity: 50%;
 }
