@@ -105,6 +105,11 @@ function setNumberInTitle(n) {
     document.title = (n > 0 ? `(\${n}) ` : '') + m[2];
 }
 
+function enableZoom(b=true) {
+    if (b) document.querySelector('#meta_viewport').content = 'width=device-width, initial-scale=1.0';
+    else document.querySelector('#meta_viewport').content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0';
+}
+
 function isObjEmpty(obj) {
     for (var prop in obj) if (Object.prototype.hasOwnProperty.call(obj, prop)) return false;
     return true
