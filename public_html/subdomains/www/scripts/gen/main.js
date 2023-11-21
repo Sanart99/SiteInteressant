@@ -2757,6 +2757,8 @@ function getForumMainElem() {
         if (forumMode == 'asile') return;
         forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Asile Intéressant';
         forumL.querySelector('#forum_threadsFilter').style.display = 'none';
+        forumL.querySelector('.refreshThreads').style.display = 'none';
+        forumL.querySelector('.newThreadLoader').style.display = 'none';
         loadTidThreads(20);
         forumMode = 'asile';
     }
@@ -2764,6 +2766,8 @@ function getForumMainElem() {
         if (forumMode == 'arche') return;
         forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Arche Intéressante';
         forumL.querySelector('#forum_threadsFilter').style.display = '';
+        forumL.querySelector('.refreshThreads').style.display = '';
+        forumL.querySelector('.newThreadLoader').style.display = '';
         loadThreads(20);
         forumMode = 'arche';
     }
@@ -2773,7 +2777,8 @@ function getForumMainElem() {
     document.querySelector('.refreshThreads').addEventListener('click',() => {
         const pageNumber = parseInt(document.querySelector('#forumL .nPage').innerText);
         if (isNaN(pageNumber)) return;
-        loadThreads(20,null,null,null,pageNumber-1);
+        if (forumMode == 'asile') loadTidThreads(20,null,null,null,pageNumber-1);
+        else loadThreads(20,null,null,null,pageNumber-1);
     });
 
     eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));    
