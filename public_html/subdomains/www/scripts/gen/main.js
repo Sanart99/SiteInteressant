@@ -1874,6 +1874,12 @@ function getForumMainElem() {
         });
         back.style.display = mobileMode ? '' : 'none';
 
+        const eTitle = forumR.querySelector('#newThread_title');
+        eTitle.addEventListener('input',() => {
+            if (eTitle.value.length > 24) eTitle.style.width = 'min(85%,100ch)';
+            else eTitle.style.width = '';
+        });
+
         setupReplyForm(forumR.querySelector('.replyFormDiv'), async (e,moreData) => {
             e.preventDefault();
             const data = new FormData(e.target);
@@ -2898,7 +2904,9 @@ function getForumMainElem() {
         font-size: 0.75rem;
         border: 0;
         box-shadow: inset 0px 2px 2px #c7c5c0;
-        padding: 0.1rem 1rem 0.1rem 0px;
+        padding: 0.1rem 0rem 0.1rem 0px;
+        transition: width 0.25s;
+        width: 25ch;
     }
     #mainDiv_forum .inputText1:invalid {
         color: red;
