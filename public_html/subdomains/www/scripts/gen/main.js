@@ -2717,12 +2717,21 @@ function getForumMainElem() {
             }
 
             // gadgets
+            const pop = stringToNodes(`<div class='gadgetInspector popupContainer removeDefaultStyle' style="display:none;" data-pop-exitable="1" data-pop-remove-on-exit="1"></div>`)[0];
+            pop.addEventListener('click', (e) => { e.stopPropagation(); } );
+
             const letterGadgets = [];
             if (node.classList.contains('gadget') && node.classlist.contains('letter')) letterGadgets.push(node);
             for (const n of node.querySelectorAll('.gadget.letter')) letterGadgets.push(n);
             for (const node of letterGadgets) {
                 const regex = new RegExp('^;*(?:A\-Z|consonne|voyelle|inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML = `<p>Générateur : <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
             }
 
             const cardGadgets = [];
@@ -2731,6 +2740,12 @@ function getForumMainElem() {
             for (const node of cardGadgets) {
                 const regex = new RegExp('^;*(?:inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML =  `<p>Générateur :  <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
             }
 
             const diceGadgets = [];
@@ -2743,6 +2758,12 @@ function getForumMainElem() {
                         node.classList.add('approved');
                         break;
                 }
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML =  `<p>Générateur :  <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
             }
 
             container.insertAdjacentElement('beforeend',node);
@@ -3735,6 +3756,18 @@ function getForumMainElem() {
     #mainDiv_forum .octohitDiv .octohitDiv_mid p {
         color: darkRed;
         line-height: 1.1;
+    }
+    #popupDiv .gadgetInspector {
+        position: relative;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+        background-color: #3B4151;
+        color: white;
+        padding: 0.7rem;
+        border: 4px solid #27282D;
+        font-size: 0.85rem;
     }
     #forum_threadsFilter {
         font-size: 0.7rem;
