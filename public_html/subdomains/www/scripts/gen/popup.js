@@ -8,13 +8,22 @@ function getPopupDiv() {
     HTML,
     'js' => <<<JAVASCRIPT
     const popupDiv = document.querySelector('#popupDiv');
+    let currentlyOpen = null;
     popupDiv.openTo = (sel) => {
         popupDiv.style.display = '';
         for (const e of document.querySelectorAll('#popupDiv > form, #popupDiv > div')) e.style.display = 'none';
         const e = popupDiv.querySelector(sel);
-        if (e != null) e.style.display = '';
+        if (e != null) {
+            e.style.display = '';
+            currentlyOpen = e;
+        } 
     }; 
-    popupDiv.close = () => { popupDiv.style.display = 'none'; };
+    popupDiv.close = () => { popupDiv.style.display = 'none'; currentlyOpen = null; };
+    popupDiv.addEventListener('click',() => {
+        if (currentlyOpen == null || currentlyOpen.dataset?.popExitable != true) return;
+        if (currentlyOpen.dataset?.popRemoveOnExit) currentlyOpen.remove();
+        popupDiv.close();
+    });
     
     JAVASCRIPT,
     'css' => <<<CSS
