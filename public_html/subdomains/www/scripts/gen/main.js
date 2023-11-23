@@ -1935,8 +1935,8 @@ function getForumMainElem() {
                     <input id="searchForm_toDate" type="date" name="toDate"/>
                 </div>
                 <label for="searchForm_sortBy">Trier par :</label><div>
-                    <input id="searchForm_sortByRelevance" name="sortBy" type="radio" value="ByRelevance" checked="true"/><label for="searchForm_sortByRelevance">Pertinence</label>
-                    <input id="searchForm_sortByDate" name="sortBy" type="radio" value="ByDate"/><label for="searchForm_sortByDate">Date</label>
+                    <input id="searchForm_sortByRelevance" name="sortBy" type="radio" value="ByRelevance" /><label for="searchForm_sortByRelevance">Pertinence</label>
+                    <input id="searchForm_sortByDate" name="sortBy" type="radio" value="ByDate" checked="true"/><label for="searchForm_sortByDate">Date</label>
                 </div>
                 <label for="searchForm_author">Auteur :</label><input id="searchForm_author" name="author" type="text" list="dl_userlist"/>
             </div>
