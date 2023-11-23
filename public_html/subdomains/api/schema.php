@@ -759,6 +759,26 @@ class MutationType extends ObjectType {
                         $conn->query('COMMIT');
                         return new OperationResult(SuccessType::SUCCESS);
                     }
+                ],
+                'userLog' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'name' => Type::nonNull(Type::string()),
+                        'data' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+
+                        $conn = DBManager::getConnection();
+                        $number = ($conn->query("SELECT MAX(number) FROM user_logs WHERE user_id={$user->id}")->fetch(\PDO::FETCH_NUM)[0])??0;
+                        $stmt = $conn->prepare('INSERT INTO user_logs(user_id,number,date,name,data) VALUES (?,?,?,?,?)');
+                        $stmt->execute([$user->id,$number,$sNow,$args['name'],$args['data']]);
+
+                        return new OperationResult(SuccessType::SUCCESS); 
+                    }
                 ]
             ]
         ]);
