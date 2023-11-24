@@ -32,6 +32,14 @@ class AWS {
         if (!self::$initialized) self::init();
         return self::$client;
     }
+
+    public static function extractMetadata(\Aws\Result $result, ?string $key=null):array {
+        return [
+            '_Key' => $key,
+            'ContentLength' => $result['ContentLength']??null,
+            'ContentType' => $result['ContentType']??null
+        ];
+    }
 }
 
 class LDS3Client {
