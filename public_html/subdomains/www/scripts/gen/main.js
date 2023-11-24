@@ -2350,7 +2350,7 @@ function getForumMainElem() {
 
             if (new RegExp('^(https?|ftp)://[^\\.]+\..+').test(e.clipboardData.getData('text/plain'))) {
                 e.preventDefault();
-                const v = e.clipboardData.getData('text/plain');
+                const v = e.clipboardData.getData('text/plain').trim();
                 quickInputInsert(`[link=\${v}]\${escapeCharacters(v)}[/link]`);
             } else if (replyFormDiv.querySelector('.opt_specChar').checked) {
                 e.preventDefault();
