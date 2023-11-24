@@ -37,11 +37,12 @@ class AWS {
 class LDS3Client {
     public function __construct(public ?S3Client $client) { }
 
-    public function getObject(string $bucketName, string $key) {
+    public function getObject(string $bucketName, string $key, ?string $range=null) {
         try {
             return $this->client->getObject([
                 'Bucket' => $bucketName,
-                'Key' => $key
+                'Key' => $key,
+                'Range' => $range
             ]);
         } catch (\Aws\Exception\AwsException $e) {
             return $e;
