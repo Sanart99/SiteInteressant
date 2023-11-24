@@ -2612,18 +2612,24 @@ function getForumMainElem() {
                             bLoading = true;
                             viewNode.innerHTML = 'Loading...';
                             
-                            fetch(`$res/file/\${keyName}`).then((res) => {
+                            sendQuery(`query GetS3ObjectMetadata(\$key:String!) {
+                                f:getS3ObjectMetadata(key:\$key) {
+                                    _key
+                                    contentLength
+                                    contentType
+                                }
+                            }`,{key:keyName}).then((res) => {
+                                if (res?.data?.f?._key == null) {
+                                    viewNode.innerHTML = 'File not found.';
+                                    basicQueryResultCheck();
+                                    return;
+                                }
                                 bLoading = false;
-                                if (res.status == 404) { viewNode.innerHTML = 'File not found.'; return 'ignore'; }
-                                try { return res.blob(); } catch (e) { return null; }
-                            }).then((blob) => {
-                                if (blob == 'ignore') return;
-                                if (blob?.constructor?.name != 'Blob') { viewNode.innerHTML = '<span>Incorrect file.</span>'; return; }
 
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
                                 const audioRegex = new RegExp('^audio\\/*');
-                                if (imgRegex.test(blob.type)) {
+                                if (imgRegex.test(res.data.f.contentType)) {
                                     const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
                                     viewNode.replaceWith(imgNode);
                                     imgNode.addEventListener('click',() => {
@@ -2636,9 +2642,9 @@ function getForumMainElem() {
                                         popupDiv.insertAdjacentElement('beforeend',pop);
                                         popupDiv.openTo('.imgBetterView');
                                     });
-                                } else if (vidRegex.test(blob.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
-                                } else if (audioRegex.test(blob.type)) {
+                                } else if (vidRegex.test(res.data.f.contentType)) {
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="metadata" playsinline> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                } else if (audioRegex.test(res.data.f.contentType)) {
                                     viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
