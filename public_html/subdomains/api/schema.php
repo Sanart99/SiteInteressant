@@ -212,7 +212,27 @@ class QueryType extends ObjectType {
                             return $v;
                         });
                     }
+                ],
+                'getS3ObjectMetadata' => [
+                    'type' => fn() => Types::S3ObjectMetadata(),
+                    'args' => [
+                        'key' => Type::string()
+                    ],
+                    'resolve' => function($o,$args) {
+                        $s3Key = $args['key'];
+                        $redisKey = "s3:general:meta:$s3Key";
 
+                        $vCache = Cache::get($redisKey);
+                        if ($vCache != null) return json_decode($vCache,true);
+
+                        $s3Client = AWS::getS3Client();
+                        $res = $s3Client->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$s3Key,'bytes 0-1');
+                        if (!($res instanceof \Aws\Result)) return null;
+
+                        $meta = AWS::extractMetadata($res,$s3Key);
+                        Cache::set($redisKey,json_encode($meta),172800);
+                        return $meta;
+                    }
                 ],
                 'getServiceWorkerName' => [
                     'type' => fn() => Type::nonNull(Type::string()),
