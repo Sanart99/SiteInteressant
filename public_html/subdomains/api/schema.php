@@ -780,6 +780,27 @@ class MutationType extends ObjectType {
                         return new OperationResult(SuccessType::SUCCESS);
                     }
                 ],
+                'changeUsername' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'newUsername' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function ($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $usernameRegex = '/^[\w\-]+$/u';
+                        $username = $args['newUsername'];
+                        if (mb_strlen($username, "utf8") > 30) return new OperationResult(ErrorType::INVALID_DATA, 'The username must not have more than 30 characters.');
+                        else if (preg_match($usernameRegex, $username) < 1) return new OperationResult(ErrorType::INVALID_DATA, 'The username contains invalid characters.');
+
+                        $conn = DBManager::getConnection();
+                        $stmt = $conn->prepare('UPDATE users SET name=? WHERE id=?');
+                        $stmt->execute([$username,$user->id]);
+
+                        return new OperationResult(SuccessType::SUCCESS);
+                    }
+                ],
                 'userLog' => [
                     'type' => fn() => Types::SimpleOperation(),
                     'args' => [
