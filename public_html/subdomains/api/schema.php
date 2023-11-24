@@ -1958,6 +1958,34 @@ class OctohitType extends ObjectType {
     }
 }
 
+class S3ObjectMetadataType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                '_key' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => function($res) {
+                        return $res['_Key']??null;
+                    }
+                ],
+                'contentType' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => function($res) {
+                        return $res['ContentType']??null;
+                    }
+                ],
+                'contentLength' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => function($res) {
+                        return ((int)$res['ContentLength'])??null;
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Notifications *****/
 
 class RecordType extends ObjectType {
@@ -2518,6 +2546,10 @@ class Types {
 
     public static function Octohit():OctohitType {
         return self::$types['Octohit'] ??= new OctohitType();
+    }
+
+    public static function S3ObjectMetadata():S3ObjectMetadataType {
+        return self::$types['S3ObjectMetadata'] ??= new S3ObjectMetadataType();
     }
 
     /***** Notifications *****/
