@@ -2196,11 +2196,9 @@ class Cache {
 
         self::$redis = new \Redis();
         try {
-            $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT'],null,0,0,[
-                'stream' => [
-                    'verify_peer_name' => (bool)$_SERVER['LD_REDIS_VERIFY_PEER_NAME']
-                ]
-            ]);
+            if ((bool)$_SERVER['LD_REDIS_VERIFY_PEER_NAME'] === false)
+                $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT'],null,0,0,['stream' => ['verify_peer_name' => false]]);
+            else $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT']);            
             if ($res == false) {
                 self::$redis = null;
                 Context::addLog('Redis','Redis connection failure.');
