@@ -1859,7 +1859,7 @@ function getForumMainElem() {
                     <div class="emojisButtons"></div>
                     <div class="emojis"></div>
                 </div>
-                <input class="button2" type="submit" value="Envoyer"/>
+                <input class="button2" type="submit" value="Envoyer" tabindex="3"/>
             </form>
         </div>`.trim());
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
@@ -2569,7 +2569,7 @@ function getForumMainElem() {
                             <button class="button1 file" type="button">Insérer un fichier</button>
                         </div>
                     </div>
-                    <textarea name="msg"></textarea>
+                    <textarea name="msg" tabindex="1"></textarea>
                     <div class="optDiv">
                         <div>
                             <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
@@ -2579,7 +2579,7 @@ function getForumMainElem() {
                         <div class="emojisButtons"></div>
                         <div class="emojis"></div>
                     </div>
-                    <input class="button2" type="submit" value="Envoyer"/>
+                    <input class="button2" type="submit" value="Envoyer" tabindex="2"/>
                 </form>
             </div>`)[0];
     }
