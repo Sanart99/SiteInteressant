@@ -162,16 +162,17 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         new SoloKeywordMarker('file',function ($arg) use(&$commitData,&$userId,&$conn) {
             if (preg_match('/^\s*(?:(get)\s*;)?(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
             $get = isset($m[1]) && strtolower($m[1]) === 'get';
-            $sFile = $m[2];
-            $sFile2 = str_replace(['.',' '],'_',$sFile);
-            if ($get) return "<span class=\"processThis\">insertFile:{$sFile}</span>";
-            if (!$commitData) return "<span class=\"processThis\">insertFileLocal:$sFile</span>";
+            $sFile = urldecode($m[2]);
+            $sFile2 = str_replace(['.',' '],'_',$m[2]);
+            if ($get) return "<span class=\"processThis\">insertFile:{$m[2]}</span>";
+            if (!$commitData) return "<span class=\"processThis\">insertFileLocal:{$m[2]}</span>";
             
             $conn ??= get_tracked_pdo();
             
             if (!isset($_FILES[$sFile2])) return '<span class="error">Failed upload (1).</span>';
             else if ($_FILES[$sFile2]['size'] > 25000000) return '<span class="error">File must be under 25MB.</span>';
             $file = $_FILES[$sFile2];
+            $file['name'] = $sFile;
 
             UsersBuffer::requestFromId($userId);
             $row = UsersBuffer::getFromId($userId);
