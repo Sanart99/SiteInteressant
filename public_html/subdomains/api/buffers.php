@@ -396,7 +396,37 @@ class UsersBuffer {
         $fet =& BufferManager::$fet;
         $rg =& BufferManager::$reqGroup;
         $fg =& BufferManager::$fetGroup;
-        $mandatoryEmojis = ['tid/Twinoid v1/','tid/Twinoid v2/','tid/Twinoid v3/'];
+        $mandatoryEmojis = [
+            'tid/AlphaBounce/',
+            'tid/Arkadeo',
+            'tid/Braziball Puzzle',
+            'tid/CroqueMotel/',
+            'tid/Die2Nite/',
+            'tid/DinoRPG/',
+            'tid/Fever!/',
+            'tid/Hordes/',
+            'tid/Intrusion/',
+            'tid/Kadokado/',
+            'tid/Kingdom/',
+            'tid/Kube/',
+            'tid/Majority/',
+            'tid/Monster Hotel/',
+            'tid/MotionBall 2/',
+            'tid/Mush/',
+            'tid/Muxxu/',
+            // 'tid/Naturalchimie 2/',
+            'tid/Odyssey/',
+            'tid/Rockfaller Journey/',
+            'tid/Snake/',
+            'tid/Street Writer/',
+            'tid/Studio Quiz/',
+            'tid/Teacher Story/',
+            'tid/Twinoid v1/',
+            'tid/Twinoid v2/',
+            'tid/Twinoid v3/',
+            'tid/Twinoid/',
+            'tid/Uppercup Football/'
+        ];
 
         $toRemove = [];
 
