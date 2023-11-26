@@ -1004,7 +1004,7 @@ function getForumMainElem() {
             currThreadId = threadId;
             for (const comment of comments.edges) {
                 const date = new Date(stringDateToISO(comment.node.creationDate));
-                const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}">
+                const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}" data-comment-id="\${comment.node.id}" data-cursor="\${comment.cursor}">
                     <div class="header">
                         <div class="avatarDiv">
                             <img class="avatar" src="\${comment.node.author.avatarURL}" />
