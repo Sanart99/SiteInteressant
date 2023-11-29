@@ -2622,7 +2622,6 @@ function getForumMainElem() {
                             }`,{key:keyName}).then((res) => {
                                 if (res?.data?.f?._key == null) {
                                     viewNode.innerHTML = 'File not found.';
-                                    basicQueryResultCheck();
                                     return;
                                 }
                                 bLoading = false;
