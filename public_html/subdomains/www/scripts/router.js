@@ -69,7 +69,7 @@ function setUrlFormatter(urlFormatter) {
 
         const afterRoot = res[1].endsWith('.php') ? res[1].substr(0,res[1].length-4) : res[1];
         var displayedURL = `$root/\${afterRoot}`;
-        if (res[2] != undefined) displayedURL += `\${res[2]}`;
+        if (res[2] != undefined) displayedURL += res[2].endsWith('.php') ? res[2].substr(0,res[2].length-4) : res[2];
         if (__debug) console.log(`urlFormatter: \${url} -> \${displayedURL}`);
         return displayedURL;
     };
