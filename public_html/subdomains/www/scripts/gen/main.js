@@ -2597,14 +2597,16 @@ function getForumMainElem() {
             for (const n of node.querySelectorAll('.processThis')) nodesToProcess.push(n);
 
             for (const node of Array.from(nodesToProcess)) {
-                const m = /^(\w+):(.*)$/.exec(node.innerHTML);
+                const m = /^(\w+):([^;]*)(.*)?$/.exec(node.innerHTML);
                 if (m == null) continue;
 
                 const fName = m[1];
+                const fVal = m[2];
+                const params = m[3] != null ? m[3].split(';') : [];
                 let local = false;
                 switch (m[1]) {
                     case 'insertFile':
-                        const keyName = m[2];
+                        const keyName = fVal;
                         const viewNode = stringToNodes(`<button class="button1">View file</button>`)[0];
                         node.replaceWith(viewNode);
                         let bLoading = false;
@@ -2688,10 +2690,10 @@ function getForumMainElem() {
                         }
 
                         let file = null;
-                        for (const f of files) if (f.name == m[2]) file = f;
+                        for (const f of files) if (f.name == fVal) file = f;
 
                         if (file == null) {
-                            const but = stringToNodes(`<button class="button1 warning" type="button">Reuploader \${m[2]}</button>`)[0];
+                            const but = stringToNodes(`<button class="button1 warning" type="button">Reuploader \${fVal}</button>`)[0];
                             const hiddenFileInput = stringToNodes(`<input type="file" style="display:none;" />`)[0]
                             container.insertAdjacentElement('afterend',hiddenFileInput);
                             node.replaceWith(but);
@@ -2699,7 +2701,7 @@ function getForumMainElem() {
                             but.addEventListener('click', () => hiddenFileInput.click());
                             hiddenFileInput.addEventListener('change',() => {
                                 const file = hiddenFileInput.files[0];
-                                if (file.name != m[2]) { alert('Le nom du fichier est différent.'); return; }
+                                if (file.name != fVal) { alert('Le nom du fichier est différent.'); return; }
 
                                 files.push(file);
                                 const url = URL.createObjectURL(file);
