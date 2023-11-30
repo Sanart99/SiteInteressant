@@ -2216,11 +2216,7 @@ function getForumMainElem() {
                     }
                     break;
                 case 'VIDEO':
-                    if (node.classList.contains('file')) {
-                        const regex = new RegExp('/([^/]*)$');
-                        const m = regex.exec(node.querySelector('source').src);
-                        res += `[file=get;\${m[1]}/]`;
-                    }
+                    if (node.classList.contains('file')) res += node.querySelector('source').dataset.copyTag;
                     break;
                 case 'BLOCKQUOTE':
                     if (sPreQuote != '') res += `[cite=\${sPreQuote}]` + contentToText(node.childNodes) + '[/cite]\\n';
@@ -2645,7 +2641,12 @@ function getForumMainElem() {
                                         popupDiv.openTo('.imgBetterView');
                                     });
                                 } else if (vidRegex.test(res.data.f.contentType)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="metadata" playsinline> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                    let extraAttr = '';
+                                    let extraParam = '';
+                                    if (params.includes('loop')) { extraAttr += ' loop="true"'; extraParam += 'loop;'; }
+                                    if (params.includes('autoplay')) { extraAttr += ' autoplay="true"'; extraParam += 'autoplay;'; }
+                                    if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="metadata" playsinline="true"\${extraAttr}> <source src="$res/file/\${keyName}" data-copy-tag="[file=get;\${extraParam}\${keyName}/]"/> </video>`)[0]);
                                 } else if (audioRegex.test(res.data.f.contentType)) {
                                     viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
@@ -2678,7 +2679,11 @@ function getForumMainElem() {
                                         popupDiv.openTo('.imgBetterView');
                                     });
                                 } else if (vidRegex.test(file.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline> <source src="\${url}" /> </video>`)[0]);
+                                    let extraAttr = '';
+                                    if (params.includes('loop')) extraAttr += ' loop="true"';
+                                    if (params.includes('autoplay')) extraAttr += ' autoplay="true"';
+                                    if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline="true"\${extraAttr}> <source src="\${url}" /> </video>`)[0]);
                                 } else if (audioRegex.test(file.type)) {
                                     viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="\${url}"> <a href="\${url}">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {

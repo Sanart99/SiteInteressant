@@ -159,12 +159,21 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             return ["</p>$sArg<div class=\"rpText\"><p>",'</p></div><p>'];
         }, $result),
         new SoloKeywordMarker('file',function ($arg) use(&$commitData,&$userId,&$conn) {
-            if (preg_match('/^\s*(?:(get)\s*;)?(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
-            $get = isset($m[1]) && strtolower($m[1]) === 'get';
+            if (preg_match('/^\s*((?:(?:get|loop|autoplay);?)+)?\s*(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
+            $params = isset($m[1]) ? explode(';',$m[1]) : [];
+            $params = array_map(fn($v) => trim($v), $params);
+            $bGet = in_array('get',$params);
+            $bLoop = in_array('loop',$params);
+            $bAutoplay = in_array('autoplay',$params);
+
+            $withParams = '';
+            if ($bLoop) $withParams .= ';loop';
+            if ($bAutoplay) $withParams .= ';autoplay';
+
             $sFile = urldecode($m[2]);
             $sFile2 = str_replace(['.',' '],'_',$m[2]);
-            if ($get) return '<span class="processThis">insertFile:'.htmlspecialchars($m[2]).'</span>';
-            if (!$commitData) return '<span class="processThis">insertFileLocal:'.htmlspecialchars($m[2]).'</span>';
+            if ($bGet) return '<span class="processThis">insertFile:'.htmlspecialchars($m[2]).$withParams.'</span>';
+            if (!$commitData) return '<span class="processThis">insertFileLocal:'.htmlspecialchars($m[2]).$withParams.'</span>';
             
             $conn ??= get_tracked_pdo();
             
@@ -182,7 +191,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             $res = $s3client->putObject($conn,$user,$file,false,true);
             if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (3).</span>';
             $keyName = $res->data[0];
-            return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).'</span>';
+            return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).$withParams.'</span>';
         }, $result),
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
