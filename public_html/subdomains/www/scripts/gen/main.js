@@ -2777,7 +2777,7 @@ function getForumMainElem() {
         return o;
     }
     function escapeCharacters(s) {
-        return s.replaceAll(/[\\*\\/\\-\\[\\]:]/g,(s) => '\\\\'+s);
+        return s.replaceAll(/[\\*\\/\\-\\[\\]:\\\\]/g,(s) => '\\\\'+s);
     }
 
     function switchToAsile() {
