@@ -832,7 +832,7 @@ class NodeType extends InterfaceType {
     public function __construct(array $config2 = null) {
         $config = [
             'fields' => [
-                'id' => Type::nonNull(Type::id())
+                'id' => Type::id()
             ],
             'resolveType' => function ($id) {
                 switch (true) {
