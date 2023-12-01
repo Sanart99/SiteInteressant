@@ -46,7 +46,7 @@ function getPopupDiv() {
         overflow: hidden;
         padding-bottom: 1rem;
     }
-    .popupContaine:not(.removeDefaultStyle) {
+    .popupContainer:not(.removeDefaultStyle) {
         background: var(--bg-gradient-1);
         color: var(--color-black-1);
         display: flex;
