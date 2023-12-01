@@ -1639,6 +1639,7 @@ function getForumMainElem() {
                 ... on TidThread {
                     dbId
                     title
+                    kubeCount
                     comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,withPageCount:true) {
                         edges {
                             node {
@@ -1694,6 +1695,13 @@ function getForumMainElem() {
                 );
                 cont.insertAdjacentElement('beforeend', paginationDiv);
             }
+
+            const eInfos1 = forumR.querySelector('.subheader .infos1');
+            const eInfos2 = forumR.querySelector('.subheader .infos2');
+            const eInfos2Main = eInfos2.querySelector('.main');
+            const kubeDiv = getKubeDiv(null,null);
+            kubeDiv.set(json.data.node.kubeCount,true);
+            eInfos1.insertAdjacentElement('beforeend',kubeDiv);
 
             const eComments = document.querySelector('#forum_comments');
             const comments = json.data.node.comments;
@@ -2265,7 +2273,7 @@ function getForumMainElem() {
         hideAmount();
 
         let bKubeProcess = false;
-        divBegin.addEventListener('click', () => {
+        if (fAdd != null && fRem != null) divBegin.addEventListener('click', () => {
             if (bKubeProcess) return;
             bKubeProcess = true;
 
@@ -2283,6 +2291,7 @@ function getForumMainElem() {
                 });
             }
         });
+        else div.classList.add('disabled');
 
         div.set = (n,lit) => {
             if (n == 0) { hideAmount(); divBegin.src = srcNone; }
@@ -3744,7 +3753,7 @@ function getForumMainElem() {
         align-items: center;
         vertical-align: middle;
     }
-    #mainDiv_forum .iconDiv .iconDiv_begin {
+    #mainDiv_forum .iconDiv:not(.disabled) .iconDiv_begin {
         cursor: pointer;
     }
     #mainDiv_forum .iconDiv .iconDiv_mid {
