@@ -624,8 +624,8 @@ function get_random_dice_value($arg, &$sType='') {
     }
 
     preg_match('/^(\d+)?(-)?(\d+)?$/', $pool[random_int(0,count($pool)-1)], $m, PREG_UNMATCHED_AS_NULL);
-    if ($m[2] == null) return $m[1];
-    else if ($m[3] != null) return ((int)$m[1] > (int)$m[2]) ? random_int((int)$m[2],(int)$m[1]) : random_int((int)$m[1],(int)$m[2]);
+    if ($m[2] == null) return (int)$m[1];
+    else if ($m[3] != null) return ((int)$m[1] > (int)$m[3]) ? random_int((int)$m[3],(int)$m[1]) : random_int((int)$m[1],(int)$m[3]);
 
     return $m[1];
 }
