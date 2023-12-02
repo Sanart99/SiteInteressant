@@ -32,16 +32,25 @@ class AWS {
         if (!self::$initialized) self::init();
         return self::$client;
     }
+
+    public static function extractMetadata(\Aws\Result $result, ?string $key=null):array {
+        return [
+            '_Key' => $key,
+            'ContentLength' => $result['ContentLength']??null,
+            'ContentType' => $result['ContentType']??null
+        ];
+    }
 }
 
 class LDS3Client {
     public function __construct(public ?S3Client $client) { }
 
-    public function getObject(string $bucketName, string $key) {
+    public function getObject(string $bucketName, string $key, ?string $range=null) {
         try {
             return $this->client->getObject([
                 'Bucket' => $bucketName,
-                'Key' => $key
+                'Key' => $key,
+                'Range' => $range
             ]);
         } catch (\Aws\Exception\AwsException $e) {
             return $e;

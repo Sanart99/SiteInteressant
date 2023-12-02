@@ -26,12 +26,12 @@ header('Content-Type: text/html');
 <html>
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <meta id="meta_viewport" name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
         <link rel="stylesheet" href="<?php echo $root ?>/styleReset.css" type="text/css">
 		<link rel="stylesheet" href="<?php echo $root ?>/style.css" type="text/css">
         <link rel="manifest" href="<?php echo $root ?>/manifest.webmanifest" />
         <link rel="icon" href="<?php echo $res ?>/icons/icon_interessant.svg"/>
-        <title>Site Interessant</title>
+        <title>Site Intéressant</title>
 
         <?php foreach ($scriptsToLoad as $s) echo "<script src=\"$root/scripts/$s\"></script>" ?>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -63,6 +63,8 @@ header('Content-Type: text/html');
             if (m == null) return url;
             return `<?=$root?>/pages/forum.php?urlEnd=${m[1]}`;
         },0);
+
+        if (localGet('settings_minusculeMode') === 'true') document.title = 'site intéressant';
 
         <?= getPopupDiv()['js']; ?>
         <?php if (!isset($_COOKIE['sid'])): ?>

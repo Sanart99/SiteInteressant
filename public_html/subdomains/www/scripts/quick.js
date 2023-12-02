@@ -80,9 +80,39 @@ function getDateAsString2(date) {
     const nowDate = new Date(Date.now());
     const daysDiff = hoursDiff / 24;
     const sDate = getDateAsString(date);
-    if (nowDate.getDate() == date.getDate()) return `Aujourd'hui à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
-    if (nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
+    if (hoursDiff <= 24 && nowDate.getDate() == date.getDate()) return `Aujourd'hui à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
+    if (hoursDiff <= 48 && nowDate.getDate() == date.getDate() + 1) return `Hier à \${sDate[4].substr(0,2)}h\${sDate[4].substr(3,2)}`;
     return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle:'medium'}).format(date);
+}
+
+function stringDateToISO(sDate) {
+    const m = /(\\d{4}-\\d\\d-\\d\\d)?(T|\\s+)?(\\d\\d:\\d\\d:\\d\\d)?\\s*(Z)?/.exec(sDate);
+    const sNow = new Date().toISOString();
+    const s1 = sNow.substr(0,10);
+    const s2 = sNow.substr(11,8);
+
+    let s = '';
+    s += m[1] != null ? m[1] : s1;
+    s += 'T';
+    s += m[3] != null ? m[3] : s2;
+    s += 'Z';
+
+    return s;
+}
+
+function setNumberInTitle(n) {
+    const m = new RegExp('^(?:\\\((\\\d+)\\\))?\\\s*(.*)$').exec(document.title);
+    document.title = (n > 0 ? `(\${n}) ` : '') + m[2];
+}
+
+function enableZoom(b=true) {
+    if (b) document.querySelector('#meta_viewport').content = 'width=device-width, initial-scale=1.0';
+    else document.querySelector('#meta_viewport').content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0';
+}
+
+function isObjEmpty(obj) {
+    for (var prop in obj) if (Object.prototype.hasOwnProperty.call(obj, prop)) return false;
+    return true
 }
 
 async function isServerInTestMode() {

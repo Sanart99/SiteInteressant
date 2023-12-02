@@ -74,7 +74,7 @@ class KeywordMarker {
         if ($v === null) { $result .= "[/$from]"; return; }
         $iA = $v[0];
         $arg = $v[1];
-        $lenBefore1 = strlen($arg === null ? "[$from]" : "[{$from}={$arg}]");
+        $lenBefore1 = strlen($arg === null ? "[$from]" : '['.$from.'='.htmlspecialchars($arg).']');
 
         $middle = substr($result,$iA+$lenBefore1,$iB-($iA+$lenBefore1));
         $to = call_user_func($this->{'to'},$arg);
@@ -137,13 +137,12 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         new KeywordMarker('link',function($arg) {
             global $urlRegex;
             if ($arg == null) return ["[link]",'[/link]'];
-            $arg = str_replace('"','\"',$arg);
-            if ($arg == '' || preg_match($urlRegex, $arg) == 0) return ["[link=$arg]",'[/link]'];
-            return ["<a href=\"$arg\" target=\"_blank\">",'</a>'];
+            if ($arg == '' || preg_match($urlRegex, htmlspecialchars($arg), $m) == 0) return ['[link='.$m[0].']','[/link]'];
+            return ['<a href="'.htmlspecialchars($arg).'" target="_blank">','</a>'];
         }, $result),
         new KeywordMarker('cite',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
-            return $arg == '' ? ['</p><blockquote><p>','</p></blockquote><p>'] : ["</p><p class=\"preQuote\">$arg</p><blockquote><p>",'</p></blockquote><p>'];
+            return $arg == '' ? ['</p><blockquote><p>','</p></blockquote><p>'] : ['</p><p class="preQuote">'.htmlspecialchars($arg).'</p><blockquote><p>','</p></blockquote><p>'];
         }, $result),
         new KeywordMarker('spoil',function($arg) use(&$skipIfNewLine) {
             $block = preg_match('/(?:^|;)\s*block\s*(?:$|;)/',$arg) > 0;
@@ -156,22 +155,32 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
         }, $result),
         new KeywordMarker('rp',function($arg) use(&$skipIfNewLine) {
             $skipIfNewLine = true;
-            $sArg = preg_match('/^[^<>]+$/',$arg,$m) > 0 ? "<div class=\"rpTextSpeaker\"><p>{$m[0]}</p></div>" : '';
+            $sArg = $arg != '' ? '<div class="rpTextSpeaker"><p>'.htmlspecialchars($arg).'</p></div>' : '';
             return ["</p>$sArg<div class=\"rpText\"><p>",'</p></div><p>'];
         }, $result),
         new SoloKeywordMarker('file',function ($arg) use(&$commitData,&$userId,&$conn) {
-            if (preg_match('/^\s*(?:(get)\s*;)?(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
-            $get = isset($m[1]) && strtolower($m[1]) === 'get';
-            $sFile = $m[2];
-            $sFile2 = str_replace(['.',' '],'_',$sFile);
-            if ($get) return "<span class=\"processThis\">insertFile:{$sFile}</span>";
-            if (!$commitData) return "<span class=\"processThis\">insertFileLocal:$sFile</span>";
+            if (preg_match('/^\s*((?:(?:get|loop|autoplay);?)+)?\s*(.*)$/i',$arg,$m) == 0) return '<span class="error">Failed upload.</span>';
+            $params = isset($m[1]) ? explode(';',$m[1]) : [];
+            $params = array_map(fn($v) => trim($v), $params);
+            $bGet = in_array('get',$params);
+            $bLoop = in_array('loop',$params);
+            $bAutoplay = in_array('autoplay',$params);
+
+            $withParams = '';
+            if ($bLoop) $withParams .= ';loop';
+            if ($bAutoplay) $withParams .= ';autoplay';
+
+            $sFile = urldecode($m[2]);
+            $sFile2 = str_replace(['.',' '],'_',$m[2]);
+            if ($bGet) return '<span class="processThis">insertFile:'.htmlspecialchars($m[2]).$withParams.'</span>';
+            if (!$commitData) return '<span class="processThis">insertFileLocal:'.htmlspecialchars($m[2]).$withParams.'</span>';
             
             $conn ??= get_tracked_pdo();
             
             if (!isset($_FILES[$sFile2])) return '<span class="error">Failed upload (1).</span>';
             else if ($_FILES[$sFile2]['size'] > 25000000) return '<span class="error">File must be under 25MB.</span>';
             $file = $_FILES[$sFile2];
+            $file['name'] = $sFile;
 
             UsersBuffer::requestFromId($userId);
             $row = UsersBuffer::getFromId($userId);
@@ -182,12 +191,12 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             $res = $s3client->putObject($conn,$user,$file,false,true);
             if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (3).</span>';
             $keyName = $res->data[0];
-            return "<span class=\"processThis\">insertFile:{$keyName}</span>";
+            return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).$withParams.'</span>';
         }, $result),
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
             $showValue = $commitData || (preg_match('/;?inspect;?/',$arg) > 0);
-            return "<span class=\"gadget card\" data-generator=\"$arg\"><img src=\"$resPath/design/balises/card.png\"/><span class=\"value\">".($showValue ? get_random_card_value($arg) : '??')."</span></span>";
+            return '<span class="gadget card" data-generator="'.htmlspecialchars($arg)."\"><img src=\"$resPath/design/balises/card.png\"/><span class=\"value\">".($showValue ? htmlspecialchars(get_random_card_value($arg)) : '??')."</span></span>";
         }, $result),
         new SoloKeywordMarker('letter',function($arg) use(&$commitData, &$resPath) {
             $arg = preg_replace('/\s/','',$arg);
@@ -198,7 +207,22 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 case 'vowel': $src = "$resPath/design/balises/vowel.png"; break;
                 default: $src = "$resPath/design/balises/letter.png"; break;
             }
-            return "<span class=\"gadget letter\" data-generator=\"$arg\"><img src=\"$src\"/><span class=\"value\">".($showValue ? $v : '??')."</span></span>";
+            return '<span class="gadget letter" data-generator="'.htmlspecialchars($arg).'">'."<img src=\"$src\"/><span class=\"value\">".($showValue ? htmlspecialchars($v) : '??')."</span></span>";
+        }, $result),
+        new SoloKeywordMarker('dice',function($arg) use(&$commitData, &$resPath) {
+            $arg = preg_replace('/\s/','',$arg);
+            $v = get_random_dice_value($arg,$type);
+            $showValue = $commitData;
+            switch ($type) {
+                case 'd20': $src = "$resPath/design/balises/dice20.png"; break;
+                case 'd12': $src = "$resPath/design/balises/dice12.png"; break;
+                case 'd10': $src = "$resPath/design/balises/dice10.png"; break;
+                case 'd8': $src = "$resPath/design/balises/dice8.png"; break;
+                case 'd6': $src = "$resPath/design/balises/dice6.png"; break;
+                case 'd4': $src = "$resPath/design/balises/dice4.png"; break;
+                default: $src = "$resPath/design/balises/dice100.png"; break;
+            }
+            return '<span class="gadget dice" data-generator="'.htmlspecialchars($arg)."\"><img src=\"$src\"/><span class=\"value\">".($showValue ? htmlspecialchars($v) : '??')."</span></span>";
         }, $result)
     ]);
     $kwMarkersToSkip = new Set();
@@ -208,7 +232,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             switch (true) {
                 case $ignoreSpec:
                     $ignoreSpec = false;
-                    $kwMarkerArg .= htmlspecialchars($char);
+                    $kwMarkerArg .= $char;
                     break;
                 case $char == '\\':
                     $ignoreSpec = true;
@@ -222,9 +246,9 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     } else if ($activeMarker instanceof KeywordMarker) {
                         $activeMarker->markA(strlen($result),$kwMarkerArg);
                         // print_r(PHP_EOL.'END, Argument: \''.$kwMarkerArg."'".PHP_EOL);
-                        $result .= "[$sSpec=$kwMarkerArg]";
+                        $result .= '['.$sSpec.'='.htmlspecialchars($kwMarkerArg).']';
                     } else {
-                        $result .= "[$sSpec=$kwMarkerArg]";
+                        $result .= '['.$sSpec.'='.htmlspecialchars($kwMarkerArg).']';
                     }
 
                     $sSpec = '';
@@ -234,7 +258,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     $kwMarkersToSkip->clear();
                     break;
                 default:
-                    $kwMarkerArg .= htmlspecialchars($char);
+                    $kwMarkerArg .= $char;
                     break;
             }
             continue;
@@ -384,7 +408,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
     }
 
     if ($sMarkerMode) $result .= $sSpec;
-    else if ($kwMarkerMode) $result .= $kwMarkerArg !== null ? "[$sSpec=$kwMarkerArg" : "[$sSpec";
+    else if ($kwMarkerMode) $result .= $kwMarkerArg !== null ? "[$sSpec=".htmlspecialchars($kwMarkerArg) : "[$sSpec";
     if ($sEmoji != null) $result .= $sEmoji;
     $result .= '</p>';
 
@@ -575,5 +599,34 @@ function get_random_letter_value($arg, &$sType='') {
     }
 
     return $letters[random_int(0,count($letters)-1)];
+}
+
+function get_random_dice_value($arg, &$sType='') {
+    $vals = explode(';',$arg);
+    if ($arg == '') $arg = '1-100';
+    
+    $pool = [];
+    foreach ($vals as $val) {
+        if (preg_match('/^(\d+)?(-)?(\d+)?$/', $val, $m, PREG_UNMATCHED_AS_NULL) > 0) if ($m[1] != null) array_push($pool,$val);
+    }
+    if (count($pool) == 0) $pool[0] = '0';
+
+    $sType = 'd100';
+    if (count($pool) == 1) {
+        switch ($pool[0]) {
+            case '1-20': $sType = 'd20'; break;
+            case '1-12': $sType = 'd12'; break;
+            case '1-10': $sType = 'd10'; break;
+            case '1-8': $sType = 'd8'; break;
+            case '1-6': $sType = 'd6'; break;
+            case '1-4': $sType = 'd4'; break;
+        }
+    }
+
+    preg_match('/^(\d+)?(-)?(\d+)?$/', $pool[random_int(0,count($pool)-1)], $m, PREG_UNMATCHED_AS_NULL);
+    if ($m[2] == null) return (int)$m[1];
+    else if ($m[3] != null) return ((int)$m[1] > (int)$m[3]) ? random_int((int)$m[3],(int)$m[1]) : random_int((int)$m[1],(int)$m[3]);
+
+    return $m[1];
 }
 ?>

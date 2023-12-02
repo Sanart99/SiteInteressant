@@ -53,12 +53,12 @@ use function LDLib\Forum\{
     kube_thread, unkube_thread, kube_comment, unkube_comment, octohit_comment,
     search,
     thread_add_comment, thread_edit_comment, thread_remove_comment,
-    thread_mark_comments_as_read, thread_mark_comments_as_notread,
+    mark_all_threads_as_read, mark_thread_as_read, thread_mark_comments_as_read, thread_mark_comments_as_notread,
     thread_follow, thread_unfollow,
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
 use function LDLib\Net\{curl_fetch};
-use function LdLib\User\{set_notification_to_read, set_user_setting};
+use function LdLib\User\{set_notification_to_read, set_user_setting, ban_user};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -212,7 +212,27 @@ class QueryType extends ObjectType {
                             return $v;
                         });
                     }
+                ],
+                'getS3ObjectMetadata' => [
+                    'type' => fn() => Types::S3ObjectMetadata(),
+                    'args' => [
+                        'key' => Type::string()
+                    ],
+                    'resolve' => function($o,$args) {
+                        $s3Key = $args['key'];
+                        $redisKey = "s3:general:meta:$s3Key";
 
+                        $vCache = Cache::get($redisKey);
+                        if ($vCache != null) return json_decode($vCache,true);
+
+                        $s3Client = AWS::getS3Client();
+                        $res = $s3Client->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$s3Key,'bytes 0-1');
+                        if (!($res instanceof \Aws\Result)) return null;
+
+                        $meta = AWS::extractMetadata($res,$s3Key);
+                        Cache::set($redisKey,json_encode($meta),172800);
+                        return $meta;
+                    }
                 ],
                 'getServiceWorkerName' => [
                     'type' => fn() => Type::nonNull(Type::string()),
@@ -327,12 +347,13 @@ class MutationType extends ObjectType {
                         'threadId' => Type::nonNull(Type::int()),
                         'commentNumber' => Type::nonNull(Type::int()),
                         'content' => Type::nonNull(Type::string()),
-                        'title' => Type::string()
+                        'title' => Type::string(),
+                        'markAsUnreadToUsers' => ['type' => Type::nonNull(Type::boolean()), 'defaultValue' => false]
                     ],
                     'resolve' => function($o,$args) {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
-                        return thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null);
+                        return thread_edit_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber'],$args['content'],$args['title']??null,$args['markAsUnreadToUsers']);
                     }
                 ],
                 'forumThread_removeComment' => [
@@ -345,6 +366,25 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_remove_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumber']);
+                    }
+                ],
+                'forumThread_markAllThreadsAsRead' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'resolve' => function() {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return mark_all_threads_as_read(DBManager::getConnection(),$user);
+                    }
+                ],
+                'forumThread_markThreadAsRead' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return mark_thread_as_read(DBManager::getConnection(),$user,$args['threadId']);
                     }
                 ],
                 'forumThread_markCommentsAsRead' => [
@@ -411,6 +451,28 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return logout_user(DBManager::getConnection(), $user->id);
+                    }
+                ],
+                'selfban' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'duration' => ['type' => Type::int(), 'defaultValue' => null],
+                        'endDate' => ['type' => Types::DateTime(), 'defaultValue' => null]
+                    ],
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        if (isset($args['duration'],$args['endDate']) || ($args['duration'] == null && $args['endDate'] == null))
+                            return new OperationResult(ErrorType::INVALID_DATA, 'Set either "duration" or "endDate".');
+
+                        if ($args['duration'] != null) $endDate = new \DateTimeImmutable('@'.(strtotime('now')+$args['duration']));
+                        else if ($args['endDate'] != null) $endDate = $args['endDate'];
+                        else return new OperationResult(ErrorType::UNKNOWN);
+
+                        if ($endDate->getTimestamp() > time()+604800) // 604800 = 7 days
+                            return new OperationResult(ErrorType::INVALID_DATA, "The end of the ban should be at most a week from now.");
+
+                        return ban_user(DBManager::getConnection(), $user->id, $endDate, 'selfban');
                     }
                 ],
                 'logoutUserFromEverything' => [
@@ -739,6 +801,47 @@ class MutationType extends ObjectType {
                         $conn->query('COMMIT');
                         return new OperationResult(SuccessType::SUCCESS);
                     }
+                ],
+                'changeUsername' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'newUsername' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function ($o, $args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $usernameRegex = '/^[\w\-]+$/u';
+                        $username = $args['newUsername'];
+                        if (mb_strlen($username, "utf8") > 30) return new OperationResult(ErrorType::INVALID_DATA, 'The username must not have more than 30 characters.');
+                        else if (preg_match($usernameRegex, $username) < 1) return new OperationResult(ErrorType::INVALID_DATA, 'The username contains invalid characters.');
+
+                        $conn = DBManager::getConnection();
+                        $stmt = $conn->prepare('UPDATE users SET name=? WHERE id=?');
+                        $stmt->execute([$username,$user->id]);
+
+                        return new OperationResult(SuccessType::SUCCESS);
+                    }
+                ],
+                'userLog' => [
+                    'type' => fn() => Types::SimpleOperation(),
+                    'args' => [
+                        'name' => Type::nonNull(Type::string()),
+                        'data' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+
+                        $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+
+                        $conn = DBManager::getConnection();
+                        $number = ($conn->query("SELECT MAX(number) FROM user_logs WHERE user_id={$user->id}")->fetch(\PDO::FETCH_NUM)[0])??0;
+                        $stmt = $conn->prepare('INSERT INTO user_logs(user_id,number,date,name,data) VALUES (?,?,?,?,?)');
+                        $stmt->execute([$user->id,$number,$sNow,$args['name'],$args['data']]);
+
+                        return new OperationResult(SuccessType::SUCCESS); 
+                    }
                 ]
             ]
         ]);
@@ -751,7 +854,7 @@ class NodeType extends InterfaceType {
     public function __construct(array $config2 = null) {
         $config = [
             'fields' => [
-                'id' => Type::nonNull(Type::id())
+                'id' => Type::id()
             ],
             'resolveType' => function ($id) {
                 switch (true) {
@@ -1147,6 +1250,14 @@ class TidUserType extends ObjectType {
                 'name' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ],
+                'associatedRegisteredUser' => [
+                    'type' => fn() => Types::RegisteredUser(),
+                    'resolve' => fn($o) => self::process($o, function($o) {
+                        $tidId =& $o['data']['id'];
+                        UsersBuffer::requestTidAssociatedRegisteredUser($tidId);
+                        return quickReactPromise(fn() => UsersBuffer::getTidAssociatedRegisteredUser($tidId)['data']['id_a']??null);
+                    })
                 ]
             ]
         ];
@@ -1273,6 +1384,10 @@ class UserSettingsType extends ObjectType {
                 'notif_newCommentOnFollowedThread' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notif_newCommentOnFollowedThread)
+                ],
+                'minusculeMode' => [
+                    'type' => fn() => Type::boolean(),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->minusculeMode)
                 ]
             ]
         ];
@@ -1316,7 +1431,8 @@ class ForumType extends ObjectType {
                         'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
                         'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ],
                         'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
-                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0],
+                        'onlyNotRead' => ['type' => Type::nonNull(Type::boolean()), 'defaultValue' => false]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         $user = Context::getAuthenticatedUser();
@@ -1325,9 +1441,35 @@ class ForumType extends ObjectType {
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
                         $pag->sortBy = $args['sortBy']??'';
                         $pag->skipPages = $args['skipPages'];
+                        $pag->data['onlyNotRead'] = $args['onlyNotRead'];
                         ForumBuffer::requestThreads($pag,$user->id);
                         return quickReactPromise(function() use($o,$args,$pag,$ri,&$user) {
                             return ForumBuffer::getThreads($pag,$user->id);
+                        });
+                    }
+                ],
+                'tidThreads' => [
+                    'type' => fn() => Types::getConnectionObjectType('TidThread'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'sortBy' => [ 'type' => Type::string(), 'defaultValue' => null ],
+                        'withLastPageSpecialBehavior' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0],
+                    ],
+                    'resolve' => function($o, $args, $__, $ri) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null || !$user->titles->contains('oldInteressant')) return null;
+
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount'],$args['withLastPageSpecialBehavior']);
+                        $pag->sortBy = $args['sortBy']??'';
+                        $pag->skipPages = $args['skipPages'];
+                        ForumBuffer::requestTidThreads($pag);
+                        return quickReactPromise(function() use($pag) {
+                            return ForumBuffer::getTidThreads($pag);
                         });
                     }
                 ]
@@ -1369,6 +1511,10 @@ class TidThreadType extends ObjectType {
                     'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
                 ],
+                'author' => [
+                    'type' => fn() => Types::TidUser(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
                 'title' => [
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['title'])
@@ -1408,10 +1554,12 @@ class TidThreadType extends ObjectType {
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
                         'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
-                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ],
+                        'skipPages' => ['type' => Type::nonNull(Type::int()), 'defaultValue' => 0]
                     ],
                     'resolve' => function($o, $args, $__, $ri) {
                         $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        $pag->skipPages = $args['skipPages'];
                         return self::process($o,function($row) use($pag) {
                             ForumBuffer::requestTidComments($row['data']['id'],$pag);
                             return quickReactPromise(function() use ($row,$pag) {
@@ -1546,8 +1694,7 @@ class ThreadType extends ObjectType {
                     'type' => fn() => Type::boolean(),
                     'resolve' => fn($o) => self::process($o,function($row) {
                         $user = Context::getAuthenticatedUser();
-                        $res = DBManager::getConnection()->query("SELECT COUNT(*) FROM comments WHERE thread_id={$row['data']['id']} AND JSON_CONTAINS(read_by, '{$user->id}')=0")->fetch(\PDO::FETCH_NUM);
-                        return ($res[0]??0) === 0;
+                        return in_array($user->id,json_decode($row['data']['read_by']));
                     })
                 ],
                 'canRemove' => [
@@ -1595,7 +1742,7 @@ class TidCommentType extends ObjectType {
                     'resolve' => fn($o) => self::process($o, fn($row) => TidComment::getIdFromRow($row))
                 ],
                 'dbId' => [
-                    'type' => fn() => Type::id(),
+                    'type' => fn() => Type::int(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['id'])
                 ],
                 'threadId' => [
@@ -1604,6 +1751,10 @@ class TidCommentType extends ObjectType {
                 ],
                 'authorId' => [
                     'type' => fn() => Type::int(),
+                    'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
+                ],
+                'author' => [
+                    'type' => fn() => Types::TidUser(),
                     'resolve' => fn($o) => self::process($o, fn($row) => $row['data']['author_id'])
                 ],
                 'states' => [
@@ -1870,6 +2021,34 @@ class OctohitType extends ObjectType {
     }
 }
 
+class S3ObjectMetadataType extends ObjectType {
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                '_key' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => function($res) {
+                        return $res['_Key']??null;
+                    }
+                ],
+                'contentType' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => function($res) {
+                        return $res['ContentType']??null;
+                    }
+                ],
+                'contentLength' => [
+                    'type' => fn() => Type::int(),
+                    'resolve' => function($res) {
+                        return ((int)$res['ContentLength'])??null;
+                    }
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
 /***** Notifications *****/
 
 class RecordType extends ObjectType {
@@ -2039,7 +2218,9 @@ class Cache {
 
         self::$redis = new \Redis();
         try {
-            $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],1);
+            if ((bool)$_SERVER['LD_REDIS_VERIFY_PEER_NAME'] === false)
+                $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT'],null,0,0,['stream' => ['verify_peer_name' => false]]);
+            else $res = self::$redis->connect($_SERVER['LD_REDIS_HOST'],$_SERVER['LD_REDIS_HOST_PORT'],$_SERVER['LD_REDIS_TIMEOUT']);            
             if ($res == false) {
                 self::$redis = null;
                 Context::addLog('Redis','Redis connection failure.');
@@ -2426,6 +2607,10 @@ class Types {
 
     public static function Octohit():OctohitType {
         return self::$types['Octohit'] ??= new OctohitType();
+    }
+
+    public static function S3ObjectMetadata():S3ObjectMetadataType {
+        return self::$types['S3ObjectMetadata'] ??= new S3ObjectMetadataType();
     }
 
     /***** Notifications *****/

@@ -29,7 +29,7 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
 
     if (isset($_COOKIE['sid'])) return new OperationResult(ErrorType::CONTEXT_INVALID, 'A user is already authenticated.');
 
-    if ($conn->query("SELECT COUNT(*) FROM connection_attempts WHERE DATE(date)=DATE('$sNow') AND successful=0")->fetch()[0] >= 10) return new OperationResult(ErrorType::PROHIBITED, 'Too many failed connection attempts for today.');
+    if ($conn->query("SELECT COUNT(*) FROM connection_attempts WHERE DATE(date)=DATE('$sNow') AND successful=0")->fetch()[0] >= $_SERVER['LD_MAX_CONNECTION_ATTEMPTS']) return new OperationResult(ErrorType::PROHIBITED, 'Too many failed connection attempts for today.');
     
     // Check name+pwd
     if (preg_match($usernameRegex,$name) == 0) return new OperationResult(ErrorType::INVALID_DATA, "The username contains invalid characters.");
@@ -39,6 +39,11 @@ function login_user(LDPDO $conn, string $name, string $pwd, bool $rememberMe, ?s
     $userRow = $stmt->fetch(\PDO::FETCH_ASSOC);
     if ($userRow == false) { $registerAttempt(null,false,ErrorType::NOT_FOUND->name); return new OperationResult(ErrorType::NOT_FOUND, 'User not found. Verify name and password.'); }
     
+    // Check if banned
+    $banRow = $conn->query("SELECT * FROM user_bans WHERE user_id={$userRow['id']} AND start_date<='$sNow' AND end_date>='$sNow' LIMIT 1")->fetch(\PDO::FETCH_ASSOC);
+    if ($banRow !== false) return new OperationResult(ErrorType::PROHIBITED, 'User is banned until '.$banRow['end_date'].' (UTC+0).');
+        
+
     // Generate session id and register connection
     $sid = bin2hex(random_bytes(16));
     $stmt = $conn->prepare("INSERT INTO connections (user_id,session_id,app_id,created_at,last_activity_at) VALUES(?,?,?,?,?);");

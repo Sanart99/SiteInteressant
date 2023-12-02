@@ -30,6 +30,7 @@ enum DataType {
     case ForumSearch;
     case FirstUnreadComment;
     case TidUser;
+    case TidAssociatedRegisteredUser;
     case S3KeyData;
 }
 
@@ -145,6 +146,7 @@ class BufferManager {
                     case DataType::FirstUnreadComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
                     case DataType::TidUser:
+                    case DataType::TidAssociatedRegisteredUser:
                     case DataType::Emoji: UsersBuffer::exec(self::$conn); break;
                     case DataType::Record: RecordsBuffer::exec(self::$conn); break;
                     case DataType::S3KeyData: S3Buffer::exec(self::$conn); break;
@@ -340,6 +342,10 @@ class UsersBuffer {
         return BufferManager::request(DataType::TidUser, $id) == 0;
     }
 
+    public static function requestTidAssociatedRegisteredUser(int $id):bool {
+        return BufferManager::request(DataType::TidAssociatedRegisteredUser, $id) == 0;
+    }
+
     public static function requestUserNotifications(int $userId, PaginationVals $pag) {
         return BufferManager::requestGroup(DataType::Notification,[$userId,$pag]);
     }
@@ -364,6 +370,10 @@ class UsersBuffer {
         return BufferManager::get(['tidUsers',$id]);
     }
 
+    public static function getTidAssociatedRegisteredUser(int $id):?array {
+        return BufferManager::get(['tidAssociatedRegisteredUsers',$id]);
+    }
+
     public static function getUserNotifications(int $userId, PaginationVals $pag) {
         return BufferManager::get(['notificationsM',$userId,$pag->getString()]);
     }
@@ -386,7 +396,37 @@ class UsersBuffer {
         $fet =& BufferManager::$fet;
         $rg =& BufferManager::$reqGroup;
         $fg =& BufferManager::$fetGroup;
-        $mandatoryEmojis = ['tid/Twinoid v1/','tid/Twinoid v2/','tid/Twinoid v3/'];
+        $mandatoryEmojis = [
+            'tid/AlphaBounce/',
+            'tid/Arkadeo',
+            'tid/Braziball Puzzle',
+            'tid/CroqueMotel/',
+            'tid/Die2Nite/',
+            'tid/DinoRPG/',
+            'tid/Fever!/',
+            'tid/Hordes/',
+            'tid/Intrusion/',
+            'tid/Kadokado/',
+            'tid/Kingdom/',
+            'tid/Kube/',
+            'tid/Majority/',
+            'tid/Monster Hotel/',
+            'tid/MotionBall 2/',
+            'tid/Mush/',
+            'tid/Muxxu/',
+            // 'tid/Naturalchimie 2/',
+            'tid/Odyssey/',
+            'tid/Rockfaller Journey/',
+            'tid/Snake/',
+            'tid/Street Writer/',
+            'tid/Studio Quiz/',
+            'tid/Teacher Story/',
+            'tid/Twinoid v1/',
+            'tid/Twinoid v2/',
+            'tid/Twinoid v3/',
+            'tid/Twinoid/',
+            'tid/Uppercup Football/'
+        ];
 
         $toRemove = [];
 
@@ -488,6 +528,16 @@ class UsersBuffer {
                 $bufRes[$sDataType][$userId] = $row === false ? null : ['data' => $row, 'metadata' => $dbName];
                 array_push($toRemove,$v);
                 break;
+            case DataType::TidAssociatedRegisteredUser:
+                $tidId = $v[1];
+
+                $stmt = $conn->prepare('SELECT id_a FROM id_links WHERE id_b=?');
+                $stmt->execute([$tidId]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $bufRes['tidAssociatedRegisteredUsers'][$tidId] = ['data' => $row === false ? null : $row, 'metadata' => $dbName];
+                array_push($toRemove,$v);
+                break;
             case DataType::Emoji:
                 $alias = $v[1][0];
                 $userId = $v[1][1];
@@ -577,6 +627,10 @@ class ForumBuffer {
         return BufferManager::requestGroup(DataType::ForumThread,[$pag,$userId]);
     }
 
+    public static function requestTidThreads(PaginationVals $pag) {
+        return BufferManager::requestGroup(DataType::ForumTidThread,$pag);
+    }
+
     public static function requestComments(int $threadId, PaginationVals $pag) {
         return BufferManager::requestGroup(DataType::ForumComment,[$threadId,$pag]);
     }
@@ -608,6 +662,10 @@ class ForumBuffer {
     public static function getThreads(PaginationVals $pag, ?int $userId = null) {
         $userId = (!is_int($userId) || $userId < 1) ? 0 : $userId;
         return BufferManager::get(['forum','threadsM',$userId,$pag->getString()]);
+    }
+
+    public static function getTidThreads(PaginationVals $pag) {
+        return BufferManager::get(['forum','tid_threadsM',$pag->getString()]);
     }
 
     public static function getComment(string $id) {
@@ -662,7 +720,11 @@ class ForumBuffer {
                     $sRegistrationDate = $user->registrationDate->format('Y-m-d H:i:s');
                 }
 
-                $whereCond = $user->titles->contains('oldInteressant') ?  '' : "creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."'";
+                $whereCond = $user->titles->contains('oldInteressant') ?  '' : "(creation_date>='$sRegistrationDate' OR permission='".ThreadPermission::ALL_USERS->value."')";
+                if ($pag->data['onlyNotRead']??false) {
+                    if ($whereCond != '') $whereCond .= ' AND ';
+                    $whereCond .= "JSON_CONTAINS(read_by,$userId)=0";
+                }
 
                 if ($pag->sortBy == 'lastUpdate') {
                     $cursF = function($vCurs,$i) {
@@ -700,6 +762,33 @@ class ForumBuffer {
                         function($rows) use(&$bufRes,&$pag) { $bufRes['forum']['threadsM'][$pag->getString()] = $rows; }
                     );
                 }
+                array_push($toRemove,$v);
+                break;
+            case DataType::ForumTidThread:
+                $pag = $v[1];
+                
+                $cursF = function($vCurs,$i) {
+                    switch ($i) {
+                        case 1: return "id<$vCurs";
+                        case 2: return "id>$vCurs";
+                        case 3: return "id DESC";
+                        case 4: return "id";
+                        case 5: return "id>=$vCurs";
+                        case 6: return "id<=$vCurs";
+                        default: throw new \Schema\SafeBufferException("cursorF ??");
+                    }
+                };
+
+                BufferManager::pagRequest($conn, 'tid_threads', '1=1', $pag, $cursF,
+                    fn($row) => base64_encode($row['id']),
+                    fn($s) => (preg_match('/^\d+$/',base64_decode($s),$m) === 0) ? 1 : (int)$m[0],
+                    function ($row) use(&$bufRes,&$req,&$fet) {
+                        $bufRes['forum']['tid_threads'][$row['data']['id']] = $row;
+                        $req->remove([DataType::ForumTidThread,$row['data']['id']]);
+                        $fet->add([DataType::ForumTidThread,$row['data']['id']]);
+                    },
+                    function($rows) use(&$bufRes,&$pag) { $bufRes['forum']['tid_threadsM'][$pag->getString()] = $rows; }
+                );
                 array_push($toRemove,$v);
                 break;
             case DataType::ForumComment:

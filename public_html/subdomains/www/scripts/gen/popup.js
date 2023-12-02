@@ -8,13 +8,22 @@ function getPopupDiv() {
     HTML,
     'js' => <<<JAVASCRIPT
     const popupDiv = document.querySelector('#popupDiv');
+    let currentlyOpen = null;
     popupDiv.openTo = (sel) => {
         popupDiv.style.display = '';
         for (const e of document.querySelectorAll('#popupDiv > form, #popupDiv > div')) e.style.display = 'none';
         const e = popupDiv.querySelector(sel);
-        if (e != null) e.style.display = '';
+        if (e != null) {
+            e.style.display = '';
+            currentlyOpen = e;
+        } 
     }; 
-    popupDiv.close = () => { popupDiv.style.display = 'none'; };
+    popupDiv.close = () => { popupDiv.style.display = 'none'; currentlyOpen = null; };
+    popupDiv.addEventListener('click',() => {
+        if (currentlyOpen == null || currentlyOpen.dataset?.popExitable != true) return;
+        if (currentlyOpen.dataset?.popRemoveOnExit) currentlyOpen.remove();
+        popupDiv.close();
+    });
     
     JAVASCRIPT,
     'css' => <<<CSS
@@ -37,13 +46,13 @@ function getPopupDiv() {
         overflow: hidden;
         padding-bottom: 1rem;
     }
-    .popupContainer {
+    .popupContainer:not(.removeDefaultStyle) {
         background: var(--bg-gradient-1);
         color: var(--color-black-1);
         display: flex;
         flex-direction: column;
     }
-    .popupContainer input[type="text"], .popupContainer input[type="password"] {
+    .popupContainer:not(.removeDefaultStyle) input[type="text"], .popupContainer:not(.removeDefaultStyle) input[type="password"] {
         background-color: var(--color-grey-darker);
         border: 1px solid #9F9D9B;
         height: 2rem;
@@ -54,7 +63,7 @@ function getPopupDiv() {
         border-bottom: 1px solid white;
         outline: 1px solid #9f9d9b;
     }
-    .popupContainer input[type="submit"], .popupContainer input[type="button"] {
+    .popupContainer:not(.removeDefaultStyle) input[type="submit"], .popupContainer:not(.removeDefaultStyle) input[type="button"] {
         background-color: var(--color-orange-2);
         color: white;
         width: 100%;
@@ -65,7 +74,7 @@ function getPopupDiv() {
         box-shadow: inset 0px 15px 0px #FF7900, inset 0px -1px 0px #A63F00, 0px 2px 2px rgba(0,0,0,0.4);
         cursor: pointer;
     }
-    .popupContainer input[type="submit"]:hover, .popupContainer input[type="button"]:hover {
+    .popupContainer:not(.removeDefaultStyle) input[type="submit"]:hover, .popupContainer:not(.removeDefaultStyle) input[type="button"]:hover {
         border: 1px solid white;
     }
     .imgBetterView {

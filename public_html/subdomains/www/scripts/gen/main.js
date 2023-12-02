@@ -62,6 +62,9 @@ function getIndexElems() {
                     <a id="rightBar_optionsDiv_versionHistory" href="$root/versionhistory" onclick="return false">
                         <p>Historique versions</p>
                     </a>
+                    <a id="rightBar_optionsDiv_graphql" href="$root/graphql-playground" target="_blank">
+                        <p>GraphQL Playground</p>
+                    </a>
                     <a id="rightBar_optionsDiv_contribute" href="https://opencollective.com/site-interessant/donate?interval=oneTime&amount=10&contributeAs=me" target="_blank">
                         <p>Financer</p>
                     </a>
@@ -87,11 +90,13 @@ function getIndexElems() {
     'js' => <<<JAVASCRIPT
     const topBar = document.querySelector('#topBar');
     const rightBar = document.querySelector('#rightBar');
+    let lastRefresh = 0;
 
     function openRightBar() {
         rightBar.setAttribute('open',1);
         topBarRSlideArea.style.cursor = 'default';
         topBarRSlideArea.dispatchEvent(new MouseEvent('mouseleave'));
+        if (Date.now() - lastRefresh >= 10000) getRecentEvents();
     }
     function closeRightBar() {
         rightBar.setAttribute('open',0);
@@ -101,6 +106,7 @@ function getIndexElems() {
     let gettingEvents = false;
     async function getRecentEvents() {
         if (gettingEvents) return; else gettingEvents = true;
+        lastRefresh = Date.now();
         const notifCont = rightBar.querySelector('#rightBar_recentEvents');
         const histCont = rightBar.querySelector('#rightBar_history > div');
         notifCont.innerHTML = '<p>Loading...</p>';
@@ -173,7 +179,8 @@ function getIndexElems() {
                     e.style.display = '';
                     const ss = n > 1 ? 'notifications' : 'notification';
                     e.innerHTML = `<p>\${n} \${ss}</p>`;
-                } else e.style.display = 'none';  
+                } else e.style.display = 'none';
+                setNumberInTitle(n);
             }
 
             const history = {};
@@ -195,7 +202,8 @@ function getIndexElems() {
                     }
                 }
             }
-            for (const edge of records.edges.toReversed()) {
+
+            for (const edge of [...records.edges].reverse()) {
                 const record = edge.node;
                 if (record.actionGroupName == 'FORUM') switch (record.actionName) {
                     case 'addComment':
@@ -258,6 +266,9 @@ function getIndexElems() {
             setRecentEventsN(recentEventsN);
         });
     }
+    setInterval(() => {
+        if (Date.now() - lastRefresh >= 150000) getRecentEvents();
+    }, 300000);
 
     const topBarRSlideArea = document.querySelector('#topBar_r_slideArea');
     topBarRSlideArea.addEventListener('click',openRightBar);
@@ -292,6 +303,7 @@ function getIndexElems() {
     });
 
     const moreDiv = document.querySelector('#rightBar_optionsDiv > .more');
+    const moreDivMain = document.querySelector('#rightBar_optionsDiv > .more > div');
     const moreBut = document.querySelector('#rightBar_more_button');
     moreBut.addEventListener('click',() => {
         if (moreDiv.classList.contains('expanded')) {
@@ -302,10 +314,21 @@ function getIndexElems() {
     if ($isAuth === 1) {
         topBar.style.display = rightBar.style.display = '';
 
-        sendQuery(`query { viewer { name avatarURL } }`).then((json) => {
+        sendQuery(`query {
+            viewer {
+                name
+                avatarURL
+                titles
+            }
+        }`).then((json) => {
             if (json?.data?.viewer?.name == null) { basicQueryResultCheck(); return; }
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
             document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
+            if (json.data.viewer.titles.includes('oldInteressant')) {
+                const node = stringToNodes('<a id="rightBar_optionsDiv_asile" href="//forum/tid" onclick="return false;"><p>Asile Intéressant</p></a>')[0];
+                node.addEventListener('click',() => loadPage('$root/pages/forum?urlEnd=/tid',StateAction.PushState));
+                moreDivMain.insertAdjacentElement('afterbegin',node);
+            }
         });
 
         navigator.serviceWorker.addEventListener('message', (s) => {
@@ -549,13 +572,13 @@ function getForumMainElem() {
     return ['html' => <<<HTML
     <div id="mainDiv_forum" class="authPadded" data-is-auth="$isAuth">
         <div id="forum_banner">
-            <img src="$res/design/banners/v668.png" />
+            <img src="$res/design/banners/8_v6699.png" />
         </div>
 
         <div id="forum_content">
             <div id="forumL">
                 <div class="forum_mainBar">
-                    <div class="forum_mainBar_sub1"><p>Asile Intéressant</p></div>
+                    <div class="forum_mainBar_sub1"><p></p></div>
                     <div class="forum_mainBar_sub2">
                         <div>
                             <button class="searchLoader button1" type="button"><img src="{$res}/icons/search.png"/></button><!--
@@ -563,6 +586,10 @@ function getForumMainElem() {
                             --><button class="newThreadLoader button1" type="button"><img src="{$res}/icons/edit.png"/>Créer un topic</button>
                         </div>
                     </div>
+                </div>
+                <div id="forum_threadsFilter">
+                    <input id="forum_threadsFilter_notReadOnly" type="checkbox" name="onlyNotRead"/><!--
+                    --><label for="forum_threadsFilter_notReadOnly" >Afficher uniquement les topics non lus.</label>
                 </div>
                 <table id="forum_threads">
                     <thead>
@@ -602,14 +629,18 @@ function getForumMainElem() {
     'js' => <<<JAVASCRIPT
     const forumR = document.querySelector('#forumR');
     const forumL = document.querySelector('#forumL');
+    const eThreadNotReadOnly = document.querySelector('#forum_threadsFilter_notReadOnly');
     let mobileMode = false;
     let currThreadId = null;
+    let forumMode = '';
+
+    const minusculeModeEnabled = localGet('settings_minusculeMode') === 'true';
 
     function loadThreads(first,last,after,before,skipPages) {
         if (skipPages == null) skipPages = 0;
-        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int,\$onlyNotRead:Boolean!) {
             forum {
-                threads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true) {
+                threads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true,onlyNotRead:\$onlyNotRead) {
                     edges {
                         node {
                             id
@@ -645,7 +676,7 @@ function getForumMainElem() {
                     }
                 }
             }
-        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((json) => {
+        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages,onlyNotRead:eThreadNotReadOnly.checked}).then((json) => {
             if (json?.data?.forum?.threads?.edges == null) { basicQueryResultCheck(); return; }
             const tBody = document.querySelector('#forum_threads tbody');
             const threads = json.data.forum.threads;
@@ -704,6 +735,95 @@ function getForumMainElem() {
             if (!mobileMode) highlightThread(currThreadId);
         });
     }
+    function loadTidThreads(first,last,after,before,skipPages) {
+        if (skipPages == null) skipPages = 0;
+        sendQuery(`query Forum(\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+            forum {
+                tidThreads(first:\$first,after:\$after,before:\$before,last:\$last,sortBy:"lastUpdate",withPageCount:true,skipPages:\$skipPages,withLastPageSpecialBehavior:true) {
+                    edges {
+                        node {
+                            id
+                            dbId
+                            deducedDate
+                            title
+                            commentCount
+                            comments(last:1) {
+                                edges {
+                                    node {
+                                        id
+                                        dbId
+                                        author {
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        cursor
+                    }
+                    pageInfo {
+                        hasNextPage
+                        hasPreviousPage
+                        startCursor
+                        endCursor
+                        pageCount
+                        currPage
+                    }
+                }
+            }
+        }`,{first:first,last:last,after:after,before:before,skipPages:skipPages}).then((json) => {
+            if (json?.data?.forum?.tidThreads?.edges == null) { basicQueryResultCheck(); return; }
+            const tBody = document.querySelector('#forum_threads tbody');
+            const threads = json.data.forum.tidThreads;
+            tBody.innerHTML = '';
+            const now = new Date();
+            let lastDelimiter = '';
+            for (const edge of threads.edges) {
+                const comment = edge.node.comments.edges[0].node;
+                const date = new Date(edge.node.deducedDate);
+                if (!isNaN(date.getTime())) {
+                    const sDate = getDateAsString(date).slice(0,4).join(' ');
+                    if (lastDelimiter != sDate) {
+                        tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>\${sDate}</p></td></tr>`);
+                        lastDelimiter = sDate;
+                    }
+                } else if (lastDelimiter != 'Date inconnue') {
+                    tBody.insertAdjacentHTML('beforeend',`<tr><td colspan="100" class="delimiter"><p>Date inconnue</p></td></tr>`);
+                    lastDelimiter = 'Date inconnue';
+                }
+                const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread tid">
+                    <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="{$res}/icons/selected.png"/></div></a></td>
+                    <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
+                    <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.dbId}</p><p class="author">\${comment.author.name}</p></a></td>
+                </tr>`)[0];
+                tBody.insertAdjacentElement('beforeend',tr);
+                for (const e of tr.querySelectorAll('a')) {
+                    e.addEventListener('click',() => loadTidThread(edge.node.id,{first:10,pushState:true}));
+                    e.href=`$root/forum/tid/\${edge.node.dbId}`;
+                }
+
+                const nodeImgNew = stringToNodes('<img class="new" src="{$res}/icons/recent.png"/>')[0];
+                tr.querySelector('.statusIcons a div').insertAdjacentElement('afterbegin',nodeImgNew);
+                nodeImgNew.style.display = 'none';
+            }
+
+            const eNPage = document.querySelector('#forumL .nPage');
+            const eMaxPages = document.querySelector('#forumL .maxPages');
+            eNPage.innerHTML = threads.pageInfo.currPage;
+            eMaxPages.innerHTML = `/ <span class="nMaxPages">\${threads.pageInfo.pageCount}</span>`;
+
+            const first = document.querySelector('#forumL .forum_footer .first'); 
+            const left = document.querySelector('#forumL .forum_footer .left'); 
+            const right = document.querySelector('#forumL .forum_footer .right');
+            const last = document.querySelector('#forumL .forum_footer .last');
+            left.dataset.cursor = threads.pageInfo.startCursor;
+            right.dataset.cursor = threads.pageInfo.endCursor;
+            left.disabled = first.disabled = !threads.pageInfo.hasPreviousPage;
+            right.disabled = last.disabled = !threads.pageInfo.hasNextPage;
+            
+            if (!mobileMode) highlightThread(currThreadId);
+        });
+    }
     function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false,toFirstUnreadComment=false) {
         sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int!,\$toFirstUnreadComment:Boolean!) {
             viewer {
@@ -718,6 +838,7 @@ function getForumMainElem() {
                     title
                     followingIds
                     canRemove
+                    isRead
                     kubedBy {
                         dbId
                         name
@@ -885,8 +1006,8 @@ function getForumMainElem() {
             eComments.innerHTML = '';
             currThreadId = threadId;
             for (const comment of comments.edges) {
-                const date = new Date(comment.node.creationDate+'Z');
-                const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}">
+                const date = new Date(stringDateToISO(comment.node.creationDate));
+                const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}" data-comment-id="\${comment.node.id}" data-cursor="\${comment.cursor}">
                     <div class="header">
                         <div class="avatarDiv">
                             <img class="avatar" src="\${comment.node.author.avatarURL}" />
@@ -916,7 +1037,7 @@ function getForumMainElem() {
                 const footerInfos = commentNode.querySelector('.footer p.infos');
                 let aFooterInfos = [];
                 if (comment.node.lastEditionDate != null) {
-                    const date = new Date(comment.node.lastEditionDate+'Z');
+                    const date = new Date(stringDateToISO(comment.node.lastEditionDate));
                     aFooterInfos.push(`Dernière édition : \${getDateAsString2(date)}`);
                     const nodeDate = commentNode.querySelector('.date');
                     nodeDate.title = nodeDate.title + `\nEdit: \${date.toString()}`;
@@ -1037,7 +1158,7 @@ function getForumMainElem() {
 
                     const citedUsername = commentNode.querySelector('.header .name').innerText;
                     const sel = getSelection();
-                    const s = (sel?.toString() != null && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
+                    const s = (sel?.toString() != null && sel.toString() != '' && commentNode.querySelector('.body .main').contains(sel.anchorNode)) ?
                         `[cite=\${citedUsername}]\${sel.toString()}[/cite]`
                         : `[cite=\${citedUsername}]\${contentToText(commNodeMain.children)}[/cite]`;
                     
@@ -1067,6 +1188,8 @@ function getForumMainElem() {
                         const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
                         if (e != null) { e.classList.add('new'); e.querySelector('.statusIcons .new').style.display = ''; }
 
+                        displayButMarkThreadAsRead(true);
+
                         hoverForReadCD = 1;
                         
                         to_notRead = setTimeout(() => { hoverForReadCD = 0; }, 1000);
@@ -1078,8 +1201,10 @@ function getForumMainElem() {
                 if (comment.node.canEdit) {
                     const nodeEdit = stringToNodes('<a class="edit" href="#" onclick="return false;">Éditer</a>')[0];
                     nodeEdit.addEventListener('click',() => {
+                        for (const e of forumR.querySelectorAll('.comment')) if (e.classList.contains('selected') && e != commentNode) e.classList.remove('selected');
+
                         const replyFormId = `edit_\${comment.node.id}`;
-                        const titleId = replyFormId+'_title';
+                        const titleId = `edit_title_\${comment.node.id}`; // replyFormId+'_title';
                         if (commentNode.classList.contains('selected')) { loadReplyForm(replyFormId); commentNode.classList.remove('selected'); return; }
 
                         commentNode.classList.add('selected');
@@ -1091,11 +1216,16 @@ function getForumMainElem() {
                                     </div>`)[0];
                                     div.querySelector('.replyForm').insertAdjacentElement('afterbegin',nodeTitle);
                                     const input = nodeTitle.querySelector('#editThread_title');
-                                    input.value = sessionGet('title') ?? json.data.node.title;
-                                    input.addEventListener('input',() => sessionSet('title',input.value));
+                                    input.value = sessionGet(titleId) ?? json.data.node.title;
+                                    input.addEventListener('input',() => sessionSet(titleId,input.value));
                                 }
                                 div.querySelector('.replyForm').insertAdjacentHTML('afterbegin','<p class="formTitle">Édition de commentaire</p>')
-                                setupReplyForm(div,async (e) => {
+                                div.querySelector('.optDiv').insertAdjacentHTML('beforeend', `<div>
+                                    <label for="opt_markAsUnreadToUsers_\${comment.node.id}">Marquer ce commentaire en non lu pour les autres : </label><!--
+                                    --><input id="opt_markAsUnreadToUsers_\${comment.node.id}" class="opt_markAsUnreadToUsers" type="checkbox" name="markAsUnreadToUsers">
+                                </div>`);
+
+                                setupReplyForm(div,async (e,moreData) => {
                                     e.preventDefault();
                                     const submitButton = e.target.querySelector('input[type="submit"]');
                                     if (submitButton.disabled === true) return;
@@ -1103,14 +1233,15 @@ function getForumMainElem() {
 
                                     const data = new FormData(e.target);
                                     const title = data.get('title');
-                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!) {
-                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content) {
+                                    const markAsUnreadToUsers = data.get('markAsUnreadToUsers') === 'on';
+                                    return await sendQuery(`mutation ForumEditComment(\$threadId:Int!,\$commNumber:Int!,\$title:String,\$content:String!,\$markAsUnreadToUsers:Boolean!) {
+                                        f:forumThread_editComment(threadId:\$threadId,commentNumber:\$commNumber,title:\$title,content:\$content,markAsUnreadToUsers:\$markAsUnreadToUsers) {
                                             __typename
                                             success
                                             resultCode
                                             resultMessage
                                         }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg")}).then((json) => {
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg"),markAsUnreadToUsers:markAsUnreadToUsers},null,null,null,moreData).then((json) => {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
@@ -1281,11 +1412,8 @@ function getForumMainElem() {
                         }`,{threadId:threadId}).then((json) => {
                             if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                             if (json.data.node.isRead == false) return;
-                            const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
-                            if (e != null) {
-                                e.classList.remove('new');
-                                e.querySelector('.statusIcons .new').style.display = 'none';
-                            }
+                            removeThreadNewIcon();
+                            displayButMarkThreadAsRead(false);
                         });
 
                         if (json.data.f.resultMessage == 'refresh') getRecentEvents();
@@ -1318,17 +1446,14 @@ function getForumMainElem() {
                     }`,{threadId:threadId}).then((json) => {
                         if (json?.data?.node?.isRead == null) { basicQueryResultCheck(); return; }
                         if (json.data.node.isRead == false) return;
-                        const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
-                        if (e != null) {
-                            e.classList.remove('new');
-                            const eNew = e.querySelector('.statusIcons .new');
-                            if (eNew != null) eNew.style.display = 'none';
-                        }
+                        removeThreadNewIcon();
+                        displayButMarkThreadAsRead(false);
                     });
 
                     if (json.data.f.resultMessage == 'refresh') getRecentEvents();
                 });
             }
+            document.querySelector('#forum_banner').scrollIntoView();
 
             const n = first ?? last;
             const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
@@ -1399,7 +1524,7 @@ function getForumMainElem() {
                         loadThreads(20);
                         return true;
                     });
-                },'forum_replyText');
+                },`forum_replyText_\${threadId}`);
             });
             loadReplyForm('reply');
             replyFormDiv.classList.add('hide');
@@ -1419,6 +1544,30 @@ function getForumMainElem() {
                 reply.addEventListener('click', () => {
                     for (const e of document.querySelectorAll('#forum_comments .comment.selected')) e.classList.remove("selected");
                     loadReplyForm('reply');
+                });
+
+                if (json.data.node.followingIds.includes(json.data.viewer.dbId)) cont.insertAdjacentElement('beforeend',getUnfollowButton());                 
+                else cont.insertAdjacentElement('beforeend',getFollowButton());
+
+                const markThreadAsRead = stringToNodes('<button class="button1 markThreadAsRead" type="button"><p>Marquer comme lu</p></button>')[0];
+                markThreadAsRead.style.display = json.data.node.isRead ? 'none' : '';
+                cont.insertAdjacentElement('beforeend',markThreadAsRead);
+                markThreadAsRead.addEventListener('click', () => {
+                    markThreadAsRead.disabled = true;
+                    sendQuery(`mutation MarkThreadAsRead(\$threadDbId:Int!) {
+                        f:forumThread_markThreadAsRead(threadId:\$threadDbId) {
+                            success
+                            resultCode
+                        }
+                    }`,{threadDbId:threadDbId}).then((json) => {
+                        markThreadAsRead.disabled = false;
+                        if (!basicQueryResultCheck(json.data.f)) return;
+                        for (const e of eUnreadComments) e.classList.remove('new');
+                        displayButMarkThreadAsRead(false);
+                        removeThreadNewIcon();
+
+                        getRecentEvents(); //! should know when to do it
+                    });
                 });
             }
             function getFollowButton() {
@@ -1467,16 +1616,142 @@ function getForumMainElem() {
                 });
                 return e;
             }
-            if (json.data.node.followingIds.includes(json.data.viewer.dbId)) {
-                for (const cont of document.querySelectorAll('#forumR .actions'))
-                    cont.insertAdjacentElement('beforeend',getUnfollowButton());                 
-            } else {
-                for (const cont of document.querySelectorAll('#forumR .actions'))
-                    cont.insertAdjacentElement('beforeend',getFollowButton());
+            function removeThreadNewIcon() {
+                const e = document.querySelector(`#forum_threads .thread[data-node-id="\${threadId}"]`);
+                if (e == null) return;
+                e.classList.remove('new');
+                const eNew = e.querySelector('.statusIcons .new');
+                if (eNew != null) eNew.style.display = 'none';
+            }
+            function displayButMarkThreadAsRead(b = true) {
+                forumR.querySelectorAll('.markThreadAsRead').forEach((e) => e.style.display = b ? '' : 'none');
             }
 
             if (pushState) {
                 const url = `$root/forum/\${json.data.node.dbId}`;
+                history.pushState({pageUrl:url}, "", url);
+            }
+        });
+    }
+    function loadTidThread(threadId,params) {
+        sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int) {
+            node(id:\$threadId) {
+                ... on TidThread {
+                    dbId
+                    title
+                    kubeCount
+                    comments(first:\$first,after:\$after,before:\$before,last:\$last,skipPages:\$skipPages,withPageCount:true) {
+                        edges {
+                            node {
+                                authorId
+                                author {
+                                    name
+                                }
+                                content
+                                deducedDate
+                            }
+                        }
+                        pageInfo {
+                            startCursor
+                            endCursor
+                            hasNextPage
+                            hasPreviousPage
+                            currPage
+                            pageCount
+                        }
+                    }
+                }
+            }
+        }`,{threadId:threadId,first:params?.first,last:params?.last,after:params?.after,before:params?.before,skipPages:params?.skipPages}).then((json) => {
+            if (json?.data?.node?.comments?.edges == null) { basicQueryResultCheck(); return; }
+            if (params == null) params = {};
+            if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
+            currThreadId = threadId;
+            highlightThread(currThreadId);
+
+            forumR.innerHTML = '';
+            const e = stringToNodes(`<div class="forum_mainBar">
+                <div class="forum_mainBar_sub1"><p>\${json.data.node.title}</p></div>
+                <div class="forum_mainBar_sub2">
+                    <div class="actions"></div>
+                </div>
+            </div>
+            <div class="subheader">
+                <div class="infos1"></div>
+                <div class="infos2 hide">
+                    <div class="main"></div>
+                    <p><a class="infos2Msg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                </div>
+            </div>
+            <div id="forum_comments"></div>
+            <div class="forum_footer">
+                <div class="actions"></div>
+            </div>`);
+            for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+            for (const cont of [forumR.querySelector('.forum_mainBar_sub2'),forumR.querySelector('.forum_footer')]) {
+                const paginationDiv = setupPagInput(null,10,() => loadTidThread(threadId,{first:10}),() => loadTidThread(threadId,{last:10}),
+                    (n,cursor,skipPages) => loadTidThread(threadId,{last:n,before:cursor,skipPages:skipPages}),
+                    (n,cursor,skipPages) => loadTidThread(threadId,{first:n,after:cursor,skipPages:skipPages})
+                );
+                cont.insertAdjacentElement('beforeend', paginationDiv);
+            }
+
+            const eInfos1 = forumR.querySelector('.subheader .infos1');
+            const eInfos2 = forumR.querySelector('.subheader .infos2');
+            const eInfos2Main = eInfos2.querySelector('.main');
+            const kubeDiv = getKubeDiv(null,null);
+            kubeDiv.set(json.data.node.kubeCount,true);
+            eInfos1.insertAdjacentElement('beforeend',kubeDiv);
+
+            const eComments = document.querySelector('#forum_comments');
+            const comments = json.data.node.comments;
+            eComments.innerHTML = '';
+            for (const comment of comments.edges) {
+                const date = new Date(comment.node.deducedDate);
+                const commentNode = stringToNodes(`<div class="comment tid">
+                    <div class="header">
+                        <div class="avatarDiv">
+                            <img class="avatar" src="$res/avatars/default.jpg" />
+                        </div>
+                        <p class="name">\${comment.node.author.name}</p>
+                        <p class="date" title="\${date.toString()}">\${getDateAsString2(date).split(',')[0]}</p>
+                        <p class="stats">Topics : ? · Commentaires : ?</p>    
+                   </div>
+                    <div class="body">
+                        <div class="main">\${comment.node.content}</div>
+                        <div class="footer"><p class="infos"></p><p class="commActions"></p></div>
+                        <div class="hiddenFooter hidden" style="display:none;">
+                            <div class="main"></div>
+                            <p><a class="hiddenFooterMsg" href="#" onclick="return false;">Plus d'informations...</a></p>
+                        </div>
+                    </div>
+                </div>`)[0];
+                eComments.insertAdjacentElement('beforeend',commentNode);
+            }
+            document.querySelector('#forum_banner').scrollIntoView();
+
+            const n = params?.first ?? params?.last;
+            const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
+            if (comments.pageInfo.pageCount == 1) for (const e of forumRPaginations) e.style.display = 'none';
+            else {
+                for (const e of forumRPaginations) {
+                    e.style.display = '';
+                    e.querySelector('.nPage').innerHTML = comments.pageInfo.currPage;
+                    e.querySelector('.nMaxPages').innerHTML = comments.pageInfo.pageCount;
+
+                    const first = e.querySelector('.first'); 
+                    const left = e.querySelector('.left'); 
+                    const right = e.querySelector('.right');
+                    const last = e.querySelector('.last'); 
+                    left.dataset.cursor = comments.pageInfo.startCursor;
+                    right.dataset.cursor = comments.pageInfo.endCursor;
+                    left.disabled = first.disabled = !comments.pageInfo.hasPreviousPage;
+                    right.disabled = last.disabled = !comments.pageInfo.hasNextPage;
+                }
+            }
+
+            if (params?.pushState === true) {
+                const url = `$root/forum/tid/\${json.data.node.dbId}`;
                 history.pushState({pageUrl:url}, "", url);
             }
         });
@@ -1595,7 +1870,7 @@ function getForumMainElem() {
                     <div class="emojisButtons"></div>
                     <div class="emojis"></div>
                 </div>
-                <input class="button2" type="submit" value="Envoyer"/>
+                <input class="button2" type="submit" value="Envoyer" tabindex="3"/>
             </form>
         </div>`.trim());
         for (const node of e) forumR.insertAdjacentElement('beforeend',node);
@@ -1609,6 +1884,12 @@ function getForumMainElem() {
             forumL.style.display = '';
         });
         back.style.display = mobileMode ? '' : 'none';
+
+        const eTitle = forumR.querySelector('#newThread_title');
+        eTitle.addEventListener('input',() => {
+            if (eTitle.value.length > 24) eTitle.style.width = 'min(85%,100ch)';
+            else eTitle.style.width = '';
+        });
 
         setupReplyForm(forumR.querySelector('.replyFormDiv'), async (e,moreData) => {
             e.preventDefault();
@@ -1655,7 +1936,7 @@ function getForumMainElem() {
         </div>
         <form id="searchForm">
             <div class="parameters">
-                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords" pattern="^[\\\\w\\\\+\\\\~\\\\-,\\\\s]+$"/>
+                <label for="searchForm_keywords">Mots clés :</label><input id="searchForm_keywords" class="inputText1" type="text" name="keywords" pattern="^[^\`]+$"/>
                 <label for="search_threadType">Type de topic :</label><div>
                     <input id="searchForm_threadType_standard" name="threadType" type="radio" value="Standard" checked="true"/><label for="searchForm_threadType_standard">SiteInteressant</label>
                     <input id="searchForm_threadType_twinoid" name="threadType" type="radio" value="Twinoid"/><label for="searchForm_threadType_twinoid">Twinoid</label>
@@ -1665,8 +1946,8 @@ function getForumMainElem() {
                     <input id="searchForm_toDate" type="date" name="toDate"/>
                 </div>
                 <label for="searchForm_sortBy">Trier par :</label><div>
-                    <input id="searchForm_sortByRelevance" name="sortBy" type="radio" value="ByRelevance" checked="true"/><label for="searchForm_sortByRelevance">Pertinence</label>
-                    <input id="searchForm_sortByDate" name="sortBy" type="radio" value="ByDate"/><label for="searchForm_sortByDate">Date</label>
+                    <input id="searchForm_sortByRelevance" name="sortBy" type="radio" value="ByRelevance" /><label for="searchForm_sortByRelevance">Pertinence</label>
+                    <input id="searchForm_sortByDate" name="sortBy" type="radio" value="ByDate" checked="true"/><label for="searchForm_sortByDate">Date</label>
                 </div>
                 <label for="searchForm_author">Auteur :</label><input id="searchForm_author" name="author" type="text" list="dl_userlist"/>
             </div>
@@ -1832,6 +2113,7 @@ function getForumMainElem() {
                                     <p>\${item.comment.creationDate} - <a href="$root/forum/\${item.thread.dbId}" target="_blank">Lien</a></p>
                                 </div>
                             </div>`)[0];
+                            processComment(e.querySelector('.content'),stringToNodes(item.comment.content));
                             break;
                         case 'TidThread':
                             e = stringToNodes(`<div class="searchItem tid">
@@ -1842,7 +2124,7 @@ function getForumMainElem() {
                                 </div>
                                 <div class="content">\${item.comment.content}</div>
                                 <div class="footer">
-                                    <p>\${item.comment.deducedDate}</p>
+                                    <p>\${item.comment.deducedDate} - <a href="$root/forum/tid/\${item.thread.dbId}" target="_blank">Lien</a></p>
                                 </div>
                             </div>`)[0];
                             break;
@@ -1921,7 +2203,7 @@ function getForumMainElem() {
         let sPreQuote = '';
         for (const node of s) {
             switch (node.nodeName) {
-                case '#text': res += node.textContent; break;
+                case '#text': res += escapeCharacters(node.textContent); break;
                 case 'IMG': res += node.alt; break;
                 case 'BR': res += '\\n'; break;
                 case 'B': res +=  '**' + contentToText(node.childNodes) + '**'; break;
@@ -1930,6 +2212,23 @@ function getForumMainElem() {
                 case 'PRE': res += '[code]' + contentToText(node.childNodes) + '[/code]\\n'; break;
                 case 'CODE': res += contentToText(node.childNodes); break;
                 case 'A': res += `[link=\${node.href}]` + contentToText(node.childNodes) + '[/link]'; break;
+                case 'AUDIO':
+                    if (node.classList.contains('file')) {
+                        const regex = new RegExp('/([^/]*)$');
+                        const m = regex.exec(node.src);
+                        res += `[file=get;\${m[1]}/]`;
+                    }
+                    break;
+                case 'BUTTON': 
+                    if (node.classList.contains('file')) {
+                        const regex = new RegExp('/([^/]*)$');
+                        const m = regex.exec(node.querySelector('a').href);
+                        res += `[file=get;\${m[1]}/]`;
+                    }
+                    break;
+                case 'VIDEO':
+                    if (node.classList.contains('file')) res += node.querySelector('source').dataset.copyTag;
+                    break;
                 case 'BLOCKQUOTE':
                     if (sPreQuote != '') res += `[cite=\${sPreQuote}]` + contentToText(node.childNodes) + '[/cite]\\n';
                     else res += '[cite]' + contentToText(node.childNodes) + '[/cite]\\n';
@@ -1974,7 +2273,7 @@ function getForumMainElem() {
         hideAmount();
 
         let bKubeProcess = false;
-        divBegin.addEventListener('click', () => {
+        if (fAdd != null && fRem != null) divBegin.addEventListener('click', () => {
             if (bKubeProcess) return;
             bKubeProcess = true;
 
@@ -1992,6 +2291,7 @@ function getForumMainElem() {
                 });
             }
         });
+        else div.classList.add('disabled');
 
         div.set = (n,lit) => {
             if (n == 0) { hideAmount(); divBegin.src = srcNone; }
@@ -2009,10 +2309,10 @@ function getForumMainElem() {
     }
     const forumFooter =  document.querySelector('#forumL .forum_footer');
     setupPagInput(forumFooter,20,
-        () => loadThreads(20),
-        () => loadThreads(null,20),
-        (n,cursor,skipPages) => loadThreads(null,n,null,cursor,skipPages),
-        (n,cursor,skipPages) => loadThreads(n,null,cursor,null,skipPages)
+        () => forumMode == 'arche' ? loadThreads(20) : loadTidThreads(20),
+        () => forumMode == 'arche' ? loadThreads(null,20) : loadTidThreads(null,20),
+        (n,cursor,skipPages) => forumMode == 'arche' ? loadThreads(null,n,null,cursor,skipPages) : loadTidThreads(null,n,null,cursor,skipPages),
+        (n,cursor,skipPages) => forumMode == 'arche' ? loadThreads(n,null,cursor,null,skipPages) : loadTidThreads(n,null,cursor,null,skipPages)
     );
     
     let savedCategories = null;
@@ -2058,8 +2358,8 @@ function getForumMainElem() {
 
             if (new RegExp('^(https?|ftp)://[^\\.]+\..+').test(e.clipboardData.getData('text/plain'))) {
                 e.preventDefault();
-                const v = e.clipboardData.getData('text/plain');
-                quickInputInsert(`[link=\${v}]\${v.replaceAll(':','\\\:')}[/link]`);
+                const v = e.clipboardData.getData('text/plain').trim();
+                quickInputInsert(`[link=\${v}]\${escapeCharacters(v)}[/link]`);
             } else if (replyFormDiv.querySelector('.opt_specChar').checked) {
                 e.preventDefault();
                 const v = escapeCharacters(e.clipboardData.getData('text/plain'));
@@ -2084,8 +2384,17 @@ function getForumMainElem() {
         
         replyForm.addEventListener('submit',async (e) => {
             e.preventDefault();
+
+            let preventPageLeave = (e) => {
+                e.preventDefault();
+                return "The message isn't done being sent. Leave anyway?";
+            };
+
+            if (!isObjEmpty(filesToUpload)) addEventListener('beforeunload',preventPageLeave);
+
             const res = await onSubmit(e,filesToUpload);
             if (contentSaveName != null && res === true) sessionRem(contentSaveName);
+            removeEventListener('beforeunload',preventPageLeave);
         });
 
         replyFormDiv.querySelector('.previewToggler').addEventListener('click',() => {
@@ -2117,7 +2426,7 @@ function getForumMainElem() {
             const link = prompt("Le lien que vous voulez insérer :");
             if (link == null) return;
             const txt = replyFormTA.selectionStart === replyFormTA.selectionEnd ? prompt("Entrer le texte de votre lien :")??''  : '';
-            quickInputInsert(`[link=\${link}]\${txt}`,'[/link]');
+            quickInputInsert(`[link=\${link}]\${escapeCharacters(txt)}`,'[/link]');
         });
         replyForm.querySelector('.buttonBar .cite').addEventListener('click',() => quickInputInsert('[cite]','[/cite]'));
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
@@ -2129,8 +2438,9 @@ function getForumMainElem() {
         function inputFile(filesToAdd) {
             if (!isIterable(filesToAdd)) filesToAdd = [filesToAdd];
             
-            for (const file of filesToAdd) {
+            for (let file of filesToAdd) {
                 if (file.size > 25000000) { alert('Le fichier ne doit pas faire plus de 25MB.'); return; }
+                file = new File([file], encodeURI(file.name), {type: file.type});
                 files.push(file);
                 quickInputInsert(`[file=\${escapeCharacters(file.name)}/]`);
             }
@@ -2219,6 +2529,27 @@ function getForumMainElem() {
                 const vowelNode = stringToNodes(`<button type="button"><img src="$res/design/balises/vowel.png" alt="[letter=voyelle/]"/></button>`)[0];
                 vowelNode.addEventListener('click',() => quickInputInsert('[letter=voyelle/]'));
                 emojisCont.insertAdjacentElement('beforeend',vowelNode);
+                const dice100Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice100.png" alt="[dice=1-100/]"/></button>`)[0];
+                dice100Node.addEventListener('click',() => quickInputInsert('[dice=1-100/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice100Node);
+                const dice20Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice20.png" alt="[dice=1-20/]"/></button>`)[0];
+                dice20Node.addEventListener('click',() => quickInputInsert('[dice=1-20/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice20Node);
+                const dice12Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice12.png" alt="[dice=1-12/]"/></button>`)[0];
+                dice12Node.addEventListener('click',() => quickInputInsert('[dice=1-12/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice12Node);
+                const dice10Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice10.png" alt="[dice=1-10/]"/></button>`)[0];
+                dice10Node.addEventListener('click',() => quickInputInsert('[dice=1-10/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice10Node);
+                const dice8Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice8.png" alt="[dice=1-8/]"/></button>`)[0];
+                dice8Node.addEventListener('click',() => quickInputInsert('[dice=1-8/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice8Node);
+                const dice6Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice6.png" alt="[dice=1-6/]"/></button>`)[0];
+                dice6Node.addEventListener('click',() => quickInputInsert('[dice=1-6/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice6Node);
+                const dice4Node = stringToNodes(`<button type="button"><img src="$res/design/balises/dice4.png" alt="[dice=1-4/]"/></button>`)[0];
+                dice4Node.addEventListener('click',() => quickInputInsert('[dice=1-4/]'));
+                emojisCont.insertAdjacentElement('beforeend',dice4Node);
             });
             emojisButtons.insertAdjacentElement('beforeend',gadgetsCat);
         }
@@ -2247,15 +2578,17 @@ function getForumMainElem() {
                             <button class="button1 file" type="button">Insérer un fichier</button>
                         </div>
                     </div>
-                    <textarea name="msg"></textarea>
+                    <textarea name="msg" tabindex="1"></textarea>
                     <div class="optDiv">
-                        <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                        <div>
+                            <label for="opt_specChar_\${newReplyFormC}">Coller échappe les caractères spéciaux : </label><input id="opt_specChar_\${newReplyFormC}" class="opt_specChar" type="checkbox" />
+                        </div>
                     </div>
                     <div class="emojisDiv">
                         <div class="emojisButtons"></div>
                         <div class="emojis"></div>
                     </div>
-                    <input class="button2" type="submit" value="Envoyer"/>
+                    <input class="button2" type="submit" value="Envoyer" tabindex="2"/>
                 </form>
             </div>`)[0];
     }
@@ -2272,14 +2605,16 @@ function getForumMainElem() {
             for (const n of node.querySelectorAll('.processThis')) nodesToProcess.push(n);
 
             for (const node of Array.from(nodesToProcess)) {
-                const m = /^(\w+):(.*)$/.exec(node.innerHTML);
+                const m = /^(\w+):([^;]*)(.*)?$/.exec(node.innerHTML);
                 if (m == null) continue;
 
                 const fName = m[1];
+                const fVal = m[2];
+                const params = m[3] != null ? m[3].split(';') : [];
                 let local = false;
                 switch (m[1]) {
                     case 'insertFile':
-                        const keyName = m[2];
+                        const keyName = fVal;
                         const viewNode = stringToNodes(`<button class="button1">View file</button>`)[0];
                         node.replaceWith(viewNode);
                         let bLoading = false;
@@ -2288,30 +2623,44 @@ function getForumMainElem() {
                             bLoading = true;
                             viewNode.innerHTML = 'Loading...';
                             
-                            fetch(`$res/file/\${keyName}`).then((res) => {
+                            sendQuery(`query GetS3ObjectMetadata(\$key:String!) {
+                                f:getS3ObjectMetadata(key:\$key) {
+                                    _key
+                                    contentLength
+                                    contentType
+                                }
+                            }`,{key:keyName}).then((res) => {
+                                if (res?.data?.f?._key == null) {
+                                    viewNode.innerHTML = 'File not found.';
+                                    return;
+                                }
                                 bLoading = false;
-                                if (res.status == 404) { viewNode.innerHTML = 'File not found.'; return 'ignore'; }
-                                try { return res.blob(); } catch (e) { return null; }
-                            }).then((blob) => {
-                                if (blob == 'ignore') return;
-                                if (blob?.constructor?.name != 'Blob') { viewNode.innerHTML = '<span>Incorrect file.</span>'; return; }
 
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
-                                if (imgRegex.test(blob.type)) {
+                                const audioRegex = new RegExp('^audio\\/*');
+                                if (imgRegex.test(res.data.f.contentType)) {
                                     const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
                                     viewNode.replaceWith(imgNode);
                                     imgNode.addEventListener('click',() => {
+                                        enableZoom(true);
                                         const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
                                             <img src="$res/file/\${keyName}" />
                                         </div>`)[0];
-                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); } );
-                                        pop.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); enableZoom(false); } );
+                                        pop.querySelector('img').addEventListener('click', (e) => { e.stopPropagation(); } );
                                         popupDiv.insertAdjacentElement('beforeend',pop);
                                         popupDiv.openTo('.imgBetterView');
                                     });
-                                } else if (vidRegex.test(blob.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                } else if (vidRegex.test(res.data.f.contentType)) {
+                                    let extraAttr = '';
+                                    let extraParam = '';
+                                    if (params.includes('loop')) { extraAttr += ' loop="true"'; extraParam += 'loop;'; }
+                                    if (params.includes('autoplay')) { extraAttr += ' autoplay="true"'; extraParam += 'autoplay;'; }
+                                    if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="metadata" playsinline="true"\${extraAttr}> <source src="$res/file/\${keyName}" data-copy-tag="[file=get;\${extraParam}\${keyName}/]"/> </video>`)[0]);
+                                } else if (audioRegex.test(res.data.f.contentType)) {
+                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
@@ -2328,10 +2677,27 @@ function getForumMainElem() {
                             viewNode.addEventListener('click',() => {
                                 const imgRegex = new RegExp('^image\\/*');
                                 const vidRegex = new RegExp('^video\\/*');
+                                const audioRegex = new RegExp('^audio\\/*');
                                 if (imgRegex.test(file.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<img class="inserted file" src=\${url} />`)[0]);
+                                    const imgNode = stringToNodes(`<img class="inserted file" src="\${url}" />`)[0];
+                                    viewNode.replaceWith(imgNode);
+                                    imgNode.addEventListener('click',() => {
+                                        const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
+                                            <img src="\${url}" />
+                                        </div>`)[0];
+                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); } );
+                                        pop.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+                                        popupDiv.insertAdjacentElement('beforeend',pop);
+                                        popupDiv.openTo('.imgBetterView');
+                                    });
                                 } else if (vidRegex.test(file.type)) {
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline muted> <source src="\${url}" /> </video>`)[0]);
+                                    let extraAttr = '';
+                                    if (params.includes('loop')) extraAttr += ' loop="true"';
+                                    if (params.includes('autoplay')) extraAttr += ' autoplay="true"';
+                                    if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="auto" playsinline="true"\${extraAttr}> <source src="\${url}" /> </video>`)[0]);
+                                } else if (audioRegex.test(file.type)) {
+                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="\${url}"> <a href="\${url}">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1">Télécharger \${file.name}<a href="\${url}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
@@ -2341,10 +2707,10 @@ function getForumMainElem() {
                         }
 
                         let file = null;
-                        for (const f of files) if (f.name == m[2]) file = f;
+                        for (const f of files) if (f.name == fVal) file = f;
 
                         if (file == null) {
-                            const but = stringToNodes(`<button class="button1 warning" type="button">Reuploader \${m[2]}</button>`)[0];
+                            const but = stringToNodes(`<button class="button1 warning" type="button">Reuploader \${fVal}</button>`)[0];
                             const hiddenFileInput = stringToNodes(`<input type="file" style="display:none;" />`)[0]
                             container.insertAdjacentElement('afterend',hiddenFileInput);
                             node.replaceWith(but);
@@ -2352,7 +2718,7 @@ function getForumMainElem() {
                             but.addEventListener('click', () => hiddenFileInput.click());
                             hiddenFileInput.addEventListener('change',() => {
                                 const file = hiddenFileInput.files[0];
-                                if (file.name != m[2]) { alert('Le nom du fichier est différent.'); return; }
+                                if (file.name != fVal) { alert('Le nom du fichier est différent.'); return; }
 
                                 files.push(file);
                                 const url = URL.createObjectURL(file);
@@ -2376,19 +2742,53 @@ function getForumMainElem() {
             }
 
             // gadgets
+            const pop = stringToNodes(`<div class='gadgetInspector popupContainer removeDefaultStyle' style="display:none;" data-pop-exitable="1" data-pop-remove-on-exit="1"></div>`)[0];
+            pop.addEventListener('click', (e) => { e.stopPropagation(); } );
+
             const letterGadgets = [];
             if (node.classList.contains('gadget') && node.classlist.contains('letter')) letterGadgets.push(node);
             for (const n of node.querySelectorAll('.gadget.letter')) letterGadgets.push(n);
             for (const node of letterGadgets) {
                 const regex = new RegExp('^;*(?:A\-Z|consonne|voyelle|inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML = `<p>Générateur : <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
             }
 
-            if (node.classList.contains('gadget') && node.classlist.contains('card')) letterGadgets.push(node);
-            for (const n of node.querySelectorAll('.gadget.card')) letterGadgets.push(n);
-            for (const node of letterGadgets) {
+            const cardGadgets = [];
+            if (node.classList.contains('gadget') && node.classlist.contains('card')) cardGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.card')) cardGadgets.push(n);
+            for (const node of cardGadgets) {
                 const regex = new RegExp('^;*(?:inspect)(?:(?:;inspect|;)+)?$')
                 if (node.dataset.generator == '' || regex.test(node.dataset.generator)) node.classList.add('approved');
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML =  `<p>Générateur :  <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
+            }
+
+            const diceGadgets = [];
+            if (node.classList.contains('gadget') && node.classlist.contains('dice')) diceGadgets.push(node);
+            for (const n of node.querySelectorAll('.gadget.dice')) diceGadgets.push(n);
+            for (const node of diceGadgets) {
+                switch (node.dataset.generator) {
+                    case '1-100': case '1-20': case '1-12': case '1-10':
+                    case '1-8': case '1-6': case '1-4': case '':
+                        node.classList.add('approved');
+                        break;
+                }
+
+                node.addEventListener('click',() => {
+                    pop.innerHTML =  `<p>Générateur :  <span class="genVal">\${node.dataset.generator}</span></p>`;
+                    popupDiv.insertAdjacentElement('beforeend',pop);
+                    popupDiv.openTo('.gadgetInspector');
+                });
             }
 
             container.insertAdjacentElement('beforeend',node);
@@ -2396,7 +2796,26 @@ function getForumMainElem() {
         return o;
     }
     function escapeCharacters(s) {
-        return s.replaceAll(/[\\*\\/\\-\\[\\]:]/g,(s) => '\\\\'+s);
+        return s.replaceAll(/[\\*\\/\\-\\[\\]:\\\\]/g,(s) => '\\\\'+s);
+    }
+
+    function switchToAsile() {
+        if (forumMode == 'asile') return;
+        forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Asile Intéressant';
+        forumL.querySelector('#forum_threadsFilter').style.display = 'none';
+        forumL.querySelector('.refreshThreads').style.display = 'none';
+        forumL.querySelector('.newThreadLoader').style.display = 'none';
+        loadTidThreads(20);
+        forumMode = 'asile';
+    }
+    function switchToArche() {
+        if (forumMode == 'arche') return;
+        forumL.querySelector('.forum_mainBar_sub1 p').innerHTML = 'Arche Intéressante';
+        forumL.querySelector('#forum_threadsFilter').style.display = '';
+        forumL.querySelector('.refreshThreads').style.display = '';
+        forumL.querySelector('.newThreadLoader').style.display = '';
+        loadThreads(20);
+        forumMode = 'arche';
     }
 
     document.querySelector('.newThreadLoader').addEventListener('click',loadNewThreadForm);
@@ -2404,22 +2823,37 @@ function getForumMainElem() {
     document.querySelector('.refreshThreads').addEventListener('click',() => {
         const pageNumber = parseInt(document.querySelector('#forumL .nPage').innerText);
         if (isNaN(pageNumber)) return;
-        loadThreads(20,null,null,null,pageNumber-1);
+        if (forumMode == 'asile') loadTidThreads(20,null,null,null,pageNumber-1);
+        else loadThreads(20,null,null,null,pageNumber-1);
     });
 
-    loadThreads(20);
+    eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));    
 
-    const m = new RegExp("^$root/forum/(\\\d+)").exec(location.href);
-    if (m != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
+    const m = new RegExp("^$root/forum(/tid)?(?:/(\\\d+))?").exec(location.href);
+    if (m[1] == null) {
+        switchToArche();
+        if (m[2] != null) loadThread(`forum_\${m[2]}`,10,null,null,null,0,false,true);
+    }
+    else {
+        switchToAsile();
+        if (m[2] != null) loadTidThread(`forum_tid_\${m[2]}`,{first:10});
+    }
+
     LinkInterceptor.addMidProcess('forumMP', (url,displayedURL,stateAction) => {
         if (document.querySelector('#mainDiv_forum') == null) return false;
-        const m = new RegExp("^$root/forum(?:/(\\\d+)?)?$").exec(displayedURL);
+        const m = new RegExp("^$root/forum(/tid)?(?:/(\\\d+))?").exec(displayedURL);
         if (m == null) return false;
-        else if (m[1] != null) loadThread(`forum_\${m[1]}`,10,null,null,null,0,false,true);
-        else {
+        
+        if (m[2] != null) {
+            if (m[1] == null) loadThread(`forum_\${m[2]}`,10,null,null,null,0,false,true);
+            else loadTidThread(`forum_tid_\${m[2]}`,{first:10});
+        } else {
             forumR.innerHTML = '';
             if (mobileMode) { forumR.style.display = 'none'; forumL.style.display = ''; }
             highlightThread(null);
+
+            if (m[1] != null) switchToAsile()
+            else switchToArche();
         }
 
         switch (stateAction) {
@@ -2448,6 +2882,11 @@ function getForumMainElem() {
     mql.addEventListener('change',fmql);
     fmql(mql);
 
+    if (minusculeModeEnabled) {
+        const a = [];
+        a.push(document.querySelector('#forumL .forum_mainBar_sub1 p'));
+        for (const e of a) e.textContent = e.textContent.toLowerCase();
+    }
 
     JAVASCRIPT,
     'css' => <<<CSS
@@ -2516,7 +2955,9 @@ function getForumMainElem() {
         font-size: 0.75rem;
         border: 0;
         box-shadow: inset 0px 2px 2px #c7c5c0;
-        padding: 0.1rem 1rem 0.1rem 0px;
+        padding: 0.1rem 0rem 0.1rem 0px;
+        transition: width 0.25s;
+        width: 25ch;
     }
     #mainDiv_forum .inputText1:invalid {
         color: red;
@@ -2560,6 +3001,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview blockquote,
     #mainDiv_forum .comment .body blockquote,
+    #mainDiv_forum .comment .body cite,
     #mainDiv_forum #searchFormResults .content blockquote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite {
         padding: 0.3rem 0px 0.3rem 0.3rem;
@@ -2571,6 +3013,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .preQuote,
     #mainDiv_forum .comment .body .preQuote,
+    #mainDiv_forum .comment .body .tid_preCite *:not(.tid_user),
     #mainDiv_forum #searchFormResults .content .preQuote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preCite *:not(.tid_user) {
         font-size: 80%;
@@ -2579,6 +3022,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .spoil,
     #mainDiv_forum .comment .body .spoil,
+    #mainDiv_forum .comment .tid_spoil,
     #mainDiv_forum #searchFormResults .content .spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil {
         cursor: help;
@@ -2586,24 +3030,28 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .spoil .spoilTxt,
     #mainDiv_forum .comment .body .spoil .spoilTxt,
+    #mainDiv_forum .comment .tid_wspoil,
     #mainDiv_forum #searchFormResults .content .spoil .spoilTxt,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil {
         opacity:0;
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover,
     #mainDiv_forum .comment .body .spoil:hover,
+    #mainDiv_forum .comment .tid_spoil:hover,
     #mainDiv_forum #searchFormResults .content .spoil:hover,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil:hover {
         background-image: url({$res}/design/spoiler_hover.png);
     }
     #mainDiv_forum .replyFormDiv .preview .spoil:hover .spoilTxt,
     #mainDiv_forum .comment .body .spoil:hover .spoilTxt,
+    #mainDiv_forum .comment .tid_wspoil:hover,
     #mainDiv_forum #searchFormResults .content .spoil:hover .spoilTxt,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_wspoil:hover {
         opacity:unset;
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker > p::before,
     #mainDiv_forum .comment .body .rpTextSpeaker > p::before,
+    #mainDiv_forum .comment .tid_preRoleplay::before,
     #mainDiv_forum #searchFormResults .content .rpTextSpeaker > p::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay::before {
         content: url({$res}/icons/rp.png);
@@ -2611,6 +3059,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpTextSpeaker,
     #mainDiv_forum .comment .body .rpTextSpeaker,
+    #mainDiv_forum .comment .tid_preRoleplay,
     #mainDiv_forum #searchFormResults .content .rpTextSpeaker,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay {
         font-weight: bold;
@@ -2620,6 +3069,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpText::before,
     #mainDiv_forum .comment .body .rpText::before,
+    #mainDiv_forum .comment .tid_roleplay::before,
     #mainDiv_forum #searchFormResults .content .rpText::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay::before {
         display: block;
@@ -2629,6 +3079,7 @@ function getForumMainElem() {
     }
     #mainDiv_forum .replyFormDiv .preview .rpText,
     #mainDiv_forum .comment .body .rpText,
+    #mainDiv_forum .comment .tid_roleplay,
     #mainDiv_forum #searchFormResults .content .rpText,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         background: #dddbd8;
@@ -2684,12 +3135,17 @@ function getForumMainElem() {
     #mainDiv_forum .inserted {
         max-width: 85%;
     }
+    #mainDiv_forum .comment cite,
+    #mainDiv_forum .comment .tid_spoil,
+    #mainDiv_forum .comment .tid_preRoleplay,
+    #mainDiv_forum .comment .tid_roleplay,
     #mainDiv_forum #searchFormResults .searchItem.tid .content cite,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_spoil,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_preRoleplay,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_roleplay {
         display: block;
     }
+    #mainDiv_forum .comment .tid_questionModule,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule {
         margin: 20px 0px;
         padding: 10px;
@@ -2704,12 +3160,14 @@ function getForumMainElem() {
         background-position: center top;
         background-repeat: repeat-x;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionLine,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionLine {
         opacity: 0.85;
         padding: 15px;
         border-bottom: 1px dashed rgba(0,0,0,0.15);
         color: black;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionResults,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults {
         display: block;
         float: right;
@@ -2720,12 +3178,15 @@ function getForumMainElem() {
         white-space: nowrap;
         text-align: right;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_questionResults .tid_value,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_questionResults .tid_value {
         vertical-align: middle;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_button.tid_mini.tid_bVote,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_button.tid_mini.tid_bVote {
         display:none;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_barBG,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barBG {
         height: 15px;
         display: inline-block;
@@ -2736,11 +3197,13 @@ function getForumMainElem() {
         border-radius: 3px;
         box-shadow: inset 0px 0px 8px rgba(0,0,0,0.3);
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_barInner,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_barInner {
         background-color: #fe7d00;
         height: 100%;
         box-shadow: inset 0px -8px 0px rgba(0,0,0,0.15), inset 1px 0px 2px #5B1E00;
     }
+    #mainDiv_forum .comment .tid_questionModule .tid_footer,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_questionModule .tid_footer {
         margin-left: -10px;
         margin-right: -10px;
@@ -2753,6 +3216,7 @@ function getForumMainElem() {
         box-shadow: 0px -4px 4px rgba(0,0,0,0.15);
         display: none;
     }
+    #mainDiv_forum .comment .tid_user,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_user {
         background-image: url({$res}/icons/notContact.png);
         background-repeat: no-repeat;
@@ -2767,6 +3231,7 @@ function getForumMainElem() {
         padding-right: 13px !important;
         cursor: default;
     }
+    #mainDiv_forum .comment .tid_announce,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce {
         display: block;
         margin: 1em;
@@ -2781,12 +3246,14 @@ function getForumMainElem() {
         background-repeat: no-repeat;
         background-color: #3b4151;
     }
+    #mainDiv_forum .comment .tid_mod::before,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod::before {
         content: "Message d'un modérateur";
         position: absolute;
         top: 0.5em;
         color: #F4DF8B;
     }
+    #mainDiv_forum .comment .tid_mod,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_mod {
         display: block;
         margin: 1em;
@@ -2798,16 +3265,20 @@ function getForumMainElem() {
         color: white;
         position: relative;
     }
+    #mainDiv_forum .comment .tid_strike,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_strike {
         text-decoration: line-through;
         opacity: 0.8;
     }
+    #mainDiv_forum .comment em,
     #mainDiv_forum #searchFormResults .searchItem.tid .content em {
         opacity: 0.7;
     }
+    #mainDiv_forum .comment strong,
     #mainDiv_forum #searchFormResults .searchItem.tid .content strong {
         color: #3b4151;
     }
+    #mainDiv_forum .comment .tid_announce strong,
     #mainDiv_forum #searchFormResults .searchItem.tid .content .tid_announce strong {
         color: inherit;
     }
@@ -3170,7 +3641,7 @@ function getForumMainElem() {
         font-size: 0.7rem;
     }
     #mainDiv_forum .forum_mainBar {
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
         box-shadow: 0px 0px 0.2rem rgba(0,0,0,0.35);
     }
     #mainDiv_forum .forum_mainBar_sub1 {
@@ -3186,6 +3657,9 @@ function getForumMainElem() {
         background-color: #B63B00;
         opacity: 0.83;
         padding: 0.4rem;
+    }
+    #mainDiv_forum .actions .button1 {
+        height: 1.5rem;
     }
     #mainDiv_forum .subheader .infos1 {
         font-size: 0.8em;
@@ -3279,7 +3753,7 @@ function getForumMainElem() {
         align-items: center;
         vertical-align: middle;
     }
-    #mainDiv_forum .iconDiv .iconDiv_begin {
+    #mainDiv_forum .iconDiv:not(.disabled) .iconDiv_begin {
         cursor: pointer;
     }
     #mainDiv_forum .iconDiv .iconDiv_mid {
@@ -3307,6 +3781,29 @@ function getForumMainElem() {
     #mainDiv_forum .octohitDiv .octohitDiv_mid p {
         color: darkRed;
         line-height: 1.1;
+    }
+    #popupDiv .gadgetInspector {
+        position: relative;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50%;
+        background-color: #3B4151;
+        color: white;
+        padding: 0.7rem;
+        border: 4px solid #27282D;
+        font-size: 0.85rem;
+    }
+    #forum_threadsFilter {
+        font-size: 0.7rem;
+        display: flex;
+        align-items: center;
+        margin: 0px 0px 0.4em 0px;
+    }
+    #forum_threadsFilter input[type="checkbox"] {
+        margin: 0px 0.3em;
+        width: 0.9em;
+        height: 0.9em;
     }
     @media screen and (max-width: 800px) {
         #forumR, #forumL{
@@ -3362,7 +3859,8 @@ function getVersionHistoryElem() {
             --><button>0.1b</button><!--
             --><button>0.2</button><!--
             --><button>0.3</button><!--
-            --><button>1.0</button>
+            --><button>1.0</button><!--
+            --><button>1.1</button>
         </div>
         <div id="versionDescription"></div>
     </div>
@@ -3522,7 +4020,7 @@ function getVersionHistoryElem() {
             case '1.0':
                 div.innerHTML = `
                     <h2>Version 1.0 <span>Sortie : 2 Novembre 2023</span></h2>
-                    <p class="subheader">— </p>
+                    <p class="subheader">— 🌊🌊🌊</p>
                     <div class="main">
                         <section>
                             <h3>Général</h3>
@@ -3563,6 +4061,76 @@ function getVersionHistoryElem() {
                                     <li>Automatiquement marquer les pages comme lu</li>
                                     <li>Automatiquement suivre un topic après l'avoir commenté</li>
                                     <li>Contrôle des notifications pushs.</li>
+                                </ul>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
+            case '1.1':
+                div.innerHTML = `
+                    <h2>Version 1.1 <span>Sortie : 2 Décembre 2023</span></h2>
+                    <p class="subheader">— Beaucoup de fonctionnalités importantes, les vestiges de l'asile sont maintenant accessible. Twinoid est maintenant derrière nous et l'arche est très active. Les topics sont à foison, les intéressants se familiarisent avec leur nouvel environnement... De nouvelles factions ont émergés, avec des personnalités fortes pour les diriger. Et ce n'était que le premier mois...</p>
+                    <div class="main">
+                        <section>
+                            <h3>Général</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>Les appareils iOS (Mac,iPhone) sont maintenant compatible avec le site.</li>
+                                    <li>Ajout de la page <a href="$root/graphql-playground" target="_blank">GraphQL Playground</a> pour avoir accès à l'API public plus facilement.</li>
+                                    <li>La réception de notifications (dans la barre de droite) a été améliorée.</li>    
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>Les topics de l'Asile Intéressant sont maintenant accessible.</li>
+                                    <li>Tous les émoticones Twinoid sont maintenant accessible à tout le monde par défaut.</li>
+                                    <li>Ajout des gadgets dés <img src="$res/design/balises/dice100.png"/><img src="$res/design/balises/dice20.png"/><img src="$res/design/balises/dice12.png"/><img src="$res/design/balises/dice10.png"/><img src="$res/design/balises/dice8.png"/><img src="$res/design/balises/dice6.png"/><img src="$res/design/balises/dice4.png"/>.</li>
+                                    <li>La fonction recherche est moins restrictive.</li>
+                                    <li>On peut rechercher en utilisant des instructions. (<a href="$root/forum/2402" target="_blank">Détails</a>)</li>
+                                    <li>Les résultats de la fonction recherche affichent maintenant les images et vidéos.</li>
+                                    <li>Possibilité d'insérer de l'audio dans vos messages.</li>
+                                    <li>Le chargement des médias dans les messages ont été améliorés.</li>
+                                    <li>Nouveaux paramètres pour la balise vidéo : "loop" et "autoplay".</li>
+                                    <li>Possibilité d'afficher seulement les topics non-lus.</li>
+                                    <li>Ajout d'un bouton pour marquer un topic en lu.</li>
+                                    <li>Le marquage des messages édités en non-lu pour les autres utilisateurs est maintenant optionnelle au lieu de systématique.</li>
+                                    <li>Les images affiché en grand sont maintenant zoomables.</li>
+                                    <li>Possibilité de voir plus d'informations sur les gadgets dans les messages en cliquant dessus.</li>
+                                    <li>Les images dans le preview peuvent maintenant être affiché en grand.</li>
+                                </ul>
+                                <h4>Autres modifications</h4>
+                                <ul>
+                                    <li>Amélioration de l'apparence. (Merci à Eva pour l'ombre des avatars.)</li>
+                                    <li>Utilisation d'"Arche Intéressante" au lieu d'"Asile Intéressant".</li>
+                                    <li>Les messages en cours d'écriture sont maintenant sauvegardé que pour les topics les concernant.</li>
+                                    <li>Les vidéos ne sont plus en sourdine par défaut.</li>
+                                    <li>La page scrolle automatiquement lors d'un changement de page de commentaires.</li>
+                                    <li>Les résultats de la fonction recherche sont trié par date par défaut au lieu de par pertinence.</li>
+                                    <li>Les insertions de liens automatique lors d'un coller sont mieux détectés et insérés. (Main un certain bug persiste...)</li>
+                                    <li>Utilisation améliorée de la touche Tab comme raccourci pour envoyer des messages.</li>
+                                </ul>
+                                <h4>Bugfixs</h4>
+                                <ul>
+                                    <li>On ne pouvait pas uploader de fichiers lors d'une édition de message.</li>
+                                    <li>Parfois cliquer sur le bouton citer donnait des citations vides.</li>
+                                    <li>Le bug "Failed Upload (1)." lors de l'upload d'un fichier apparait beaucoup moins.</li>
+                                    <li>Les titres étaient mal sauvegardés et restorés.</li>
+                                    <li>Des échappements de caractère ne se faisaient pas correctement, ou aux moments appropriés.</li>
+                                    <li>Des dates de commentaires s'affichaient incorrectement comme étant posté "Aujourd'hui".</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Paramètres</h3>
+                            <section>
+                                <h4>Nouveaux paramètres :</h4>
+                                <ul>
+                                    <li>Accessibilité : Forcer les minuscules dans certains textes.</li>
                                 </ul>
                             </section>
                         </section>
@@ -3679,6 +4247,14 @@ function getUserSettings() {
                     </ul>
                 </div>
             </section>
+            <section>
+                <h2>Accessibilité</h2>
+                <div class="sectionContent">
+                    <ul>
+                        <li><input id="settings_minusculeMode" name="minusculeMode" type="checkbox" disabled><label for="settings_minusculeMode">Forcer les minuscules dans certains textes</label></li>
+                    </ul>
+                </div>
+            </section>
             <input id="settings_submit" type="submit" value="Enregistrer" disabled/>
         </form>
     </div>
@@ -3696,6 +4272,8 @@ function getUserSettings() {
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
     const eNotifNewCommentOnFollowedThread = document.querySelector('#settings_notif_newCommentOnFollowedThread');
 
+    const eMinusculeMode = document.querySelector('#settings_minusculeMode');
+
     toggleInputs(false);
     initAfterSettingsSync();
 
@@ -3712,6 +4290,7 @@ function getUserSettings() {
     }
     function toggleInputs(enable) {
         for (const e of allInputs) e.disabled = !enable;
+        if (!__feat_notifications) eNotif.disabled = true;
         // if (!__feat_notifications) eDeviceNotif.disabled = true;
 
         if (enable) {
@@ -3725,10 +4304,12 @@ function getUserSettings() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
         eForum_followThreadsOnComment.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
 
-        eNotif.checked = localGet('settings_notifications') === 'true';
+        eNotif.checked = __feat_notifications && localGet('settings_notifications') === 'true';
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;
         eNotifNewThread.checked = localGet('settings_notif_newThread') === 'true';
         eNotifNewCommentOnFollowedThread.checked = localGet('settings_notif_newCommentOnFollowedThread') === 'true';
+
+        eMinusculeMode.checked = localGet('settings_minusculeMode') === 'true';
     }
     
     settingsForm.addEventListener('submit',(e) => {
@@ -3740,7 +4321,7 @@ function getUserSettings() {
         }
 
         if (eNotif.checked) {
-            if (Notification.permission !== 'granted') {
+            if (!__feat_notifications || Notification.permission !== 'granted') {
                 alert('You didn\'t grant notification permission.');
                 Notification.requestPermission();
                 toggleInputs(true);

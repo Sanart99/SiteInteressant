@@ -13,7 +13,7 @@ function getActiveServiceWorker() {
 function initPushSubscription() {
     if (!__feat_serviceWorker) return null;
     navigator.serviceWorker.ready.then(async (reg) => {
-        if (Notification.permission !== 'granted') return;
+        if (!__feat_notifications || Notification.permission !== 'granted') return;
 
         let sub = await reg.pushManager.getSubscription();
         if (sub == null) {
