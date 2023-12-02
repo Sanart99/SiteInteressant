@@ -4019,7 +4019,7 @@ function getVersionHistoryElem() {
             case '1.0':
                 div.innerHTML = `
                     <h2>Version 1.0 <span>Sortie : 2 Novembre 2023</span></h2>
-                    <p class="subheader">— </p>
+                    <p class="subheader">— 🌊🌊🌊</p>
                     <div class="main">
                         <section>
                             <h3>Général</h3>
