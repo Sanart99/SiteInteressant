@@ -3859,7 +3859,8 @@ function getVersionHistoryElem() {
             --><button>0.1b</button><!--
             --><button>0.2</button><!--
             --><button>0.3</button><!--
-            --><button>1.0</button>
+            --><button>1.0</button><!--
+            --><button>1.1</button>
         </div>
         <div id="versionDescription"></div>
     </div>
@@ -4060,6 +4061,76 @@ function getVersionHistoryElem() {
                                     <li>Automatiquement marquer les pages comme lu</li>
                                     <li>Automatiquement suivre un topic après l'avoir commenté</li>
                                     <li>Contrôle des notifications pushs.</li>
+                                </ul>
+                            </section>
+                        </section>
+                    </div>`.trim();
+                break;
+            case '1.1':
+                div.innerHTML = `
+                    <h2>Version 1.1 <span>Sortie : 2 Décembre 2023</span></h2>
+                    <p class="subheader">— Beaucoup de fonctionnalités importantes, les vestiges de l'asile sont maintenant accessible. Twinoid est maintenant derrière nous et l'arche est très active. Les topics sont à foison, les intéressants se familiarisent avec leur nouvel environnement... De nouvelles factions ont émergés, avec des personnalités fortes pour les diriger. Et ce n'était que le premier mois...</p>
+                    <div class="main">
+                        <section>
+                            <h3>Général</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>Les appareils iOS (Mac,iPhone) sont maintenant compatible avec le site.</li>
+                                    <li>Ajout de la page <a href="$root/graphql-playground" target="_blank">GraphQL Playground</a> pour avoir accès à l'API public plus facilement.</li>
+                                    <li>La réception de notifications (dans la barre de droite) a été améliorée.</li>    
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Forum</h3>
+                            <section>
+                                <h4>Quoi de neuf ?</h4>
+                                <ul>
+                                    <li>Les topics de l'Asile Intéressant sont maintenant accessible.</li>
+                                    <li>Tous les émoticones Twinoid sont maintenant accessible à tout le monde par défaut.</li>
+                                    <li>Ajout des gadgets dés <img src="$res/design/balises/dice100.png"/><img src="$res/design/balises/dice20.png"/><img src="$res/design/balises/dice12.png"/><img src="$res/design/balises/dice10.png"/><img src="$res/design/balises/dice8.png"/><img src="$res/design/balises/dice6.png"/><img src="$res/design/balises/dice4.png"/>.</li>
+                                    <li>La fonction recherche est moins restrictive.</li>
+                                    <li>On peut rechercher en utilisant des instructions. (<a href="$root/forum/2402" target="_blank">Détails</a>)</li>
+                                    <li>Les résultats de la fonction recherche affichent maintenant les images et vidéos.</li>
+                                    <li>Possibilité d'insérer de l'audio dans vos messages.</li>
+                                    <li>Le chargement des médias dans les messages ont été améliorés.</li>
+                                    <li>Nouveaux paramètres pour la balise vidéo : "loop" et "autoplay".</li>
+                                    <li>Possibilité d'afficher seulement les topics non-lus.</li>
+                                    <li>Ajout d'un bouton pour marquer un topic en lu.</li>
+                                    <li>Le marquage des messages édités en non-lu pour les autres utilisateurs est maintenant optionnelle au lieu de systématique.</li>
+                                    <li>Les images affiché en grand sont maintenant zoomables.</li>
+                                    <li>Possibilité de voir plus d'informations sur les gadgets dans les messages en cliquant dessus.</li>
+                                    <li>Les images dans le preview peuvent maintenant être affiché en grand.</li>
+                                </ul>
+                                <h4>Autres modifications</h4>
+                                <ul>
+                                    <li>Amélioration de l'apparence. (Merci à Eva pour l'ombre des avatars.)</li>
+                                    <li>Utilisation d'"Arche Intéressante" au lieu d'"Asile Intéressant".</li>
+                                    <li>Les messages en cours d'écriture sont maintenant sauvegardé que pour les topics les concernant.</li>
+                                    <li>Les vidéos ne sont plus en sourdine par défaut.</li>
+                                    <li>La page scrolle automatiquement lors d'un changement de page de commentaires.</li>
+                                    <li>Les résultats de la fonction recherche sont trié par date par défaut au lieu de par pertinence.</li>
+                                    <li>Les insertions de liens automatique lors d'un coller sont mieux détectés et insérés. (Main un certain bug persiste...)</li>
+                                    <li>Utilisation améliorée de la touche Tab comme raccourci pour envoyer des messages.</li>
+                                </ul>
+                                <h4>Bugfixs</h4>
+                                <ul>
+                                    <li>On ne pouvait pas uploader de fichiers lors d'une édition de message.</li>
+                                    <li>Parfois cliquer sur le bouton citer donnait des citations vides.</li>
+                                    <li>Le bug "Failed Upload (1)." lors de l'upload d'un fichier apparait beaucoup moins.</li>
+                                    <li>Les titres étaient mal sauvegardés et restorés.</li>
+                                    <li>Des échappements de caractère ne se faisaient pas correctement, ou aux moments appropriés.</li>
+                                    <li>Des dates de commentaires s'affichaient incorrectement comme étant posté "Aujourd'hui".</li>
+                                </ul>
+                            </section>
+                        </section>
+                        <section>
+                            <h3>Paramètres</h3>
+                            <section>
+                                <h4>Nouveaux paramètres :</h4>
+                                <ul>
+                                    <li>Accessibilité : Forcer les minuscules dans certains textes.</li>
                                 </ul>
                             </section>
                         </section>
