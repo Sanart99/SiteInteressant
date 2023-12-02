@@ -453,7 +453,7 @@ class MutationType extends ObjectType {
                         return logout_user(DBManager::getConnection(), $user->id);
                     }
                 ],
-                'autoban' => [
+                'selfban' => [
                     'type' => fn() => Type::nonNull(Types::SimpleOperation()),
                     'args' => [
                         'duration' => ['type' => Type::int(), 'defaultValue' => null],
@@ -472,7 +472,7 @@ class MutationType extends ObjectType {
                         if ($endDate->getTimestamp() > time()+604800) // 604800 = 7 days
                             return new OperationResult(ErrorType::INVALID_DATA, "The end of the ban should be at most a week from now.");
 
-                        return ban_user(DBManager::getConnection(), $user->id, $endDate, 'autoban');
+                        return ban_user(DBManager::getConnection(), $user->id, $endDate, 'selfban');
                     }
                 ],
                 'logoutUserFromEverything' => [
