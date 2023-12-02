@@ -58,7 +58,7 @@ use function LDLib\Forum\{
     check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
 };
 use function LDLib\Net\{curl_fetch};
-use function LdLib\User\{set_notification_to_read, set_user_setting};
+use function LdLib\User\{set_notification_to_read, set_user_setting, ban_user};
 use function LDLib\Utils\ArrayTools\array_merge_recursive_distinct;
 
 enum Data:string {
@@ -451,6 +451,28 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return logout_user(DBManager::getConnection(), $user->id);
+                    }
+                ],
+                'autoban' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'duration' => ['type' => Type::int(), 'defaultValue' => null],
+                        'endDate' => ['type' => Types::DateTime(), 'defaultValue' => null]
+                    ],
+                    'resolve' => function ($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        if (isset($args['duration'],$args['endDate']) || ($args['duration'] == null && $args['endDate'] == null))
+                            return new OperationResult(ErrorType::INVALID_DATA, 'Set either "duration" or "endDate".');
+
+                        if ($args['duration'] != null) $endDate = new \DateTimeImmutable('@'.(strtotime('now')+$args['duration']));
+                        else if ($args['endDate'] != null) $endDate = $args['endDate'];
+                        else return new OperationResult(ErrorType::UNKNOWN);
+
+                        if ($endDate->getTimestamp() > time()+604800) // 604800 = 7 days
+                            return new OperationResult(ErrorType::INVALID_DATA, "The end of the ban should be at most a week from now.");
+
+                        return ban_user(DBManager::getConnection(), $user->id, $endDate, 'autoban');
                     }
                 ],
                 'logoutUserFromEverything' => [

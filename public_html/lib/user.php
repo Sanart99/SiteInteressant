@@ -137,4 +137,25 @@ function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateT
     $conn->query("DELETE FROM notifications WHERE user_id=$userId AND number=$number LIMIT 1");
     return new OperationResult(SuccessType::SUCCESS);
 }
+
+function ban_user(LDPDO $conn, int $userId, \DateTimeInterface $endDate, ?string $reason=null):OperationResult {
+    $rowUser = $conn->query("SELECT * FROM users WHERE id=$userId")->fetch(\PDO::FETCH_ASSOC);
+    if ($rowUser == null) return new OperationResult(ErrorType::NOT_FOUND, 'User not found.');
+
+    $now = new \DateTimeImmutable('now');
+    $sNow = $now->format('Y-m-d H:i:s');
+    $sEnd = $endDate->format('Y-m-d H:i:s');
+    if ($endDate <= $now) return new OperationResult(ErrorType::INVALID_DATA, 'Current date greater than given end date.');
+
+    if ($conn->query("SELECT * FROM user_bans WHERE user_id=$userId AND ((start_date<='$sNow' AND end_date>='$sNow') OR (start_date<='$sEnd' AND end_date>='$sEnd')) LIMIT 1")->fetch() !== false)
+        return new OperationResult(ErrorType::DUPLICATE, 'There already is a ban for the given time period.');
+    
+    $conn->query('START TRANSACTION');
+    $stmt = $conn->prepare("INSERT INTO user_bans(user_id,start_date,end_date,reason) VALUES (?,?,?,?)");
+    $stmt->execute([$userId,$sNow,$sEnd,$reason]);
+    $conn->query("DELETE FROM connections WHERE user_id=$userId");
+    $conn->query('COMMIT');
+    
+    return new OperationResult(SuccessType::SUCCESS);
+}
 ?>
