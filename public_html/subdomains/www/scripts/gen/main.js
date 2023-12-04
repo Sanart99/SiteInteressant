@@ -2337,7 +2337,7 @@ function getForumMainElem() {
                     parseText(text:\$msg)
                 }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((json) => {
                     acReplyForm = null;
-                    if (json?.data?.parseText == null) { basicQueryResultCheck(null,true); return; }
+                    if (json?.data?.parseText == null) { basicQueryResultCheck(null,true,true); return; }
 
                     const nodePreview = replyFormDiv.querySelector('.preview');
                     const nodes = stringToNodes(json.data.parseText);
