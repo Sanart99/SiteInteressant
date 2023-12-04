@@ -24,8 +24,8 @@ function isIterable(obj) {
   return typeof obj[Symbol.iterator] === 'function';
 }
 
-function basicQueryResultCheck(operationResult, preventThrow = false) {
-    if (!__online && operationResult == null) { alert('No internet connection detected.'); return false; }
+function basicQueryResultCheck(operationResult, preventThrow = false, preventNetAlert=false) {
+    if (!__online && operationResult == null) { if (!preventNetAlert) alert('No internet connection detected.'); return false; }
     if (__authenticated && operationResult == null) {
         sendQuery('query { viewer { id } }').then((json) => {
             if (json?.data?.viewer == null) switchToNotAuthenticated();
