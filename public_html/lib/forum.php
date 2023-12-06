@@ -142,6 +142,7 @@ class ForumSearchQuery {
 
     public function __construct(ThreadType $threadType, string $keywords, SearchSorting $sortBy, ?\DateTimeInterface $startDate = null, ?\DateTimeInterface $endDate = null, ?array $userIds = null) {
         if (str_contains($keywords,'`')) throw new TypedException("Contains char '`'", ErrorType::INVALID_DATA);
+        if ($sortBy == SearchSorting::ByRelevance && $keywords == '') throw new TypedException("Can't sort empty query by relevance.", ErrorType::INVALID_DATA);
         $this->threadType = $threadType;
         $this->keywords = $keywords;
         $this->sortBy = $sortBy;

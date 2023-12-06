@@ -849,7 +849,16 @@ class ForumBuffer {
                         break;
                 }
 
-                $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
+                if ($keywords == '') {
+                    $sqlWhere = '1=1';
+                    $sqlVals = null;
+                    $sqlSelect = '*';
+                } else {
+                    $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
+                    $sqlVals = [':keywords' => $keywords];
+                    $sqlSelect = "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance";
+                }
+                
                 if ($fsq->startDate != null) { $sStartDate = $fsq->startDate->format('Y-m-d H:i:s'); $sqlWhere .= " AND $sDateRow>='$sStartDate'"; }
                 if ($fsq->endDate != null) { $sEndDate = $fsq->endDate->format('Y-m-d H:i:s'); $sqlWhere .= " AND $sDateRow<='$sEndDate'"; }
                 if ($fsq->userIds != null) {
@@ -928,8 +937,8 @@ class ForumBuffer {
                         $s2 = $pag->getString();
                         $bufRes['forum']['search']["$s1...$s2"] = $rows;
                     },
-                    "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance",
-                    [':keywords' => $keywords]
+                    $sqlSelect,
+                    $sqlVals
                 );
                 
                 if (count($threadIds) > 0) {
