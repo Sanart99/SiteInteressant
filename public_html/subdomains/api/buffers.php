@@ -164,6 +164,9 @@ class BufferManager {
         $after = $pag->getAfterCursor();
         $before = $pag->getBeforeCursor();
 
+        $dbLoc = $dbName;
+        if (preg_match('/AS (.*)$/i',$dbName, $m) > 0) $dbName = $m[1];
+
         $executeValsWhereOnly = null; 
         if ($executeVals != null) {
             $executeValsWhereOnly = [];
@@ -172,7 +175,7 @@ class BufferManager {
         }
 
         // Make and exec sql
-        $sql = "SELECT $select FROM $dbName";
+        $sql = "SELECT $select FROM $dbLoc";
         $n = 0;
         $vCurs = null;
         $pageCount = null;
@@ -182,18 +185,18 @@ class BufferManager {
         if ($getLastPage) { // if requesting last page: do this
             
             if ($executeValsWhereOnly != null) {
-                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbLoc WHERE $whereCond");
                 $stmt->execute($executeValsWhereOnly);
                 $count = $stmt->fetch(\PDO::FETCH_NUM)[0];
-            } else $count = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0];
+            } else $count = $conn->query("SELECT COUNT(*) FROM $dbLoc WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0];
 
             $n = $first != null ? $first : $last;
             $i = $count % $n;
             if ($i == 0) $i = $n;
             if ($executeVals != null) {
-                $stmt = $conn->prepare("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
+                $stmt = $conn->prepare("SELECT $select FROM $dbLoc WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
                 $stmt->execute($executeVals);
-            } else $stmt = $conn->query("SELECT $select FROM $dbName WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
+            } else $stmt = $conn->query("SELECT $select FROM $dbLoc WHERE $whereCond ORDER BY ".(is_callable($cursorRow) ? $cursorRow(null,4) : $cursorRow." DESC")." LIMIT $i");
 
             $before=null;
             $whereCondAfterCurs = "AND ($whereCond)";
@@ -272,27 +275,27 @@ class BufferManager {
             if ($last != null && $hadMoreResults) $hasPreviousPage = true;
             else if ($after != null) {
                 if ($executeValsWhereOnly != null) {
-                    $stmt = $conn->prepare("SELECT 1 FROM $dbName WHERE $where1 LIMIT 1");
+                    $stmt = $conn->prepare("SELECT 1 FROM $dbLoc WHERE $where1 LIMIT 1");
                     $stmt->execute($executeValsWhereOnly);
                     $hasPreviousPage = $stmt->fetch() !== false;
-                } else $hasPreviousPage = $conn->query("SELECT 1 FROM $dbName WHERE $where1 LIMIT 1")->fetch() !== false;
+                } else $hasPreviousPage = $conn->query("SELECT 1 FROM $dbLoc WHERE $where1 LIMIT 1")->fetch() !== false;
             }
             if ($first != null && $hadMoreResults) $hasNextPage = true;
             else if ($before != null) {
                 if ($executeValsWhereOnly != null) {
-                    $stmt = $conn->prepare("SELECT 1 FROM $dbName WHERE $where2 LIMIT 1");
+                    $stmt = $conn->prepare("SELECT 1 FROM $dbLoc WHERE $where2 LIMIT 1");
                     $stmt->execute($executeValsWhereOnly);
                     $hasNextPage = $stmt->fetch() !== false;
-                } else $hasNextPage = $conn->query("SELECT 1 FROM $dbName WHERE $where2 LIMIT 1")->fetch() !== false;
+                } else $hasNextPage = $conn->query("SELECT 1 FROM $dbLoc WHERE $where2 LIMIT 1")->fetch() !== false;
             }
         }
 
         if ($pag->requestPageCount == true) {            
             if ($executeValsWhereOnly != null) {
-                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $whereCond");
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbLoc WHERE $whereCond");
                 $stmt->execute($executeValsWhereOnly);
                 $v = $stmt->fetch(\PDO::FETCH_NUM)[0] / $n;
-            } else $v = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / $n;
+            } else $v = $conn->query("SELECT COUNT(*) FROM $dbLoc WHERE $whereCond")->fetch(\PDO::FETCH_NUM)[0] / $n;
             $pageCount = (int)((fmod($v,1) > 0) ? $v+1 : $v);
             if ($pageCount < 1) $pageCount = 1;
             
@@ -307,10 +310,10 @@ class BufferManager {
                     $s = is_callable($cursorRow) ? "($whereCond) AND ".$cursorRow($vCurs2,5) : "($whereCond) AND $cursorRow<=$vCurs2";
                     
                     if ($executeValsWhereOnly != null) {
-                        $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbName WHERE $s");
+                        $stmt = $conn->prepare("SELECT COUNT(*) FROM $dbLoc WHERE $s");
                         $stmt->execute($executeValsWhereOnly);
                         $nItemsBefore = $stmt->fetch()[0];
-                    } else $nItemsBefore = $conn->query("SELECT COUNT(*) FROM $dbName WHERE $s")->fetch()[0];
+                    } else $nItemsBefore = $conn->query("SELECT COUNT(*) FROM $dbLoc WHERE $s")->fetch()[0];
                     
                     $currPage = ceil($nItemsBefore / $n);
                 } catch (\Exception $e) {  }
