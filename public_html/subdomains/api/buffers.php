@@ -8,7 +8,7 @@ require_once $libDir.'/db.php';
 use Ds\Set;
 use GraphQL\Error\ClientAware;
 use LDLib\Database\LDPDO;
-use LDLib\Forum\{ForumSearchQuery,SearchSorting,ThreadPermission};
+use LDLib\Forum\{ForumSearchArea, ForumSearchQuery,SearchSorting,ThreadPermission};
 use LDLib\General\ {
     PageInfo,
     PaginationVals
@@ -832,6 +832,7 @@ class ForumBuffer {
                 $fsq = $v[1][0];
                 $pag = $v[1][1];
                 $keywords = $fsq->keywords;
+                $searchAreas = $fsq->searchAreas;
                 
                 switch ($fsq->threadType) {
                     case \LdLib\Forum\ThreadType::Standard:
@@ -841,6 +842,7 @@ class ForumBuffer {
                         $commsRow = 'comments';
                         $sCommNumRow = 'number';
                         $sDateRow = 'creation_date';
+                        $dbName = 'comments';
                         break;
                     case \LdLib\Forum\ThreadType::Twinoid:
                         $dtThread = DataType::ForumTidThread;
@@ -849,17 +851,61 @@ class ForumBuffer {
                         $commsRow = 'tid_comments';
                         $sCommNumRow = 'id';
                         $sDateRow = 'deduced_date';
+                        $dbName = 'tid_comments';
                         break;
                 }
 
+                $sqlVals = null;
                 if ($keywords == '') {
+                    $sqlSelect = '*';
                     $sqlWhere = '1=1';
                     $sqlVals = null;
-                    $sqlSelect = '*';
                 } else {
-                    $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
-                    $sqlVals = [':keywords' => $keywords];
-                    $sqlSelect = "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance";
+                    if (in_array(ForumSearchArea::Comments,$searchAreas) && in_array(ForumSearchArea::Titles, $searchAreas)) { //! need prepared statements support for keywords
+                        $sqlSelect = <<<SQL
+                            *,(relevance1+relevance2) AS relevance
+                            SQL;
+                        $keywords = str_replace("\\","\\\\",$keywords);
+                        $keywords = str_replace("'","\'",$keywords);
+                        $dbName = $dbName == 'comments' ? <<<SQL
+                            (SELECT *,MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance1 FROM comments
+                                CROSS JOIN (SELECT id,title,MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance2 FROM threads WHERE MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE)) j_threads
+                                ON thread_id=j_threads.id
+                                WHERE MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE)
+                            ) AS comments
+                            SQL
+                        : <<<SQL
+                            (SELECT *,MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance1 FROM tid_comments
+                                CROSS JOIN (SELECT id AS th_id,title,MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance2 FROM tid_threads WHERE MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE)) j_threads
+                                ON thread_id=j_threads.th_id
+                                WHERE MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE)
+                            ) AS tid_comments
+                            SQL;
+                        $sqlWhere = "1=1";
+                    } else if (in_array(ForumSearchArea::Titles,$searchAreas)) {
+                        $sqlSelect = '*';
+                        $keywords = str_replace("\\","\\\\",$keywords);
+                        $keywords = str_replace("'","\'",$keywords);
+                        $dbName = $dbName == 'comments' ? <<<SQL
+                            (SELECT * FROM comments
+                                CROSS JOIN (SELECT id,title,MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance FROM threads WHERE MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE)) j_threads
+                                ON thread_id=j_threads.id
+                                GROUP BY thread_id
+                            ) AS comments
+                            SQL
+                        : <<<SQL
+                            (SELECT * FROM tid_comments
+                                CROSS JOIN (SELECT id AS th_id,title,MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE) AS relevance FROM tid_threads WHERE MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE)) j_threads
+                                ON thread_id=j_threads.th_id
+                                GROUP BY thread_id
+                            ) AS tid_comments
+                            SQL;
+                        $sqlWhere = "1=1";
+                    } else {
+                        $sqlSelect = "*,MATCH(content) AGAINST(:keywords IN BOOLEAN MODE) AS relevance";
+                        $sqlWhere = "MATCH(content) AGAINST(:keywords IN BOOLEAN MODE)";
+                        $sqlVals = [':keywords' => $keywords];
+                    }
                 }
                 
                 if ($fsq->startDate != null) { $sStartDate = $fsq->startDate->format('Y-m-d H:i:s'); $sqlWhere .= " AND $sDateRow>='$sStartDate'"; }
@@ -892,8 +938,11 @@ class ForumBuffer {
                         break;
                     case SearchSorting::ByRelevance:
                         $sRow = 'relevance';
-                        $cursF = function($vCurs,$i) use(&$sCommNumRow) {
-                            $sRow = '(MATCH(content) AGAINST(:keywords IN BOOLEAN MODE))';
+                        $cursF = function($vCurs,$i) use(&$sCommNumRow,&$keywords,&$searchAreas) {
+                            if (in_array(ForumSearchArea::Comments,$searchAreas) && in_array(ForumSearchArea::Titles, $searchAreas)) $sRow = "(MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE)+MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE))";
+                            else if (in_array(ForumSearchArea::Titles, $searchAreas)) $sRow = "(MATCH(title) AGAINST('$keywords' IN BOOLEAN MODE))";
+                            else $sRow = "(MATCH(content) AGAINST('$keywords' IN BOOLEAN MODE))";
+
                             $tol = 0.00001;
                             if ($vCurs != null) {
                                 $relevance = $vCurs[0];
@@ -915,7 +964,7 @@ class ForumBuffer {
                 }
 
                 $threadIds = [];
-                BufferManager::pagRequest($conn, $commsRow, $sqlWhere, $pag, $cursF,
+                BufferManager::pagRequest($conn, $dbName, $sqlWhere, $pag, $cursF,
                     function($row) use($sRow, &$sCommNumRow) { return base64_encode("{$row[$sRow]}!{$row['thread_id']}!{$row[$sCommNumRow]}"); },
                     fn($s) => (preg_match('/^(?:(\d{4}-\d\d-\d\d(?: \d\d:\d\d:\d\d)?|\d+\.?\d*))!(\d+)!(\d+)$/',base64_decode($s),$m) === 0) ? ["2001-01-01 00:00:00",1,1] : [$m[1],$m[2],$m[3]],
                     function (&$row) use(&$bufRes,&$req,&$fet,&$threadIds,&$commsRow,&$dtComment) {

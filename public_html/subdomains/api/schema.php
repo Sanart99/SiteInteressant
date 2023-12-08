@@ -28,7 +28,7 @@ use LDLib\General\{
     TypedException,
     OperationResult
 };
-use LDLib\Forum\{Thread, Comment, ForumSearchQuery, ThreadPermission, SearchSorting, TidComment, TidThread};
+use LDLib\Forum\{Thread, Comment, ForumSearchArea, ForumSearchQuery, ThreadPermission, SearchSorting, TidComment, TidThread};
 use LDLib\User\RegisteredUser;
 use React\Promise\Deferred;
 use LDLib\General\PaginationVals;
@@ -129,6 +129,7 @@ class QueryType extends ObjectType {
                         'endDate' => [ 'type' => Types::DateTime(), 'defaultValue' => null ],
                         'userIds' => [ 'type' => Type::listOf(Type::nonNull(Type::int())), 'defaultValue' => null ],
                         'threadsType' => [ 'type' => Types::ThreadType(), 'defaultValue' => \LdLib\Forum\ThreadType::Twinoid ],
+                        'searchAreas' => [ 'type' => Type::nonNull(Type::listOf(Type::string())), 'defaultValue' => []],
                         'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
                         'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
@@ -144,7 +145,14 @@ class QueryType extends ObjectType {
                         $pag->skipPages = $args['skipPages'];
                         
                         try {
-                            $fsq = new ForumSearchQuery($args['threadsType'], $args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds']);
+                            $searchAreas = [];
+                            foreach ($args['searchAreas'] as $s) {
+                                $v = ForumSearchArea::tryFrom($s);
+                                if ($v != null && !in_array($v,$searchAreas)) array_push($searchAreas,$v);
+                            }
+                            if (empty($searchAreas)) $searchAreas = [ForumSearchArea::Comments];
+
+                            $fsq = new ForumSearchQuery($args['threadsType'], $args['keywords'], $args['sortBy'], $args['startDate'], $args['endDate'], $args['userIds'], $searchAreas);
                         } catch (TypedException $e) {
                             if ($e->getErrorType() == ErrorType::INVALID_DATA) return ConnectionType::getEmptyConnection();
                             else throw $e;
