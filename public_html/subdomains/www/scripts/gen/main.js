@@ -1014,9 +1014,11 @@ function getForumMainElem() {
                         <div class="avatarDiv">
                             <img class="avatar" src="\${comment.node.author.avatarURL}" />
                         </div>
-                        <p class="name">\${comment.node.author.name}</p>
-                        <p class="date" title="\${date.toString()}">\${getDateAsString2(date)}</p>
-                        <p class="stats">Topics : \${stats.nAllThreads} · Commentaires : \${stats.nAllComments} · IPH : \${stats.iph.toFixed(2)}</p>    
+                        <div class="main">
+                            <p class="name">\${comment.node.author.name}</p>
+                            <p class="date" title="\${date.toString()}">\${getDateAsString2(date)}</p>
+                            <p class="stats">Topics : \${stats.nAllThreads} · Commentaires : \${stats.nAllComments} · IPH : \${stats.iph.toFixed(2)}</p>    
+                        </div>
                    </div>
                     <div class="body">
                         <div class="main"></div>
@@ -3495,22 +3497,20 @@ function getForumMainElem() {
         border-radius: 3px;
         color: white;
         position: relative;
-        height: 2.2rem;
         z-index: 1;
     }
-    #forum_comments .header .name {
-        position: absolute;
-        left: 6.1rem;
-        top: 0.2rem;
+    #forum_comments .header .main {
+        margin: 0px 0px 0px 6.1rem;
+    }
+    #forum_comments .header .main .name {
         font-weight: bold;
         font-size: 0.92rem;
+        padding: 0.2rem 0px 0px 0px;
     }
-    #forum_comments .header .stats {
-        position: absolute;
-        left: 6.1rem;
-        top: 1.3rem;
+    #forum_comments .header .main .stats {
         font-size: 0.7rem;
         opacity: 0.7;
+        padding: 0.1rem 0px 0.2rem 0px;
     }
     #forum_comments .date {
         position: absolute;
@@ -3833,11 +3833,8 @@ function getForumMainElem() {
             width: 60px;
             max-height: 60px;
         }
-        #forum_comments .header .name {
-            left: 4.9rem;
-        }
-        #forum_comments .header .stats {
-            left: 4.9rem;
+        #forum_comments .header .main {
+            margin: 0px 0px 0px 4.9rem;
         }
         #forum_comments .body {
             padding: 0.6rem 0.5rem 0.4rem 1.2rem;
