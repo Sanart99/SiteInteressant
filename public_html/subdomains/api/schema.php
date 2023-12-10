@@ -1348,6 +1348,29 @@ class RegisteredUserStatsType extends ObjectType {
                             return $v;
                         });
                     })
+                ],
+                'iph' => [
+                    'type' => fn() => Type::float(),
+                    'resolve' => fn($o) => self::process($o, function($userId) {
+                        $cacheKey = "userStats:{$userId}:hpi";
+                        $vCache = Cache::get($cacheKey);
+                        if ($vCache != null) return $vCache;
+
+                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
+                            $dt = new \DateTime();
+                            $dt->setTimestamp(time()-(60*60*24*3));
+                            $sDate = $dt->format('c');
+
+                            $conn = DBManager::getConnection();
+                            $nThreads = $conn->query("SELECT COUNT(*) FROM threads WHERE author_id=$userId AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
+                            $nComments = $conn->query("SELECT COUNT(*) FROM comments WHERE author_id=$userId AND number>0 AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
+                            $nKubedThreads = $conn->query("SELECT COUNT(id) FROM threads WHERE author_id=$userId AND creation_date>'$sDate' AND id IN (SELECT thread_id FROM kubed_threads WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
+                            $nKubedComments = $conn->query("SELECT COUNT(thread_id) FROM comments WHERE author_id=$userId AND creation_date>'$sDate' AND (thread_id,NUMBER) IN (SELECT thread_id,comm_number FROM kubed_comments WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
+                            $speed = (($nThreads/(3*24)) + (($nComments/(3*24)) * 0.22) + ((($nKubedThreads + $nKubedComments)/24) * 0.1)) * 100;
+                            Cache::set($cacheKey,$speed,120);
+                            return $speed;
+                        });
+                    })
                 ]
             ]
         ];

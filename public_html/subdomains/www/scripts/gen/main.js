@@ -877,6 +877,7 @@ function getForumMainElem() {
                                     stats {
                                         nAllThreads
                                         nAllComments
+                                        iph
                                     }
                                 }
                             }
@@ -1007,6 +1008,7 @@ function getForumMainElem() {
             currThreadId = threadId;
             for (const comment of comments.edges) {
                 const date = new Date(stringDateToISO(comment.node.creationDate));
+                const stats = comment.node.author.stats;
                 const commentNode = stringToNodes(`<div class="comment\${comment.node.isRead ? '' : ' new'}" data-comment-id="\${comment.node.id}" data-cursor="\${comment.cursor}">
                     <div class="header">
                         <div class="avatarDiv">
@@ -1014,7 +1016,7 @@ function getForumMainElem() {
                         </div>
                         <p class="name">\${comment.node.author.name}</p>
                         <p class="date" title="\${date.toString()}">\${getDateAsString2(date)}</p>
-                        <p class="stats">Topics : \${comment.node.author.stats.nAllThreads} · Commentaires : \${comment.node.author.stats.nAllComments}</p>    
+                        <p class="stats">Topics : \${stats.nAllThreads} · Commentaires : \${stats.nAllComments} · IPH : \${stats.iph.toFixed(2)}</p>    
                    </div>
                     <div class="body">
                         <div class="main"></div>
