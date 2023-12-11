@@ -191,6 +191,34 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
             $res = $s3client->putObject($conn,$user,$file,false,true);
             if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (3).</span>';
             $keyName = $res->data[0];
+
+            if ($file['size'] > 75000) {
+                $tmpFolder = __DIR__.'/tmp';
+                $userTempFolder = "$tmpFolder/{$user->id}";
+                switch (mime_content_type($file['tmp_name'])) {
+                    case 'image/bmp': $compressedImg = imagecreatefrombmp($file['tmp_name']); break;
+                    case 'image/avif': $compressedImg = imagecreatefromavif($file['tmp_name']); break;
+                    case 'image/jpeg': $compressedImg = imagecreatefromjpeg($file['tmp_name']); break;
+                    case 'image/png': $compressedImg = imagecreatefrompng($file['tmp_name']); break;
+                }
+                if (isset($compressedImg) && $compressedImg != null) {
+                    if (!is_dir($userTempFolder)) mkdir($userTempFolder);
+                    $compressedFileName = "$userTempFolder/min_$keyName";
+                    imagejpeg($compressedImg,$compressedFileName,65);
+                    $compressedFile = [
+                        'name' => 'min_'.preg_replace('/^\d+_/','',$keyName,1),
+                        'tmp_name' => $compressedFileName,
+                        'size' => filesize($compressedFileName),
+                        'type' => mime_content_type($compressedFileName),
+                        'error' => 0
+                    ];
+
+                    $res = $s3client->putObject($conn,$user,$compressedFile,true);
+                    if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4).</span>';
+                    unlink($compressedFileName);
+                }
+            }
+
             return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).$withParams.'</span>';
         }, $result),
         new SoloKeywordMarker('card',function($arg) use(&$commitData, &$resPath) {

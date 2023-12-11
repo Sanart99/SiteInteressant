@@ -2633,7 +2633,7 @@ function getForumMainElem() {
                                     contentLength
                                     contentType
                                 }
-                            }`,{key:keyName}).then((res) => {
+                            }`,{key:keyName}).then(async (res) => {
                                 if (res?.data?.f?._key == null) {
                                     viewNode.innerHTML = 'File not found.';
                                     return;
@@ -2644,7 +2644,19 @@ function getForumMainElem() {
                                 const vidRegex = new RegExp('^video\\/*');
                                 const audioRegex = new RegExp('^audio\\/*');
                                 if (imgRegex.test(res.data.f.contentType)) {
-                                    const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0];
+                                    const mMinName = /^(\d+_)(.*)$/.exec(keyName);
+                                    const minKeyName = mMinName[1]+'min_'+mMinName[2];
+                                    const resMin = (await sendQuery(`query GetS3ObjectMetadata(\$key:String!) {
+                                        f:getS3ObjectMetadata(key:\$key) {
+                                            _key
+                                            contentLength
+                                            contentType
+                                        }
+                                    }`,{key:minKeyName}))?.data?.f?._key;
+
+                                    const imgNode = resMin == null ?
+                                        stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]
+                                        : stringToNodes(`<img class="inserted file" src="$res/file/\${minKeyName}" alt="[file=get;\${keyName}/]"/>`)[0];
                                     viewNode.replaceWith(imgNode);
                                     imgNode.addEventListener('click',() => {
                                         enableZoom(true);
