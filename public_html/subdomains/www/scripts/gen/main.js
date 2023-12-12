@@ -1721,9 +1721,11 @@ function getForumMainElem() {
                         <div class="avatarDiv">
                             <img class="avatar" src="$res/avatars/default.jpg" />
                         </div>
-                        <p class="name">\${comment.node.author.name}</p>
-                        <p class="date" title="\${date.toString()}">\${getDateAsString2(date).split(',')[0]}</p>
-                        <p class="stats">Topics : ? · Commentaires : ?</p>    
+                        <div class="main">
+                            <p class="name">\${comment.node.author.name}</p>
+                            <p class="date" title="\${date.toString()}">\${getDateAsString2(date).split(',')[0]}</p>
+                            <p class="stats">Topics : ? · Commentaires : ?</p>
+                        </div>  
                    </div>
                     <div class="body">
                         <div class="main">\${comment.node.content}</div>
