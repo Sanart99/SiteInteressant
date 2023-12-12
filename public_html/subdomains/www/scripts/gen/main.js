@@ -2673,7 +2673,7 @@ function getForumMainElem() {
                                     if (imgRegex.test(resMin?.contentType))
                                         loadImg(minKeyName,keyName);
                                     else if (vidRegex.test(resMin?.contentType))
-                                        viewNode.replaceWith(stringToNodes(`<video class="inserted file" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true"> <source src="$res/file/\${minKeyName}" data-copy-tag="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                        viewNode.replaceWith(stringToNodes(`<video class="inserted file" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"> <source src="$res/file/\${minKeyName}" data-copy-tag="[file=get;\${keyName}/]"/> </video>`)[0]);
                                     else
                                         loadImg(keyName);   
 
