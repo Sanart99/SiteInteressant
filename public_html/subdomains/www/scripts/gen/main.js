@@ -2652,22 +2652,31 @@ function getForumMainElem() {
                                             contentLength
                                             contentType
                                         }
-                                    }`,{key:minKeyName}))?.data?.f?._key;
+                                    }`,{key:minKeyName}))?.data?.f;
 
-                                    const imgNode = resMin == null ?
-                                        stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]
-                                        : stringToNodes(`<img class="inserted file" src="$res/file/\${minKeyName}" alt="[file=get;\${keyName}/]"/>`)[0];
-                                    viewNode.replaceWith(imgNode);
-                                    imgNode.addEventListener('click',() => {
-                                        enableZoom(true);
-                                        const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
-                                            <img src="$res/file/\${keyName}" />
-                                        </div>`)[0];
-                                        pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); enableZoom(false); } );
-                                        pop.querySelector('img').addEventListener('click', (e) => { e.stopPropagation(); } );
-                                        popupDiv.insertAdjacentElement('beforeend',pop);
-                                        popupDiv.openTo('.imgBetterView');
-                                    });
+                                    function loadImg(keyName,onclickKeyName=null) {
+                                        if (onclickKeyName == null) onclickKeyName = keyName;
+
+                                        const imgNode = stringToNodes(`<img class="inserted file" src="$res/file/\${keyName}" alt="[file=get;\${keyName}/]"/>`)[0]
+                                        viewNode.replaceWith(imgNode);
+                                        imgNode.addEventListener('click',() => {
+                                            enableZoom(true);
+                                            const pop = stringToNodes(`<div class='imgBetterView removeDefaultStyle' style="display:none;">
+                                                <img src="$res/file/\${onclickKeyName}" />
+                                            </div>`)[0];
+                                            pop.addEventListener('click', () => { pop.remove(); popupDiv.close(); enableZoom(false); } );
+                                            pop.querySelector('img').addEventListener('click', (e) => { e.stopPropagation(); } );
+                                            popupDiv.insertAdjacentElement('beforeend',pop);
+                                            popupDiv.openTo('.imgBetterView');
+                                        });
+                                    }
+                                    if (imgRegex.test(resMin?.contentType))
+                                        loadImg(minKeyName,keyName);
+                                    else if (vidRegex.test(resMin?.contentType))
+                                        viewNode.replaceWith(stringToNodes(`<video class="inserted file" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true"> <source src="$res/file/\${minKeyName}" data-copy-tag="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                    else
+                                        loadImg(keyName);   
+
                                 } else if (vidRegex.test(res.data.f.contentType)) {
                                     let extraAttr = '';
                                     let extraParam = '';

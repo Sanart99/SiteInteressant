@@ -196,6 +196,9 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 $tmpFolder = __DIR__.'/tmp';
                 $userTempFolder = "$tmpFolder/{$user->id}";
                 $mimeType = mime_content_type($file['tmp_name']);
+                $compressedFilePath = "$userTempFolder/min_$keyName";
+                $compressedFileName = 'min_'.preg_replace('/^\d+_/','',$keyName,1);
+
                 switch ($mimeType) {
                     case 'image/bmp': $compressedImg = imagecreatefrombmp($file['tmp_name']); break;
                     case 'image/avif': $compressedImg = imagecreatefromavif($file['tmp_name']); break;
@@ -204,33 +207,54 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 }
                 if (isset($compressedImg) && $compressedImg != null) {
                     if (!is_dir($userTempFolder)) mkdir($userTempFolder);
-                    $compressedFileName = "$userTempFolder/min_$keyName";
-                    $exif = exif_read_data($file['tmp_name'],null,true);
+                    $compressedFilePath .= '.jpg';
 
-                    if ($exif['IFD0']['Orientation']??null != null) {
-                        switch ($exif['IFD0']['Orientation']) {
-                            case 3: $angle = 180; break;
-                            case 6: $angle = 270; break;
-                            case 8: $angle = 90; break;
+                    if ($mimeType == 'image/jpeg') {
+                        $exif = exif_read_data($file['tmp_name'],null,true);
+
+                        if ($exif['IFD0']['Orientation']??null != null) {
+                            switch ($exif['IFD0']['Orientation']) {
+                                case 3: $angle = 180; break;
+                                case 6: $angle = 270; break;
+                                case 8: $angle = 90; break;
+                            }
+                            if (isset($angle)) {
+                                if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
+                                $compressedImg = imagerotate($compressedImg,$angle,imageColorAllocateAlpha($compressedImg, 0, 0, 0, 127));
+                                if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
+                            }
                         }
-                        if (isset($angle)) {
-                            if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
-                            $compressedImg = imagerotate($compressedImg,$angle,imageColorAllocateAlpha($compressedImg, 0, 0, 0, 127));
-                            if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
-                        }   
                     }
 
-                    imagejpeg($compressedImg,$compressedFileName,65);
+                    imagejpeg($compressedImg,$compressedFilePath,65);
                     $compressedFile = [
-                        'name' => 'min_'.preg_replace('/^\d+_/','',$keyName,1),
-                        'tmp_name' => $compressedFileName,
-                        'size' => filesize($compressedFileName),
-                        'type' => mime_content_type($compressedFileName),
+                        'name' => $compressedFileName,
+                        'tmp_name' => $compressedFilePath,
+                        'size' => filesize($compressedFilePath),
+                        'type' => mime_content_type($compressedFilePath),
                         'error' => 0
                     ];
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
-                    if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4).</span>';
-                    unlink($compressedFileName);
+                    if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.1).</span>';
+                    unlink($compressedFilePath);
+                }
+                
+                if ($mimeType == 'image/gif') {
+                    $compressedFilePath .= '.webm';
+                    $tempFile = $compressedFilePath.'.tmp';
+                    move_uploaded_file($file['tmp_name'],$tempFile);
+                    exec("ffmpeg -i \"$tempFile\" -c vp9 -b:v 0 -crf 41 \"$compressedFilePath\"",$a);
+                    $compressedFile = [
+                        'name' => $compressedFileName,
+                        'tmp_name' => $compressedFilePath,
+                        'size' => filesize($compressedFilePath),
+                        'type' => mime_content_type($compressedFilePath),
+                        'error' => 0
+                    ];
+                    $res = $s3client->putObject($conn,$user,$compressedFile,true);
+                    if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.2).</span>';
+                    unlink($tempFile);
+                    unlink($compressedFilePath);
                 }
             }
 
