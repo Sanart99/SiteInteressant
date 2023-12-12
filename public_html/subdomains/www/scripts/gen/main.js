@@ -826,7 +826,7 @@ function getForumMainElem() {
             if (!mobileMode) highlightThread(currThreadId);
         });
     }
-    function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false,toFirstUnreadComment=false) {
+    function loadThread(threadId,first,last,after,before,skipPages=0,pushState=false,toFirstUnreadComment=false,scrollIntoView=true) {
         sendQuery(`query (\$threadId:ID!,\$first:Int,\$last:Int,\$after:ID,\$before:ID,\$skipPages:Int!,\$toFirstUnreadComment:Boolean!) {
             viewer {
                 dbId
@@ -1460,7 +1460,7 @@ function getForumMainElem() {
                     if (json.data.f.resultMessage == 'refresh') getRecentEvents();
                 });
             }
-            document.querySelector('#forum_banner').scrollIntoView();
+            if (scrollIntoView) document.querySelector('#forum_banner').scrollIntoView();
 
             const n = first ?? last;
             const forumRPaginations = document.querySelectorAll('#forumR .paginationDiv');
@@ -1527,7 +1527,7 @@ function getForumMainElem() {
                         }
                     }`,{threadId:json.data.node.dbId,msg:data.get('msg')},null,null,null,moreData).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
-                        loadThread(threadId,0,10);
+                        loadThread(threadId,null,10,null,null,0,false,false,false);
                         document.querySelector('.refreshThreads').click();
                         return true;
                     });
