@@ -704,9 +704,10 @@ function getForumMainElem() {
                 }
                 const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread \${edge.node.isRead ? '' : 'new'}">
                     <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="{$res}/icons/selected.png"/></div></a></td>
-                    <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
+                    <td class="title"><a href="#" onclick ="return false;"><p></p></a></td>
                     <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.number}</p><p class="author">\${comment.author.name}</p></a></td>
                 </tr>`)[0];
+                tr.querySelector('.title a p').innerText = edge.node.title;
                 tBody.insertAdjacentElement('beforeend',tr);
                 for (const e of tr.querySelectorAll('a')) {
                     e.addEventListener('click',() => loadThread(edge.node.id,10,null,null,null,0,true,true));
@@ -793,9 +794,10 @@ function getForumMainElem() {
                 }
                 const tr = stringToNodes(`<tr data-node-id="\${edge.node.id}" class="thread tid">
                     <td class="statusIcons"><a href="#" onclick ="return false;"><div><img class="selectArrow" src="{$res}/icons/selected.png"/></div></a></td>
-                    <td class="title"><a href="#" onclick ="return false;"><p>\${edge.node.title}</p></a></td>
+                    <td class="title"><a href="#" onclick ="return false;"><p></p></a></td>
                     <td class="quickDetails"><a href="#" onclick ="return false;"><p class="nAnswers">\${comment.dbId}</p><p class="author">\${comment.author.name}</p></a></td>
                 </tr>`)[0];
+                tr.querySelector('.title a p').innerText = edge.node.title;
                 tBody.insertAdjacentElement('beforeend',tr);
                 for (const e of tr.querySelectorAll('a')) {
                     e.addEventListener('click',() => loadTidThread(edge.node.id,{first:10,pushState:true}));
@@ -908,7 +910,7 @@ function getForumMainElem() {
             if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
             if (forumR.querySelector('.forum_mainBar') == null) {
                 const e = stringToNodes(`<div class="forum_mainBar">
-                    <div class="forum_mainBar_sub1"><p>\${json.data.node.title}</p></div>
+                    <div class="forum_mainBar_sub1"><p></p></div>
                     <div class="forum_mainBar_sub2">
                         <div class="actions"></div>
                     </div>
@@ -925,6 +927,7 @@ function getForumMainElem() {
                     <div class="actions"></div>
                 </div>`);
                 for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+                forumR.querySelector('.forum_mainBar_sub1 p').innerText = json.data.node.title;
 
                 let a = [];
                 a[0] = forumR.querySelector('.forum_mainBar_sub2');
@@ -1675,7 +1678,7 @@ function getForumMainElem() {
 
             forumR.innerHTML = '';
             const e = stringToNodes(`<div class="forum_mainBar">
-                <div class="forum_mainBar_sub1"><p>\${json.data.node.title}</p></div>
+                <div class="forum_mainBar_sub1"><p></p></div>
                 <div class="forum_mainBar_sub2">
                     <div class="actions"></div>
                 </div>
@@ -1692,6 +1695,7 @@ function getForumMainElem() {
                 <div class="actions"></div>
             </div>`);
             for (const node of e) forumR.insertAdjacentElement('beforeend',node);
+            forumR.querySelector('.forum_mainBar_sub1 p').innerText = json.data.node.title;
             for (const cont of [forumR.querySelector('.forum_mainBar_sub2'),forumR.querySelector('.forum_footer')]) {
                 const paginationDiv = setupPagInput(null,10,() => loadTidThread(threadId,{first:10}),() => loadTidThread(threadId,{last:10}),
                     (n,cursor,skipPages) => loadTidThread(threadId,{last:n,before:cursor,skipPages:skipPages}),
