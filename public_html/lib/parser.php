@@ -199,51 +199,29 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 $compressedFilePath = "$userTempFolder/min_$keyName";
                 $compressedFileName = 'min_'.preg_replace('/^\d+_/','',$keyName,1);
 
-                switch ($mimeType) {
-                    case 'image/bmp': $compressedImg = imagecreatefrombmp($file['tmp_name']); break;
-                    case 'image/avif': $compressedImg = imagecreatefromavif($file['tmp_name']); break;
-                    case 'image/jpeg': $compressedImg = imagecreatefromjpeg($file['tmp_name']); break;
-                    case 'image/png': $compressedImg = imagecreatefrompng($file['tmp_name']); break;
-                }
-                if (isset($compressedImg) && $compressedImg != null) {
-                    if (!is_dir($userTempFolder)) mkdir($userTempFolder);
-                    $compressedFilePath .= '.jpg';
+                if (str_starts_with($mimeType,'image/')) {
+                    $tempFile = $compressedFilePath;
+                    move_uploaded_file($file['tmp_name'],$tempFile);
+                    $compressedFilePathWEBP = $compressedFilePath . '.webp';
 
-                    if ($mimeType == 'image/jpeg') {
-                        $exif = exif_read_data($file['tmp_name'],null,true);
-
-                        if ($exif['IFD0']['Orientation']??null != null) {
-                            switch ($exif['IFD0']['Orientation']) {
-                                case 3: $angle = 180; break;
-                                case 6: $angle = 270; break;
-                                case 8: $angle = 90; break;
-                            }
-                            if (isset($angle)) {
-                                if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
-                                $compressedImg = imagerotate($compressedImg,$angle,imageColorAllocateAlpha($compressedImg, 0, 0, 0, 127));
-                                if ($mimeType == 'image/png') { imagealphablending($compressedImg, false); imagesavealpha($compressedImg, true); }
-                            }
-                        }
-                    }
-
-                    imagejpeg($compressedImg,$compressedFilePath,65);
+                    if (PHP_OS_FAMILY == 'Windows') exec("magick \"$tempFile\" -quality 75 -auto-orient \"$compressedFilePathWEBP\"",$o);
+                    else exec("convert \"$tempFile\" -quality 75 -auto-orient \"$compressedFilePathWEBP\"",$o);
                     $compressedFile = [
                         'name' => $compressedFileName,
-                        'tmp_name' => $compressedFilePath,
-                        'size' => filesize($compressedFilePath),
-                        'type' => mime_content_type($compressedFilePath),
+                        'tmp_name' => $compressedFilePathWEBP,
+                        'size' => filesize($compressedFilePathWEBP),
+                        'type' => mime_content_type($compressedFilePathWEBP),
                         'error' => 0
                     ];
+
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
                     if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.1).</span>';
-                    unlink($compressedFilePath);
-                }
-                
-                if ($mimeType == 'image/gif') {
-                    $compressedFilePathWEBM = $compressedFilePath . '.webm';
-                    $compressedFilePathMP4 = $compressedFilePath . '.mp4';
+                    unlink($compressedFilePathWEBP);
+                } else if ($mimeType == 'image/gif') {
                     $tempFile = $compressedFilePath.'.tmp';
                     move_uploaded_file($file['tmp_name'],$tempFile);
+                    $compressedFilePathWEBM = $compressedFilePath . '.webm';
+                    $compressedFilePathMP4 = $compressedFilePath . '.mp4';
 
                     exec("ffmpeg -i \"$tempFile\" -c vp9 -b:v 0 -crf 41 \"$compressedFilePathWEBM\"",$a);
                     $compressedFile = [
@@ -268,9 +246,9 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
                     if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.3).</span>';
                     unlink($compressedFilePathMP4);
-
-                    unlink($tempFile);
                 }
+
+                unlink($tempFile);
             }
 
             return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).$withParams.'</span>';
