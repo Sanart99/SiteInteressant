@@ -2652,6 +2652,7 @@ function getForumMainElem() {
                                 if (imgRegex.test(res.data.f.contentType)) {
                                     const mMinName = /^(\d+_)(.*)$/.exec(keyName);
                                     const minKeyName = mMinName[1]+'min_'+mMinName[2];
+                                    const min2KeyName = mMinName[1]+'min2_'+mMinName[2];
                                     const resMin = (await sendQuery(`query GetS3ObjectMetadata(\$key:String!) {
                                         f:getS3ObjectMetadata(key:\$key) {
                                             _key
@@ -2678,8 +2679,14 @@ function getForumMainElem() {
                                     }
                                     if (imgRegex.test(resMin?.contentType))
                                         loadImg(minKeyName,keyName);
-                                    else if (vidRegex.test(resMin?.contentType))
-                                        viewNode.replaceWith(stringToNodes(`<video class="inserted file" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"> <source src="$res/file/\${minKeyName}" data-copy-tag="[file=get;\${keyName}/]"/> </video>`)[0]);
+                                    else if (vidRegex.test(resMin?.contentType)) {
+                                        const vidNode = stringToNodes(`<video class="inserted file" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true">
+                                            <source src="$res/file/\${minKeyName}" type="video/webm" data-copy-tag="[file=get;\${keyName}/]"/>
+                                            <source src="$res/file/\${min2KeyName}" type="video/mp4" data-copy-tag="[file=get;\${keyName}/]"/>
+                                        </video>`)[0];
+                                        viewNode.replaceWith(vidNode);
+                                        if (vidNode.paused) vidNode.play().catch(e => { if (e.name != "AbortError") vidNode.controls = true; });
+                                    }
                                     else
                                         loadImg(keyName);   
 
@@ -2689,7 +2696,7 @@ function getForumMainElem() {
                                     if (params.includes('loop')) { extraAttr += ' loop="true"'; extraParam += 'loop;'; }
                                     if (params.includes('autoplay')) { extraAttr += ' autoplay="true"'; extraParam += 'autoplay;'; }
                                     if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
-                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="metadata" playsinline="true"\${extraAttr}> <source src="$res/file/\${keyName}" data-copy-tag="[file=get;\${extraParam}\${keyName}/]"/> </video>`)[0]);
+                                    viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="none" playsinline="true"\${extraAttr}> <source src="$res/file/\${keyName}" data-copy-tag="[file=get;\${extraParam}\${keyName}/]"/> </video>`)[0]);
                                 } else if (audioRegex.test(res.data.f.contentType)) {
                                     viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {

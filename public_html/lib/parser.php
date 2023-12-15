@@ -240,21 +240,36 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 }
                 
                 if ($mimeType == 'image/gif') {
-                    $compressedFilePath .= '.webm';
+                    $compressedFilePathWEBM = $compressedFilePath . '.webm';
+                    $compressedFilePathMP4 = $compressedFilePath . '.mp4';
                     $tempFile = $compressedFilePath.'.tmp';
                     move_uploaded_file($file['tmp_name'],$tempFile);
-                    exec("ffmpeg -i \"$tempFile\" -c vp9 -b:v 0 -crf 41 \"$compressedFilePath\"",$a);
+
+                    exec("ffmpeg -i \"$tempFile\" -c vp9 -b:v 0 -crf 41 \"$compressedFilePathWEBM\"",$a);
                     $compressedFile = [
                         'name' => $compressedFileName,
-                        'tmp_name' => $compressedFilePath,
-                        'size' => filesize($compressedFilePath),
-                        'type' => mime_content_type($compressedFilePath),
+                        'tmp_name' => $compressedFilePathWEBM,
+                        'size' => filesize($compressedFilePathWEBM),
+                        'type' => mime_content_type($compressedFilePathWEBM),
                         'error' => 0
                     ];
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
                     if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.2).</span>';
+                    unlink($compressedFilePathWEBM);
+
+                    exec("ffmpeg -i \"$tempFile\" -movflags +faststart -pix_fmt yuv420p -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" \"$compressedFilePathMP4\"");
+                    $compressedFile = [
+                        'name' => 'min2_'.preg_replace('/^\d+_/','',$keyName,1),
+                        'tmp_name' => $compressedFilePathMP4,
+                        'size' => filesize($compressedFilePathMP4),
+                        'type' => mime_content_type($compressedFilePathMP4),
+                        'error' => 0
+                    ];
+                    $res = $s3client->putObject($conn,$user,$compressedFile,true);
+                    if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.3).</span>';
+                    unlink($compressedFilePathMP4);
+
                     unlink($tempFile);
-                    unlink($compressedFilePath);
                 }
             }
 
