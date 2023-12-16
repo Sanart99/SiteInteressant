@@ -1248,7 +1248,7 @@ function getForumMainElem() {
                                             resultCode
                                             resultMessage
                                         }
-                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:data.get("msg"),markAsUnreadToUsers:markAsUnreadToUsers},null,null,null,moreData).then((json) => {
+                                    }`,{threadId:threadDbId,commNumber:comment.node.number,title:title,content:preProcessMessage(data.get('msg')),markAsUnreadToUsers:markAsUnreadToUsers},null,null,null,moreData).then((json) => {
                                         if (!basicQueryResultCheck(json?.data?.f)) { submitButton.disabled = false; return false; }
 
                                         if (comment.node.number == 0) sessionRem(titleId);
@@ -1525,7 +1525,7 @@ function getForumMainElem() {
                             resultCode
                             resultMessage
                         }
-                    }`,{threadId:json.data.node.dbId,msg:data.get('msg')},null,null,null,moreData).then((json) => {
+                    }`,{threadId:json.data.node.dbId,msg:preProcessMessage(data.get('msg'))},null,null,null,moreData).then((json) => {
                         if (!basicQueryResultCheck(json?.data?.f,true)) { submitButton.disabled = false; return false; }
                         loadThread(threadId,null,10,null,null,0,false,false,false);
                         document.querySelector('.refreshThreads').click();
@@ -1921,7 +1921,7 @@ function getForumMainElem() {
                         followingIds
                     }
                 }
-            }`,{title:data.get('title'),tags:[],msg:data.get('msg')},null,null,null,moreData).then((json) => {
+            }`,{title:data.get('title'),tags:[],msg:preProcessMessage(data.get('msg'))},null,null,null,moreData).then((json) => {
                 if (json?.data?.f?.thread?.id == null) {
                     basicQueryResultCheck(null,true);
                     submitButton.disabled = false;
@@ -2342,7 +2342,15 @@ function getForumMainElem() {
             toReplyForm = setTimeout(() => {
                 if (acReplyForm != null) acReplyForm.abort();
                 acReplyForm = new AbortController();
-                const sToParse = replyFormTA.value;
+                let sToParse = replyFormTA.value;
+
+                if (localGet('settings_forum_msgPreProcess_insertLinks') === 'true') {
+                    sToParse = sToParse.replaceAll(/(\[\s*link\s*=\s*(?:https?|ftp):\/\/[^\\.]+\..+)|((?:https?|ftp):\/\/[^\\.]+\..+)/gi, (s) => {
+                        if (s.startsWith('http') || s.startsWith('ftp')) return `[link=\${s}]\${escapeCharacters(s)}[/link]`;
+                        return s;
+                    });
+                }
+
                 sendQuery(`query ParseText(\$msg:String!) {
                     parseText(text:\$msg)
                 }`,{msg:sToParse},null,'ParseText',{signal:acReplyForm.signal}).then((json) => {
@@ -2354,7 +2362,7 @@ function getForumMainElem() {
                     const o = processComment(nodePreview,nodes,{files:files,objectURLs:objectURLs,forPreview:true});
                     filesToUpload = o.filesToUpload;
 
-                    if (contentSaveName != null) sessionSet(contentSaveName,sToParse);
+                    if (contentSaveName != null) sessionSet(contentSaveName,replyFormTA.value);
                 }).catch((e) => {if (e.name != 'AbortError') throw e; } );
             },100);
         });
@@ -2563,6 +2571,13 @@ function getForumMainElem() {
             });
             emojisButtons.insertAdjacentElement('beforeend',gadgetsCat);
         }
+    }
+    function preProcessMessage(msg) {
+        let newS = msg.replaceAll(/(\[\s*link\s*=\s*(?:https?|ftp):\/\/[^\\.]+\..+)|((?:https?|ftp):\/\/[^\\.]+\..+)/gi, (s) => {
+            if (s.startsWith('http') || s.startsWith('ftp')) return `[link=\${s}]\${escapeCharacters(s)}[/link]`;
+            return s;
+        });
+        return newS;
     }
     let newReplyFormC = 0;
     function getNewReplyForm() {
@@ -4258,6 +4273,7 @@ function getUserSettings() {
                     <ul>
                         <li><input id="settings_forum_autoMarkPagesAsRead" name="forum_autoMarkPagesAsRead" type="checkbox" disabled><label for="settings_forum_autoMarkPagesAsRead">Automatiquement marquer les pages comme lu</label></li>
                         <li><input id="settings_forum_followThreadsOnComment" name="forum_followThreadsOnComment" type="checkbox" disabled><label for="settings_forum_followThreadsOnComment">Automatiquement suivre un topic après l'avoir commenté</label></li>
+                        <li><input id="settings_forum_msgPreProcess_insertLinks" name="forum_msgPreProcess_insertLinks" type="checkbox" disabled><label for="settings_forum_msgPreProcess_insertLinks">Toujours forcer l'insertion de liens</label></li>
                     </ul>
                 </div>
             </section>
@@ -4300,6 +4316,7 @@ function getUserSettings() {
 
     const eForum_MarkPagesAsRead = document.querySelector('#settings_forum_autoMarkPagesAsRead');
     const eForum_followThreadsOnComment = document.querySelector('#settings_forum_followThreadsOnComment');
+    const eForum_msgPreProcess_insertLinks = document.querySelector('#settings_forum_msgPreProcess_insertLinks');
     const eNotif = document.querySelector('#settings_notif');
     // const eDeviceNotif = document.querySelector('#settings_device_notif');
     const eNotifNewThread = document.querySelector('#settings_notif_newThread');
@@ -4336,6 +4353,7 @@ function getUserSettings() {
     function loadInputVals() {
         eForum_MarkPagesAsRead.checked = localGet('settings_forum_autoMarkPagesAsRead') === 'true';
         eForum_followThreadsOnComment.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
+        eForum_msgPreProcess_insertLinks.checked = localGet('settings_forum_followThreadsOnComment') === 'true';
 
         eNotif.checked = __feat_notifications && localGet('settings_notifications') === 'true';
         // eDeviceNotif.checked = localGet('settings_device_notifications') === 'true' && __feat_notifications;

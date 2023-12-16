@@ -1404,6 +1404,10 @@ class UserSettingsType extends ObjectType {
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->forum_followThreadsOnComment)
                 ],
+                'forum_msgPreProcess_insertLinks' => [
+                    'type' => fn() => Type::nonNull(Type::boolean()),
+                    'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->forum_msgPreProcess_insertLinks)
+                ],
                 'notificationsEnabled' => [
                     'type' => fn() => Type::nonNull(Type::boolean()),
                     'resolve' => fn($o) => self::process($o, fn(RegisteredUser $o) => $o->settings->notificationsEnabled)
