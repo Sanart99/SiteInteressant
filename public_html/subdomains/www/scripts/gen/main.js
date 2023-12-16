@@ -1825,9 +1825,11 @@ function getForumMainElem() {
                         --><button class="button1 rp" type="button">Roleplay</button><!--
                         --><button class="button1 code" type="button">Code</button>
                     </div>
-                    <div>
-                        <input type="file" style="display:none;" />
-                        <button class="button1 file" type="button">Insérer un fichier</button>
+                    <div class="inserts">
+                        <input type="file" style="display:none;" multiple="true"/>
+                        <button class="button1 file" type="button"><img src="$res/icons/add_file.png" /></button><!--
+                        --><button class="button1 file cam" type="button"><img src="$res/icons/add_cam.png" /></button><!--
+                        --><button class="button1 file mic" type="button"><img src="$res/icons/add_mic.png" /></button>
                     </div>
                 </div>
                 <textarea name="msg" tabindex="2"></textarea>
@@ -2287,7 +2289,7 @@ function getForumMainElem() {
     function setupReplyForm(replyFormDiv, onSubmit, contentSaveName=null) {
         const replyForm = replyFormDiv.querySelector('.replyForm');
         const replyFormTA = replyFormDiv.querySelector('textarea');
-        const eFileInput = replyForm.querySelector('.buttonBar input[type="file"]');
+        let eFileInput = replyForm.querySelector('.buttonBar input[type="file"]');
         let acReplyForm = null;
         let toReplyForm = null;
         
@@ -2408,7 +2410,17 @@ function getForumMainElem() {
         replyForm.querySelector('.buttonBar .spoil').addEventListener('click',() => quickInputInsert('[spoil]','[/spoil]'));
         replyForm.querySelector('.buttonBar .rp').addEventListener('click',() => quickInputInsert('[rp]','[/rp]'));
         replyForm.querySelector('.buttonBar .code').addEventListener('click',() => quickInputInsert('[code]','[/code]'));
-        replyForm.querySelector('.buttonBar .file').addEventListener('click',() => eFileInput.click());
+        replyForm.querySelectorAll('.buttonBar .file').forEach((e) => e.addEventListener('click',() => {
+            if (e.classList.contains('cam')) { eFileInput.accept = 'video/*,image/*'; eFileInput.capture = 'environment'; }
+            else if (e.classList.contains('mic')) { eFileInput.accept = 'audio/*'; eFileInput.capture = 'environment'; }
+            else {
+                const e2 = stringToNodes('<input type="file" style="display:none;" multiple="true"/>')[0];
+                eFileInput.replaceWith(e2);
+                eFileInput = e2;
+                eFileInput.addEventListener('change', () => { inputFile(eFileInput.files); eFileInput.value = null; });
+            }
+            eFileInput.click();
+        }));
         eFileInput.addEventListener('change', () => { inputFile(eFileInput.files); eFileInput.value = null; });
 
         function inputFile(filesToAdd) {
@@ -2556,9 +2568,11 @@ function getForumMainElem() {
                             --><button class="button1 rp" type="button">Roleplay</button><!--
                             --><button class="button1 code" type="button">Code</button>
                         </div>
-                        <div>
+                        <div class="inserts">
                             <input type="file" style="display:none;" multiple="true"/>
-                            <button class="button1 file" type="button">Insérer un fichier</button>
+                            <button class="button1 file" type="button"><img src="$res/icons/add_file.png" /></button><!--
+                            --><button class="button1 file cam" type="button"><img src="$res/icons/add_cam.png" /></button><!--
+                            --><button class="button1 file mic" type="button"><img src="$res/icons/add_mic.png" /></button>
                         </div>
                     </div>
                     <textarea name="msg" tabindex="1"></textarea>
@@ -3333,6 +3347,9 @@ function getForumMainElem() {
         min-width: 1.8rem;
         padding: 0.2rem 0.6rem;
         font-size: 0.75rem;
+    }
+    #mainDiv_forum .replyFormDiv .replyForm .buttonBar .inserts button {
+        padding: 0.05rem 0.2rem 0.15rem 0.4rem;
     }
     #mainDiv_forum .replyFormDiv .replyForm textarea {
         width: 100%;
