@@ -1444,7 +1444,7 @@ class ForumSearchItemType extends ObjectType {
                 ],
                 'relevance' => [
                     'type' => fn() => Type::float(),
-                    'resolve' => fn($o) => $o['edge']['data']['relevance']
+                    'resolve' => fn($o) => $o['edge']['data']['relevance']??null
                 ]
             ]
         ];
