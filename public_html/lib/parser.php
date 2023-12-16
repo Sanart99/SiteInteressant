@@ -199,7 +199,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 $compressedFilePath = "$userTempFolder/min_$keyName";
                 $compressedFileName = 'min_'.preg_replace('/^\d+_/','',$keyName,1);
 
-                if (str_starts_with($mimeType,'image/')) {
+                if (str_starts_with($mimeType,'image/') && $mimeType != 'image/gif' && $mimeType != 'image/webp') {
                     $tempFile = $compressedFilePath;
                     move_uploaded_file($file['tmp_name'],$tempFile);
                     $compressedFilePathWEBP = $compressedFilePath . '.webp';
@@ -217,6 +217,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
                     if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.1).</span>';
                     unlink($compressedFilePathWEBP);
+                    unlink($tempFile);
                 } else if ($mimeType == 'image/gif') {
                     $tempFile = $compressedFilePath.'.tmp';
                     move_uploaded_file($file['tmp_name'],$tempFile);
@@ -246,9 +247,8 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                     $res = $s3client->putObject($conn,$user,$compressedFile,true);
                     if (!($res->resultType instanceof \LDLib\General\SuccessType)) return '<span class="error">Failed upload (4.3).</span>';
                     unlink($compressedFilePathMP4);
+                    unlink($tempFile);
                 }
-
-                unlink($tempFile);
             }
 
             return '<span class="processThis">insertFile:'.htmlspecialchars($keyName).$withParams.'</span>';
