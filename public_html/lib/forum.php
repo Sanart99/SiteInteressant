@@ -541,6 +541,7 @@ function mark_thread_as_read(LDPDO $conn, RegisteredUser $user, int $threadId):O
 
 function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $threadId, array $commNumbers):OperationResult {
     if (count($commNumbers) == 0) return new OperationResult(SuccessType::SUCCESS);
+    $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
     $conn->query('START TRANSACTION');
 
     $sqlWhere = "";
@@ -558,7 +559,7 @@ function thread_mark_comments_as_read(LDPDO $conn, RegisteredUser $user, int $th
         $stmt2->execute([json_encode($readBy)]);
     }
 
-    $stmt = $conn->query("DELETE FROM notifications WHERE user_id={$user->id} AND JSON_CONTAINS(details,'$threadId','\$.threadId')=1 AND JSON_CONTAINS(details,'{$commNumbers[0]}','\$.commentNumber')=1");
+    $stmt = $conn->query("UPDATE notifications SET read_date='$sNow' WHERE user_id={$user->id} AND read_date IS NULL AND JSON_CONTAINS(details,'$threadId','\$.threadId')=1 AND JSON_CONTAINS(details,'{$commNumbers[0]}','\$.commentNumber')=1");
     $msg = ($stmt->rowCount() > 0) ? 'refresh' : '';
 
     $conn->query("CALL threads_upd_readBy($threadId,{$user->id})");

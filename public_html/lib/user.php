@@ -144,8 +144,7 @@ function set_notification_to_read(LDPDO $conn, int $userId, int $number, ?\DateT
     if ($notification['read_date'] != null) return true;
     
     $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
-    // $conn->query("UPDATE notifications SET read_date='$sNow' WHERE user_id=$userId AND number=$number");
-    $conn->query("DELETE FROM notifications WHERE user_id=$userId AND number=$number LIMIT 1");
+    $conn->query("UPDATE notifications SET read_date='$sNow' WHERE user_id=$userId AND number=$number");
     return new OperationResult(SuccessType::SUCCESS);
 }
 

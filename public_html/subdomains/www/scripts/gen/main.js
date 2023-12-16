@@ -113,7 +113,7 @@ function getIndexElems() {
         return sendQuery(`query {
             viewer {
                 dbId
-                notifications(first:50) {
+                notifications(first:100) {
                     edges {
                         node {
                             userId
@@ -144,29 +144,9 @@ function getIndexElems() {
                     }
                 }
             }
-            records(first:150) {
-                edges {
-                    node {
-                        dbId
-                        associatedUser {
-                            name
-                        }
-                        actionGroupName
-                        actionName
-                        details
-                        date
-                        notifiedIds
-                        thread:associatedThread {
-                            dbId
-                            title
-                        }
-                    }
-                }
-            }
         }`).then((json) => {
-            if (json?.data?.records?.edges == null || json?.data?.viewer?.notifications?.edges == null) { basicQueryResultCheck(); return; }
+            if (json?.data?.viewer?.notifications?.edges == null) { basicQueryResultCheck(); return; }
             gettingEvents = false;
-            const records = json.data.records;
             const notifications = json.data.viewer.notifications;
             const userId = json.data.viewer.dbId;
             notifCont.innerHTML = '';
@@ -183,84 +163,62 @@ function getIndexElems() {
                 setNumberInTitle(n);
             }
 
-            const history = {};
-            let currEvent = {firstRecord:null, name:'', n:0};
-            currEvent.flush = () => {
-                if (currEvent.firstRecord?.actionGroupName == null) return;
-                else if (currEvent.firstRecord.actionGroupName == 'FORUM') {
-                    const record = currEvent.firstRecord;
-                    switch (record.actionName) {
+            for (const edge of notifications.edges) {
+                const notification = edge.node;
+                if (notification.readDate == null) {
+                    const s = notification.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
+                    const notRead = notification.readDate == null ? ' new' : '';
+                    const users = notification.users;
+                    let names = [];
+                    for (let i=0; i<(users.length >= 3 ? 3 : users.length); i++) names.push(users[i].name);
+                    const sNames = '(' + names.join(',') + (users.length > 3 ? `, et \${users.length-3} autres...` : '') + ')'; 
+
+                    const node = stringToNodes(`<a href="$root/forum/\${notification.thread.dbId}" onclick="return false" class="notification\${notRead}">
+                        <div class="notification_type">
+
+                        </div>
+                        <div class="notification_content">
+                            <p class="title">\${notification.thread.title}</p>
+                            <p class="desc">\${notification.n} \${s} \${sNames}</p>
+                        </div>
+                    </a>`)[0];
+                    let timeout = null;
+                    node.addEventListener('click',() => {
+                        const alreadyRead = !node.classList.contains('new');
+                        node.classList.remove('new');
+                        loadPage(node.href,StateAction.PushState).then(() => {
+                            if (alreadyRead) return;
+                            sendQuery(`mutation SetNotificationToRead(\$number:Int!) {
+                                f:setNotificationToRead(number:\$number) {
+                                    __typename
+                                    success
+                                    resultCode
+                                    resultMessage
+                                }
+                            }`,{number:notification.number}).then((json) => {
+                                if (!basicQueryResultCheck(json?.data?.f)) return;
+                                
+                                node.classList.remove('new');
+                                setRecentEventsN(--recentEventsN);
+                            });
+                        });
+                        closeRightBar();
+                    });
+                    node.addEventListener('mouseleave',() => { if (timeout != null) clearTimeout(timeout); timeout = null; });
+                    notifCont.insertAdjacentElement('beforeend',node);
+                } else {
+                    switch (notification.actionName) {
                         case 'addComment':
-                            const sComm = currEvent.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
-                            const node = stringToNodes(`<a href="$root/forum/\${record.thread.dbId}" onclick="return false;" class="historyItem">
-                                <p class="title">\${record.thread.title}</p>
-                                <p class="description">\${currEvent.n} \${sComm}</p>
+                            const sComm = notification.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
+                            const node = stringToNodes(`<a href="$root/forum/\${notification.thread.dbId}" onclick="return false;" class="historyItem">
+                                <p class="title">\${notification.thread.title}</p>
+                                <p class="description">\${notification.n} \${sComm}</p>
                             </a>`)[0];
                             node.addEventListener('click',() => { loadPage(node.href,StateAction.PushState); closeRightBar(); } );
-                            histCont.insertAdjacentElement('afterbegin',node);
+                            histCont.insertAdjacentElement('beforeend',node);
                             break;
                     }
                 }
-            }
-
-            for (const edge of [...records.edges].reverse()) {
-                const record = edge.node;
-                if (record.actionGroupName == 'FORUM') switch (record.actionName) {
-                    case 'addComment':
-                        if (currEvent.name == 'thAddComment_'+record.thread.dbId) currEvent.n++;
-                        else {
-                            currEvent.flush();
-                            currEvent.firstRecord = record;
-                            currEvent.name = 'thAddComment_'+record.thread.dbId;
-                            currEvent.n = 1;
-                        }
-                        break;
-                }
-            }
-            currEvent.flush();
-
-            for (const edge of notifications.edges) {
-                const notification = edge.node;
-                const s = notification.n > 1 ? 'nouveaux commentaires' : 'nouveau commentaire';
-                const notRead = notification.readDate == null ? ' new' : '';
-                const users = notification.users;
-                let names = [];
-                for (let i=0; i<(users.length >= 3 ? 3 : users.length); i++) names.push(users[i].name);
-                const sNames = '(' + names.join(',') + (users.length > 3 ? `, et \${users.length-3} autres...` : '') + ')'; 
-
-                const node = stringToNodes(`<a href="$root/forum/\${notification.thread.dbId}" onclick="return false" class="notification\${notRead}">
-                    <div class="notification_type">
-
-                    </div>
-                    <div class="notification_content">
-                        <p class="title">\${notification.thread.title}</p>
-                        <p class="desc">\${notification.n} \${s} \${sNames}</p>
-                    </div>
-                </a>`)[0];
-                let timeout = null;
-                node.addEventListener('click',() => {
-                    const alreadyRead = !node.classList.contains('new');
-                    node.classList.remove('new');
-                    loadPage(node.href,StateAction.PushState).then(() => {
-                        if (alreadyRead) return;
-                        sendQuery(`mutation SetNotificationToRead(\$number:Int!) {
-                            f:setNotificationToRead(number:\$number) {
-                                __typename
-                                success
-                                resultCode
-                                resultMessage
-                            }
-                        }`,{number:notification.number}).then((json) => {
-                            if (!basicQueryResultCheck(json?.data?.f)) return;
-                            
-                            node.classList.remove('new');
-                            setRecentEventsN(--recentEventsN);
-                        });
-                    });
-                    closeRightBar();
-                });
-                node.addEventListener('mouseleave',() => { if (timeout != null) clearTimeout(timeout); timeout = null; });
-                notifCont.insertAdjacentElement('beforeend',node); 
             }
             for (const edge of notifications.edges) if (edge.node.readDate == null) ++recentEventsN;
             setRecentEventsN(recentEventsN);
