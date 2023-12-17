@@ -29,6 +29,10 @@ function get_root_link(string $sub = null) {
     return $root;
 }
 
+function get_temp_folder_path() {
+    return realpath(__DIR__.'/../tmp');
+}
+
 function get_mimetype_from_name(string $name) {
     $mimeTypes = array(
         "323"       => "text/h323",

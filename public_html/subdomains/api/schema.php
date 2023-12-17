@@ -535,19 +535,74 @@ class MutationType extends ObjectType {
                         $file = $_FILES['imgAvatar'];
 
                         if (!isset($file['error']) || is_array($file['error']) || $file['error'] != UPLOAD_ERR_OK) return new OperationResult(ErrorType::CONTEXT_INVALID, "Image file error.");
-                        else if ($file['size'] > 20000000) return new OperationResult(ErrorType::CONTEXT_INVALID, "File size must not be greater than 20MB.");
+                        else if ($file['size'] > 25000000) return new OperationResult(ErrorType::CONTEXT_INVALID, "File size must not be greater than 25MB.");
 
-                        $ext = array_search(mime_content_type($file['tmp_name']),[
-                            'jpg' => 'image/jpeg',
-                            'gif' => 'image/gif',
-                            'png' => 'image/png'
+                        $nowTime = time();
+                        $mimeType = mime_content_type($file['tmp_name']);
+                        $tempFolderPath = get_temp_folder_path().'/'.$user->id;
+                        $tempFile = "$tempFolderPath/{$user->id}_{$nowTime}_{$file['name']}";
+                        move_uploaded_file($file['tmp_name'],$tempFile);
+
+                        $s3client = AWS::getS3Client();
+                        $conn = DBManager::getConnection();
+
+                        $ext = array_search($mimeType,[
+                            'mp4' => 'video/mp4',
+                            'webp' => 'image/webp',
+                            'webm' => 'video/webm'
                         ], true);
-                        if ($ext === false) return new OperationResult(ErrorType::INVALID, "Invalid image type.");
+                        if ($ext !== false) {
+                            $fileToUpload = [
+                                'name' => sha1_file($tempFile).".$ext",
+                                'tmp_name' => $tempFile,
+                                'size' => filesize($tempFile),
+                                'type' => mime_content_type($tempFile),
+                                'error' => UPLOAD_ERR_OK
+                            ];
+                        } if ($mimeType == 'image/gif' && filesize($tempFile) <= 2000000) {
+                            $fileToUpload = [
+                                'name' => sha1_file($tempFile).".gif",
+                                'tmp_name' => $tempFile,
+                                'size' => filesize($tempFile),
+                                'type' => mime_content_type($tempFile),
+                                'error' => UPLOAD_ERR_OK
+                            ];
+                        } else if (str_starts_with($mimeType,'image/') && $mimeType != 'image/gif' && $mimeType != 'image/webp') {
+                            $convertedFilePath = "$tempFile.webp";
+                            
+                            if (PHP_OS_FAMILY == 'Windows') exec("magick \"$tempFile\" -quality 75 -auto-orient \"$convertedFilePath\"");
+                            else exec("convert \"$tempFile\" -quality 75 -auto-orient \"$convertedFilePath\"");
+                            unlink($tempFile);
+                            $fileToUpload = [
+                                'name' => sha1_file($convertedFilePath).".webp",
+                                'tmp_name' => $convertedFilePath,
+                                'size' => filesize($convertedFilePath),
+                                'type' => mime_content_type($convertedFilePath),
+                                'error' => UPLOAD_ERR_OK
+                            ];
+                        } else if (str_starts_with($mimeType,'video/') || $mimeType == 'image/gif') {
+                            $convertedFilePath = "$tempFile.mp4";
+                            exec("ffmpeg -i \"$tempFile\" -movflags +faststart -pix_fmt yuv420p -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" \"$convertedFilePath\"");
+                            unlink($tempFile);
+                            $fileToUpload = [
+                                'name' => sha1_file($convertedFilePath).".mp4",
+                                'tmp_name' => $convertedFilePath,
+                                'size' => filesize($convertedFilePath),
+                                'type' => mime_content_type($convertedFilePath),
+                                'error' => UPLOAD_ERR_OK
+                            ];
+                        }
                         
-                        $avatarName = "{$user->id}-".sha1_file($file['tmp_name']).".$ext";
-                        $v = move_uploaded_file($file['tmp_name'],Context::$avatarsDir."/$avatarName");
-                        if ($v === false) return new OperationResult(ErrorType::UNKNOWN, "Couldn't save file.");
-                        if (DBManager::getConnection()->query("UPDATE users SET avatar_name='$avatarName' WHERE id={$user->id}") === false) return new OperationResult(ErrorType::DATABASE_ERROR);
+                        if (!isset($fileToUpload)) return new OperationResult(ErrorType::INVALID_DATA, 'File type not supported.');
+
+                        $res = $s3client->putObject($conn,$user,$fileToUpload,true,false,$_SERVER['LD_AWS_BUCKET_AVATARS']);
+                        if (isset($convertedFilePath)) unlink($convertedFilePath);
+                        if (!($res->resultType instanceof \LDLib\General\SuccessType)) return new OperationResult(ErrorType::FILE_OPERATION_ERROR);
+                        $keyName = $res->data[0];
+
+                        $stmt = $conn->prepare("UPDATE users SET avatar_name=? WHERE id=?");
+                        if ($stmt->execute([$keyName,$user->id]) === false) return new OperationResult(ErrorType::DATABASE_ERROR);
+
                         return new OperationResult(SuccessType::SUCCESS,null,[$user->id]);
                     }
                 ],
@@ -1171,8 +1226,8 @@ class RegisteredUserType extends ObjectType {
                     'type' => fn() => Type::string(),
                     'resolve' => fn($o) => self::process($o, function($o) {
                         $avatarName = $o['data']['avatar_name'];
-                        $root = get_root_link('res');
-                        return $avatarName == null ? "{$root}/avatars/default.jpg" : "{$root}/avatars/$avatarName";
+                        $res = get_root_link('res');
+                        return $avatarName == null ? "{$res}/avatars/default.jpg" : "{$res}/file/$avatarName?type=avatar";
                     })
                 ],
                 'notifications' => [

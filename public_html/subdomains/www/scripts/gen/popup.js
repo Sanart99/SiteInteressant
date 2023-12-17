@@ -350,7 +350,7 @@ $getDisconnectElem = getDisconnectElem()['html'];
 function getEditAvatar() {
     return ['html' => <<<HTML
     <form id="editAvatar" class="popupContainer">
-        <input type="file" name="imgAvatar" accept="image/png, image/jpeg, image/gif" required="true" />
+        <input type="file" name="imgAvatar" accept="image/*, video/*" required="true" />
         <input type="submit" value="Changer d'avatar" />
         <input id="editAvatar_cancel" type="button" value="Retour"/>
     </form>

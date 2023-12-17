@@ -57,13 +57,13 @@ class LDS3Client {
         }
     }
 
-    public function putObject(LDPDO $conn, RegisteredUser $user, array $file, bool $overwrite=false, bool $newNameOnDuplicate=false):OperationResult {
+    public function putObject(LDPDO $conn, RegisteredUser $user, array $file, bool $overwrite=false, bool $newNameOnDuplicate=false, string $bucketName=null):OperationResult {
         $fileName = $file['name'];
         $fileData = file_get_contents($file['tmp_name']);
         $fileSize = $file['size'];
         $mimeType = mime_content_type($file['tmp_name']);
         $keyName = "{$user->id}_{$fileName}";
-        $bucketName = $_SERVER['LD_AWS_BUCKET_GENERAL'];
+        $bucketName ??= $_SERVER['LD_AWS_BUCKET_GENERAL'];
         if ($mimeType === false) $mimeType = null;
 
         $s3 = AWS::getS3Client();

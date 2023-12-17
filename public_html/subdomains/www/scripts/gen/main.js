@@ -281,7 +281,15 @@ function getIndexElems() {
         }`).then((json) => {
             if (json?.data?.viewer?.name == null) { basicQueryResultCheck(); return; }
             document.querySelector('#rightBar_titleDiv p').innerHTML =  document.querySelector('#topBar_r_slideArea .username').innerHTML = json.data.viewer.name;
-            document.querySelector('#topBar_r_slideArea .avatar').src = json.data.viewer.avatarURL;
+
+            const eAvatar = document.querySelector('#topBar_r_slideArea .avatar');
+            const avatarURL = json.data.viewer.avatarURL;
+            if (/\.(?:webm|mp4)\?type=avatar$/.test(avatarURL)) {
+                const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"><source src="\${avatarURL}" type="video/mp4"/></video>`)[0];
+                eVid.muted = true;
+                eAvatar.replaceWith(eVid);
+            } else eAvatar.src = json.data.viewer.avatarURL;
+
             if (json.data.viewer.titles.includes('oldInteressant')) {
                 const node = stringToNodes('<a id="rightBar_optionsDiv_asile" href="//forum/tid" onclick="return false;"><p>Asile Intéressant</p></a>')[0];
                 node.addEventListener('click',() => loadPage('$root/pages/forum?urlEnd=/tid',StateAction.PushState));
@@ -340,7 +348,7 @@ function getIndexElems() {
     #topBar_r_slideArea:hover .username {
         color: white;
     }
-    #topBar_r_slideArea img {
+    #topBar_r_slideArea .avatar {
         max-height: 20px;
         max-width: 20px;
     }
@@ -990,6 +998,11 @@ function getForumMainElem() {
                         </div>
                     </div>
                 </div>`)[0];
+                if (/\.(?:webm|mp4)\?type=avatar$/.test(comment.node.author.avatarURL)) {
+                    const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"><source src="\${comment.node.author.avatarURL}" type="video/mp4"/></video>`)[0];
+                    eVid.muted = true;
+                    commentNode.querySelector('.avatar').replaceWith(eVid);
+                }
                 const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
                 const commOctohits = comment.node.octohits;

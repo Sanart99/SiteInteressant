@@ -16,8 +16,12 @@ if (preg_match('/^\/file\/(\d+_[^\/?]*)/',urldecode($_SERVER['REQUEST_URI']),$m)
     echo 'File not found.';
     return;
 }
+$mode = 'default';
+if (str_contains($_SERVER['QUERY_STRING'],'type=avatar')) $mode = 'avatar';
+
 $s3Key = $m[1];
-$redisKey = "s3:general:$s3Key";
+$awsBucket = $mode == 'avatar' ? $_SERVER['LD_AWS_BUCKET_AVATARS'] : $_SERVER['LD_AWS_BUCKET_GENERAL'];
+$redisKey = $mode == 'avatar' ? "s3:avatars:$s3Key" : "s3:general:$s3Key";
 $headers = [];
 foreach (getallheaders() as $k => $v) $headers[strtolower($k)] = $v;
 
@@ -46,7 +50,7 @@ if (class_exists('\Redis')) {
 }
 
 $s3Client = AWS::getS3Client();
-$res = $s3Client->getObject($_SERVER['LD_AWS_BUCKET_GENERAL'],$s3Key);
+$res = $s3Client->getObject($awsBucket,$s3Key);
 
 if ($res instanceof AwsException) {
     $errMsg = '';
