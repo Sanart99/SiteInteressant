@@ -1381,7 +1381,7 @@ class RegisteredUserStatsType extends ObjectType {
 
                         return quickReactPromise(function() use(&$userId,&$cacheKey,&$cacheKey2) {
                             $conn = DBManager::getConnection();
-                            $v = $conn->query('SELECT COUNT(*) FROM comments WHERE author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
+                            $v = $conn->query('SELECT COUNT(*) FROM comments WHERE number != 0 AND author_id='.$userId)->fetch(\PDO::FETCH_NUM)[0];
 
                             $stmt = $conn->query("SELECT id_b FROM id_links WHERE id_a=$userId");
                             $sqlWhere = '';
@@ -1393,7 +1393,7 @@ class RegisteredUserStatsType extends ObjectType {
                                 $vCacheTid = Cache::get($cacheKey2);
                                 if ($vCacheTid != null) $v += $vCacheTid;
                                 else {
-                                    $nTid = $conn->query("SELECT COUNT(*) FROM tid_comments WHERE $sqlWhere")->fetch(\PDO::FETCH_NUM)[0];
+                                    $nTid = $conn->query("SELECT COUNT(*) FROM tid_comments WHERE id != 0 AND ($sqlWhere)")->fetch(\PDO::FETCH_NUM)[0];
                                     Cache::set($cacheKey2,$nTid,2000000000);
                                     $v += $nTid;
                                 }
