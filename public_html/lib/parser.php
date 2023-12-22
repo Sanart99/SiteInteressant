@@ -198,6 +198,7 @@ function textToHTML(int $userId, string $text, bool $commitData = false, bool $u
                 $mimeType = mime_content_type($file['tmp_name']);
                 $compressedFilePath = "$userTempFolder/min_$keyName";
                 $compressedFileName = 'min_'.preg_replace('/^\d+_/','',$keyName,1);
+                if (!file_exists($userTempFolder)) mkdir($userTempFolder);
 
                 if (str_starts_with($mimeType,'image/') && $mimeType != 'image/gif' && $mimeType != 'image/webp') {
                     $tempFile = $compressedFilePath;

@@ -541,6 +541,7 @@ class MutationType extends ObjectType {
                         $mimeType = mime_content_type($file['tmp_name']);
                         $tempFolderPath = get_temp_folder_path().'/'.$user->id;
                         $tempFile = "$tempFolderPath/{$user->id}_{$nowTime}_{$file['name']}";
+                        if (!file_exists($tempFolderPath)) mkdir($tempFolderPath);
                         move_uploaded_file($file['tmp_name'],$tempFile);
 
                         $s3client = AWS::getS3Client();
