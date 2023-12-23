@@ -288,6 +288,7 @@ function getIndexElems() {
                 const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"><source src="\${avatarURL}" type="video/mp4"/></video>`)[0];
                 eVid.muted = true;
                 eAvatar.replaceWith(eVid);
+                if (eVid.paused) eVid.play().catch(e => null);
             } else eAvatar.src = json.data.viewer.avatarURL;
 
             if (json.data.viewer.titles.includes('oldInteressant')) {
@@ -999,9 +1000,24 @@ function getForumMainElem() {
                     </div>
                 </div>`)[0];
                 if (/\.(?:webm|mp4)\?type=avatar$/.test(comment.node.author.avatarURL)) {
-                    const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true"><source src="\${comment.node.author.avatarURL}" type="video/mp4"/></video>`)[0];
+                    const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true" defaultMuted><source src="\${comment.node.author.avatarURL}"/></video>`)[0];
                     eVid.muted = true;
+                    eVid.oncanplaythrough = function() {
+                        eVid.muted = true;
+                        eVid.play();
+                    }
                     commentNode.querySelector('.avatar').replaceWith(eVid);
+                    
+                    const eMain = document.querySelector('#mainDiv_forum');
+                    setTimeout(() => {
+                        if (eVid.paused) eVid.play().catch(e => {
+                            let fTemp = eMain.addEventListener('mouseover',() => { if (eVid.paused) {
+                                eVid.play().catch(e => { console.error(e); return null; });
+                                eMain.removeEventListener('mouseover',fTemp);
+                            }});
+                            return null;
+                        });
+                    }, 1000);
                 }
                 const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
