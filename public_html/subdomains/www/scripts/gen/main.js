@@ -2714,7 +2714,7 @@ function getForumMainElem() {
                                     if (params.includes('loop') || params.includes('autoplay')) extraAttr += ' muted="true"';
                                     viewNode.replaceWith(stringToNodes(`<video class="inserted file" controls="true" preload="none" playsinline="true"\${extraAttr}> <source src="$res/file/\${keyName}" data-copy-tag="[file=get;\${extraParam}\${keyName}/]"/> </video>`)[0]);
                                 } else if (audioRegex.test(res.data.f.contentType)) {
-                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
+                                    viewNode.replaceWith(stringToNodes(`<audio class="inserted file" preload="none" controls="true" src="$res/file/\${keyName}"> <a href="$res/file/\${keyName}" alt="[file=get;\${keyName}/]">Télécharger l'audio</a> </audio>`)[0]);
                                 } else {
                                     const but = stringToNodes(`<button class="button1 inserted file">Télécharger \${keyName}<a href="$res/file/\${keyName}" target="_blank" style="display:none;"></a></button>`)[0];
                                     but.addEventListener('click',() => but.querySelector('a').click());
