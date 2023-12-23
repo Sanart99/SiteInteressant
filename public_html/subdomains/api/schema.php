@@ -560,7 +560,7 @@ class MutationType extends ObjectType {
                                 'type' => mime_content_type($tempFile),
                                 'error' => UPLOAD_ERR_OK
                             ];
-                        } if ($mimeType == 'image/gif' && filesize($tempFile) <= 2000000) {
+                        } if ($mimeType == 'image/gif' && filesize($tempFile) <= 10000000) {
                             $fileToUpload = [
                                 'name' => sha1_file($tempFile).".gif",
                                 'tmp_name' => $tempFile,
