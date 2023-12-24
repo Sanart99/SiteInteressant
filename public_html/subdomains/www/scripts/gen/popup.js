@@ -88,7 +88,7 @@ function getPopupDiv() {
         max-width: 95%;
         max-height: 95%;
     }
-    @media screen and (max-width: 425px) { 
+    @media screen and (max-width: 800px) { 
         #popupDiv > form:not(.removeDefaultStyle), #popupDiv > div:not(.removeDefaultStyle) {
             color: black;
             width: 90%;
