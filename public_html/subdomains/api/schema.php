@@ -1406,31 +1406,71 @@ class RegisteredUserStatsType extends ObjectType {
                     })
                 ],
                 'iph' => [
-                    'type' => fn() => Type::float(),
-                    'resolve' => fn($o) => self::process($o, function($userId) {
-                        $cacheKey = "userStats:{$userId}:hpi";
-                        $vCache = Cache::get($cacheKey);
-                        if ($vCache != null) return $vCache;
-
-                        return quickReactPromise(function() use(&$userId,&$cacheKey) {
-                            $dt = new \DateTime();
-                            $dt->setTimestamp(time()-(60*60*24*3));
-                            $sDate = $dt->format('c');
-
-                            $conn = DBManager::getConnection();
-                            $nThreads = $conn->query("SELECT COUNT(*) FROM threads WHERE author_id=$userId AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
-                            $nComments = $conn->query("SELECT COUNT(*) FROM comments WHERE author_id=$userId AND number>0 AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
-                            $nKubedThreads = $conn->query("SELECT COUNT(id) FROM threads WHERE author_id=$userId AND creation_date>'$sDate' AND id IN (SELECT thread_id FROM kubed_threads WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
-                            $nKubedComments = $conn->query("SELECT COUNT(thread_id) FROM comments WHERE author_id=$userId AND creation_date>'$sDate' AND (thread_id,NUMBER) IN (SELECT thread_id,comm_number FROM kubed_comments WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
-                            $speed = (($nThreads/(3*24)) + (($nComments/(3*24)) * 0.22) + ((($nKubedThreads + $nKubedComments)/24) * 0.1)) * 100;
-                            Cache::set($cacheKey,$speed,120);
-                            return $speed;
-                        });
-                    })
+                    'type' => fn() => Types::IPHStats(),
+                    'resolve' => fn($o) => $o
                 ]
             ]
         ];
         parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class IPHStatsType extends ObjectType {
+    public static function process(mixed $o, callable $f) {
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        return $f($o);
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'n' => [
+                    'type' => fn() => Type::float(),
+                    'resolve' => fn($o) => self::process($o, function($userId) {
+                        $ckIPH = "userStats:{$userId}:iph";
+                        $vCache = Cache::hGet($ckIPH,'n');
+                        if ($vCache != null) return $vCache;
+
+                        return quickReactPromise(function() use(&$userId,&$ckIPH) {
+                            return self::calculateIPH($userId,$ckIPH)[0];
+                        });
+                    }),
+                ],
+                'details' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, function($userId) {
+                        $ckIPH = "userStats:{$userId}:iph";
+                        $vCache = Cache::hGet($ckIPH,'details');
+                        if ($vCache != null) return $vCache;
+
+                        return quickReactPromise(function() use(&$userId,&$ckIPH) {
+                            return self::calculateIPH($userId,$ckIPH)[1];
+                        });
+                    }),
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+
+    private static function calculateIPH(int $userId, string $cacheKey) {
+        $dt = new \DateTime();
+        $dt->setTimestamp(time()-(60*60*24*3));
+        $sDate = $dt->format('c');
+
+        $conn = DBManager::getConnection();
+        $nThreads = $conn->query("SELECT COUNT(*) FROM threads WHERE author_id=$userId AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
+        $nComments = $conn->query("SELECT COUNT(*) FROM comments WHERE author_id=$userId AND number>0 AND creation_date>'$sDate'")->fetch(\PDO::FETCH_NUM)[0];
+        $nKubedThreads = $conn->query("SELECT COUNT(id) FROM threads WHERE author_id=$userId AND creation_date>'$sDate' AND id IN (SELECT thread_id FROM kubed_threads WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
+        $nKubedComments = $conn->query("SELECT COUNT(thread_id) FROM comments WHERE author_id=$userId AND creation_date>'$sDate' AND (thread_id,NUMBER) IN (SELECT thread_id,comm_number FROM kubed_comments WHERE date>'$sDate')")->fetch(\PDO::FETCH_NUM)[0];
+        $speed = (($nThreads/(3*24)) + (($nComments/(3*24)) * 0.22) + ((($nKubedThreads + $nKubedComments)/24) * 0.1)) * 100;
+
+        $json = json_encode(['nThreads' => $nThreads, 'nComments' => $nComments, 'nKubedThreads' => $nKubedThreads, 'nKubedComments' => $nKubedComments]);
+        Cache::hMSet($cacheKey,['n' => $speed, 'details' => $json]);
+        Cache::expire($cacheKey,120);
+
+        return [$speed,$json];
     }
 }
 
@@ -2339,6 +2379,37 @@ class Cache {
         self::$setCount++;
         return self::$redis->set($key, $value, $timeout);
     }
+
+    public static function hGet(string $key, string $hashKey) {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return false;
+
+        self::$getCount++;
+        return self::$redis->hGet($key, $hashKey);
+    }
+
+    public static function hMGet(string $key, array $hashKeys) {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return false;
+
+        self::$getCount += count($hashKeys);
+        return self::$redis->hMGet($key, $hashKeys);
+    }
+
+    public static function hMSet(string $key, array $hashKeys) {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return false;
+
+        self::$setCount += count($hashKeys);
+        return self::$redis->hMSet($key, $hashKeys);
+    }
+
+    public static function expire($key, $ttl) {
+        if (!self::$initialized) Cache::init();
+        if (self::$redis == null) return false;
+
+        return self::$redis->expire($key,$ttl);
+    }
 }
 
 class DBManager {
@@ -2630,6 +2701,10 @@ class Types {
 
     public static function RegisteredUserStats():RegisteredUserStatsType {
         return self::$types['RegisteredUserStats'] ??= new RegisteredUserStatsType();
+    }
+
+    public static function IPHStats():IPHStatsType {
+        return self::$types['IPHStats'] ??= new IPHStatsType();
     }
 
     public static function TidUser():TidUserType {

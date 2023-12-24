@@ -846,7 +846,10 @@ function getForumMainElem() {
                                     stats {
                                         nAllThreads
                                         nAllComments
-                                        iph
+                                        iph {
+                                            n
+                                            details
+                                        }
                                     }
                                 }
                             }
@@ -976,6 +979,8 @@ function getForumMainElem() {
             const unreadCommentsNumbers = [];
             eComments.innerHTML = '';
             currThreadId = threadId;
+            const popIPH = stringToNodes(`<div class='popIPH popupContainer removeDefaultStyle' style="display:none;" data-pop-exitable="1" data-pop-remove-on-exit="1"></div>`)[0];
+            popIPH.addEventListener('click', (e) => { e.stopPropagation(); } );
             for (const comment of comments.edges) {
                 const date = new Date(stringDateToISO(comment.node.creationDate));
                 const stats = comment.node.author.stats;
@@ -987,7 +992,7 @@ function getForumMainElem() {
                         <div class="main">
                             <p class="name">\${comment.node.author.name}</p>
                             <p class="date" title="\${date.toString()}">\${getDateAsString2(date)}</p>
-                            <p class="stats">Topics : \${stats.nAllThreads} · Commentaires : \${stats.nAllComments} · IPH : \${stats.iph.toFixed(2)}</p>    
+                            <p class="stats">Topics : \${stats.nAllThreads} · Commentaires : \${stats.nAllComments} · <span class="iph">IPH : \${stats.iph.n.toFixed(2)}</span></p>    
                         </div>
                    </div>
                     <div class="body">
@@ -999,6 +1004,14 @@ function getForumMainElem() {
                         </div>
                     </div>
                 </div>`)[0];
+                // Init comment
+                commentNode.querySelector('.stats .iph').addEventListener('click',() => {
+                    const json = JSON.parse(stats.iph.details);
+                    popIPH.innerHTML = `<p>nThreads : \${json.nThreads}<br />nComments : \${json.nComments}<br />nKubedThreads : \${json.nKubedThreads}<br />nKubedComments : \${json.nKubedComments}</p>`;
+                    popupDiv.insertAdjacentElement('beforeend',popIPH);
+                    popupDiv.openTo('.popIPH');
+                });
+
                 if (/\.(?:webm|mp4)\?type=avatar$/.test(comment.node.author.avatarURL)) {
                     const eVid = stringToNodes(`<video class="avatar" preload="auto" autoplay="true" loop="true" playsinline="true" muted="true" disablePictureInPicture="true" defaultMuted><source src="\${comment.node.author.avatarURL}"/></video>`)[0];
                     eVid.muted = true;
@@ -1019,6 +1032,7 @@ function getForumMainElem() {
                         });
                     }, 1000);
                 }
+
                 const commNodeMain = commentNode.querySelector('.body > .main');
                 const commKubers = comment.node.kubedBy;
                 const commOctohits = comment.node.octohits;
@@ -3837,7 +3851,7 @@ function getForumMainElem() {
         color: darkRed;
         line-height: 1.1;
     }
-    #popupDiv .gadgetInspector {
+    #popupDiv .gadgetInspector, #popupDiv .popIPH {
         position: relative;
         top: 50%;
         left: 50%;
