@@ -3912,6 +3912,9 @@ function getForumMainElem() {
         #forum_threads tbody tr[data-selected="true"] .selectArrow {
             display: none;
         }
+        #popupDiv .gadgetInspector, #popupDiv .popIPH {
+            width: 80%;
+        }
     }
     CSS];
 }
