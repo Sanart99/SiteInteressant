@@ -224,9 +224,6 @@ function getIndexElems() {
             setRecentEventsN(recentEventsN);
         });
     }
-    setInterval(() => {
-        if (Date.now() - lastRefresh >= 150000) getRecentEvents();
-    }, 300000);
 
     const topBarRSlideArea = document.querySelector('#topBar_r_slideArea');
     topBarRSlideArea.addEventListener('click',openRightBar);
@@ -302,6 +299,10 @@ function getIndexElems() {
             if (s?.data == 'checkNotifs') getRecentEvents();
         });
         getRecentEvents();
+
+        setInterval(() => {
+            if (Date.now() - lastRefresh >= 150000) getRecentEvents();
+        }, 300000);
     }
 
     JAVASCRIPT,
