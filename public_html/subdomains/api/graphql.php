@@ -115,5 +115,20 @@ try {
 }
 
 header('Content-Type: application/json');
-echo json_encode($output, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+$res = json_encode($output, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+if (isset(Context::$headers['accept-encoding']) && strlen($res) > 1000) {
+    $a = preg_split('/\s*,\s*/',Context::$headers['accept-encoding']);
+
+    if (in_array('gzip',$a)) {
+        header('Content-Encoding: gzip');
+        echo gzencode($res,9,FORCE_GZIP);
+        return;
+    } else if (in_array('deflate',$a)) {
+        header('Content-Encoding: deflate');
+        echo gzdeflate($res,9,ZLIB_ENCODING_DEFLATE);
+        return;
+    }
+}
+echo $res;
 ?>
