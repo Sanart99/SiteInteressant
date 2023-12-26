@@ -113,7 +113,7 @@ function getIndexElems() {
         return sendQuery(`query {
             viewer {
                 dbId
-                notifications(first:100) {
+                notifications(first:75) {
                     edges {
                         node {
                             userId
