@@ -259,6 +259,86 @@ function unkube_thread(LDPDO $conn, RegisteredUser $user, int $threadId):Operati
     return new OperationResult(SuccessType::SUCCESS, null, [$thread->id], [$thread]);
 }
 
+function create_threadlist(LDPDO $conn, RegisteredUser $user, string $listName, bool $global):OperationResult {
+    $sNow = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
+
+    $conn->query('START TRANSACTION');
+    $stmt = $conn->prepare("SELECT * FROM threadlists WHERE creator_id=? AND name=?");
+    $stmt->execute([$user->id,$listName]);
+    $listRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if ($listRow !== false) return new OperationResult(ErrorType::DUPLICATE, 'List already exists.');
+
+    $stmt = $conn->prepare('INSERT INTO threadlists(creator_id,name,creation_date,global) VALUES (?,?,?,?)');
+    $stmt->execute([$user->id,$listName,$sNow,(int)$global]);
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
+function delete_threadlist(LDPDO $conn, RegisteredUser $user, string $listName):OperationResult {
+    $conn->query('START TRANSACTION');
+    $stmt = $conn->prepare("SELECT * FROM threadlists WHERE creator_id=? AND name=?");
+    $stmt->execute([$user->id,$listName]);
+    if ($stmt->fetch(\PDO::FETCH_ASSOC) === false) return new OperationResult(ErrorType::NOT_FOUND, 'List doesn\'t exist.');
+
+    $stmt = $conn->prepare('DELETE FROM threadlists WHERE creator_id=? AND name=?');
+    $stmt->execute([$user->id,$listName]);
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
+function thread_add_to_threadlist(LDPDO $conn, RegisteredUser $user, int $creatorId, string $listName, int $threadId):OperationResult {
+    $conn->query('START TRANSACTION');
+
+    $stmt = $conn->prepare("SELECT * FROM threadlists WHERE creator_id=? AND name=?");
+    $stmt->execute([$creatorId,$listName]);
+    $listRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if ($listRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'List not found.');
+
+    if ($creatorId != $user->id && !$user->isAdministrator()) {
+        $stmt = $conn->prepare('SELECT * FROM threadlist_editors WHERE threadlist_creator_id=? AND threadlist_name=? AND editor_id=?');
+        $stmt->execute([$creatorId,$listName,$user->id]);
+        if ($stmt->fetch() === false) return new OperationResult(ErrorType::PROHIBITED, 'User not authorized to edit threadlist.');
+    }
+
+    $threadRow = $conn->query("SELECT * FROM threads WHERE id=$threadId")->fetch(\PDO::FETCH_ASSOC);
+    if ($threadRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'Thread not found.');
+
+    $stmt = $conn->prepare('SELECT * FROM threadlist_threads WHERE threadlist_creator_id=? AND threadlist_name=? AND thread_id=?');
+    $stmt->execute([$creatorId,$listName,$threadId]);
+    if ($stmt->fetch() !== false) return new OperationResult(ErrorType::PROHIBITED, 'Thread already exists in threadlist.');
+
+    $stmt = $conn->prepare('INSERT INTO threadlist_threads (threadlist_creator_id,threadlist_name,thread_id) VALUES (?,?,?)');
+    $stmt->execute([$creatorId,$listName,$threadId]);
+
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
+function thread_remove_from_threadlist(LDPDO $conn, RegisteredUser $user, int $creatorId, string $listName, int $threadId):OperationResult {
+    $conn->query('START TRANSACTION');
+
+    $stmt = $conn->prepare("SELECT * FROM threadlists WHERE creator_id=? AND name=?");
+    $stmt->execute([$creatorId,$listName]);
+    $listRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if ($listRow === false) return new OperationResult(ErrorType::NOT_FOUND, 'List not found.');
+
+    if ($creatorId != $user->id && !$user->isAdministrator()) {
+        $stmt = $conn->prepare('SELECT * FROM threadlist_editors WHERE threadlist_creator_id=? AND threadlist_name=? AND editor_id=?');
+        $stmt->execute([$creatorId,$listName,$user->id]);
+        if ($stmt->fetch() === false) return new OperationResult(ErrorType::PROHIBITED, 'User not authorized to edit threadlist.');
+    }
+
+    $stmt = $conn->prepare('SELECT * FROM threadlist_threads WHERE threadlist_creator_id=? AND threadlist_name=? AND thread_id=?');
+    $stmt->execute([$creatorId,$listName,$threadId]);
+    if ($stmt->fetch() === false) return new OperationResult(ErrorType::NOT_FOUND, 'Thread doesn\'t exist in threadlist.');
+
+    $stmt = $conn->prepare('DELETE FROM threadlist_threads WHERE threadlist_creator_id=? AND threadlist_name=? AND thread_id=?');
+    $stmt->execute([$creatorId,$listName,$threadId]);
+
+    $conn->query('COMMIT');
+    return new OperationResult(SuccessType::SUCCESS);
+}
+
 function kube_comment(LDPDO $conn, RegisteredUser $user, int $threadId, int $commNumber):OperationResult {
     $now = new \DateTimeImmutable('now');
     $sNow = $now->format('Y-m-d H:i:s');

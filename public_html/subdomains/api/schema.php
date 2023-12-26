@@ -325,6 +325,29 @@ class MutationType extends ObjectType {
                         return unkube_comment(DBManager::getConnection(),$user,$args['threadId'],$args['commNumber']);
                     }
                 ],
+                'forum_createThreadlist' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'listName' => Type::nonNull(Type::string()),
+                        'global' => Type::nonNull(Type::boolean())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return create_threadlist(DBManager::getConnection(),$user,$args['listName'],$args['global']);
+                    }
+                ],
+                'forum_deleteThreadlist' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'listName' => Type::nonNull(Type::string())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return delete_threadlist(DBManager::getConnection(),$user,$args['listName']);
+                    }
+                ],
                 'forum_octohitComment' => [
                     'type' => fn() => Type::nonNull(Types::getOperationObjectType('OnOctohit')),
                     'args' => [
@@ -417,6 +440,32 @@ class MutationType extends ObjectType {
                         $user = Context::getAuthenticatedUser();
                         if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
                         return thread_mark_comments_as_notread(DBManager::getConnection(),$user,$args['threadId'],$args['commentNumbers']);
+                    }
+                ],
+                'forumThread_addToThreadlist' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'creatorId' => Type::nonNull(Type::int()),
+                        'listName' => Type::nonNull(Type::string()),
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return thread_add_to_threadlist(DBManager::getConnection(),$user,$args['creatorId'],$args['listName'],$args['threadId']);
+                    }
+                ],
+                'forumThread_removeFromThreadlist' => [
+                    'type' => fn() => Type::nonNull(Types::SimpleOperation()),
+                    'args' => [
+                        'creatorId' => Type::nonNull(Type::int()),
+                        'listName' => Type::nonNull(Type::string()),
+                        'threadId' => Type::nonNull(Type::int())
+                    ],
+                    'resolve' => function($o,$args) {
+                        $user = Context::getAuthenticatedUser();
+                        if ($user == null) return new OperationResult(ErrorType::NOT_AUTHENTICATED);
+                        return thread_remove_from_threadlist(DBManager::getConnection(),$user,$args['creatorId'],$args['listName'],$args['threadId']);
                     }
                 ],
                 'forumThread_follow' => [
