@@ -533,6 +533,7 @@ class UsersBuffer {
                 break;
             case DataType::TidAssociatedRegisteredUser:
                 $tidId = $v[1];
+                $dbName = $v[0] == DataType::User ? 'users' : 'tid_users';
 
                 $stmt = $conn->prepare('SELECT id_a FROM id_links WHERE id_b=?');
                 $stmt->execute([$tidId]);
