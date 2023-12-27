@@ -881,7 +881,7 @@ function getForumMainElem() {
             if (mobileMode) { forumL.style.display = 'none'; forumR.style.display = ''; }
             if (forumR.querySelector('.forum_mainBar') == null) {
                 const e = stringToNodes(`<div class="forum_mainBar">
-                    <div class="forum_mainBar_sub1"><p></p></div>
+                    <div class="forum_mainBar_sub1"><p class="title"></p><button class="forum_mainBar_sub1_moreBut button1">···</button></div>
                     <div class="forum_mainBar_sub2">
                         <div class="actions"></div>
                     </div>
@@ -3720,6 +3720,13 @@ function getForumMainElem() {
         color: white;
         font-weight: bold;
         padding: 0.1em 0.3em 0.1em 0.3em;
+        display: flex;
+    }
+    #mainDiv_forum .forum_mainBar_sub1 .title {
+        width: 96%;
+    }
+    #mainDiv_forum .forum_mainBar_sub1 .forum_mainBar_sub1_moreBut {
+        width: 4%;
     }
     #mainDiv_forum .forum_mainBar_sub2 {
         display: flex;
