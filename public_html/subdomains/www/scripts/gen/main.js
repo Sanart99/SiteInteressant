@@ -592,6 +592,9 @@ function getForumMainElem() {
             <div id="forumR">
             </div>
         </div>
+
+        <div id="forum_left_hiddenShortcut"></div>
+        <div id="forum_right_hiddenShortcut"></div>
     </div>
     HTML,
     'js' => <<<JAVASCRIPT
@@ -2896,6 +2899,41 @@ function getForumMainElem() {
         else loadThreads(20,null,null,null,pageNumber-1);
     });
 
+    let cLeftShortcut = 0;
+    let timeoutLeftShortcut = null;
+    document.querySelector('#forum_left_hiddenShortcut').addEventListener('click',() => {
+        if (forumMode != 'arche') return;
+        if (timeoutLeftShortcut != null) clearTimeout(timeoutLeftShortcut);
+
+        if (++cLeftShortcut >= 2) {
+            cLeftShortcut = 0;
+            if (currThreadId != null) {
+                let e = document.querySelector(`#forum_threads .thread[data-node-id="\${currThreadId}"]`);
+                while (e.previousElementSibling != null) {
+                    e = e.previousElementSibling;
+                    if (e.classList.contains('thread')) { e.querySelector('a').click(); break; }
+                }
+            } 
+        } else timeoutLeftShortcut = setTimeout(() => cLeftShortcut = 0, 500);
+    });
+    let cRightShortcut = 0;
+    let timeoutRightShortcut = null;
+    document.querySelector('#forum_right_hiddenShortcut').addEventListener('click',() => {
+        if (forumMode != 'arche') return;
+        if (timeoutRightShortcut != null) clearTimeout(timeoutRightShortcut);
+
+        if (++cRightShortcut >= 2) {
+            cRightShortcut = 0;
+            if (currThreadId != null) {
+                let e = document.querySelector(`#forum_threads .thread[data-node-id="\${currThreadId}"]`);
+                while (e.nextElementSibling != null) {
+                    e = e.nextElementSibling;
+                    if (e.classList.contains('thread')) { e.querySelector('a').click(); break; }
+                }
+            } 
+        } else timeoutRightShortcut = setTimeout(() => cRightShortcut = 0, 500);
+    });
+
     eThreadNotReadOnly.addEventListener('change',() => loadThreads(20,null,null,null,0));    
 
     const m = new RegExp("^$root/forum(/tid)?(?:/(\\\d+))?").exec(location.href);
@@ -2963,6 +3001,24 @@ function getForumMainElem() {
         background: var(--bg-gradient-1);
         min-height: inherit;
         overflow: auto;
+    }
+    #mainDiv_forum #forum_left_hiddenShortcut {
+        background-color: red;
+        width: max(10%,70px);
+        height: 10%;
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        opacity: 0;
+    }
+    #mainDiv_forum #forum_right_hiddenShortcut {
+        background-color: blue;
+        width: max(10%,70px);
+        height: 10%;
+        position: fixed;
+        bottom: 0px;
+        right: 0px;
+        opacity: 0;
     }
     #mainDiv_forum .button1 {
         background-color: var(--color-black-2);
@@ -3787,6 +3843,7 @@ function getForumMainElem() {
         justify-content: space-between;
         background-color: var(--color-black-2);
         padding: 0.4rem;
+        position: relative;
         z-index: 1;
     }
     #mainDiv_forum .forum_footer .actions, #mainDiv_forum .forum_mainBar .actions {
