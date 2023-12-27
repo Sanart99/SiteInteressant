@@ -3787,6 +3787,7 @@ function getForumMainElem() {
         justify-content: space-between;
         background-color: var(--color-black-2);
         padding: 0.4rem;
+        z-index: 1;
     }
     #mainDiv_forum .forum_footer .actions, #mainDiv_forum .forum_mainBar .actions {
         flex: 1 2 60%;
