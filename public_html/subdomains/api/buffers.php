@@ -26,6 +26,8 @@ enum DataType {
     case ForumComment;
     case ForumTidThread;
     case ForumTidComment;
+    case ForumThreadlist;
+    case ForumThreadlistThread;
     case Octohit;
     case ForumSearch;
     case FirstUnreadComment;
@@ -47,6 +49,10 @@ class BufferManager {
             'threadsM' => [],
             'comments' => [],
             'commentsM' => [],
+            'threadlists' => [],
+            'threadlistsM' => [],
+            'threadlist_threads' => [],
+            'threadlist_threadsM' => [],
             'tid_threads' => [],
             'tid_threadsM' => [],
             'tid_comments' => [],
@@ -124,6 +130,8 @@ class BufferManager {
                     case DataType::ForumTidThread:
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
+                    case DataType::ForumThreadlist:
+                    case DataType::ForumThreadlistThread:
                     case DataType::Octohit:
                     case DataType::ForumSearch: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
@@ -143,6 +151,7 @@ class BufferManager {
                     case DataType::ForumTidThread:
                     case DataType::ForumComment:
                     case DataType::ForumTidComment:
+                    case DataType::ForumThreadlist:
                     case DataType::FirstUnreadComment: ForumBuffer::exec(self::$conn); break;
                     case DataType::User:
                     case DataType::TidUser:
@@ -643,6 +652,18 @@ class ForumBuffer {
         return BufferManager::requestGroup(DataType::ForumTidComment,[$threadId,$pag]);
     }
 
+    public static function requestThreadlists(int $userId, PaginationVals $pag):bool {
+        return BufferManager::requestGroup(DataType::ForumThreadlist,[$userId,$pag]) == 0;
+    }
+
+    public static function requestThreadlist(int $userId, string $listName):bool {
+        return BufferManager::request(DataType::ForumThreadlist,[$userId,$listName]) == 0;
+    }
+
+    public static function requestThreadlistThreads(int $userId, string $listName, PaginationVals $pag):bool {
+        return BufferManager::requestGroup(DataType::ForumThreadlistThread,[$userId,$listName,$pag]) == 0;
+    }
+
     public static function requestCommentOctohits(string $threadId, int $commNumber) {
         return BufferManager::requestGroup(DataType::Octohit,[$threadId,$commNumber]);
     }
@@ -692,6 +713,18 @@ class ForumBuffer {
 
     public static function getTidComments(int $threadId, PaginationVals $pag) {
         return BufferManager::get(['forum','tid_commentsM',$threadId,$pag->getString()]);
+    }
+
+    public static function getThreadlists(int $userId, PaginationVals $pag) {
+        return BufferManager::get(['forum','threadlistsM',$userId,$pag->getString()]);
+    }
+
+    public static function getThreadlist(int $userId, string $listname) {
+        return BufferManager::get(['forum','threadlists',$userId,$listname]);
+    }
+
+    public static function getThreadlistThreads(int $userId, string $listname, PaginationVals $pag) {
+        return BufferManager::get(['forum','threadlist_threadsM',$userId,$listname,$pag->getString()]);
     }
 
     public static function getCommentOctohits(string $threadId, int $commNumber) {
@@ -1010,6 +1043,44 @@ class ForumBuffer {
 
                 array_push($toRemove, $v);
                 break;
+            case DataType::ForumThreadlist:
+                $creatorId = $v[1][0];
+                $pag = $v[1][1];
+
+                BufferManager::pagRequest($conn,'threadlists',"creator_id=$creatorId",$pag,'name',
+                    fn(&$row) => base64_encode($row['name']),
+                    fn(&$s) => base64_decode($s),
+                    function (&$row) use(&$bufRes, &$req,&$fet) {
+                        $bufRes['forum']['threadlists'][$row['data']['creator_id']][$row['data']['name']] = $row;
+                        $req->remove([DataType::ForumThreadlist,[$row['data']['creator_id'],$row['data']['name']]]);
+                        $fet->add([DataType::ForumThreadlist,[$row['data']['creator_id'],$row['data']['name']]]);
+                    },
+                    function($rows) use (&$bufRes,&$creatorId,&$pag) { $bufRes['forum']['threadlistsM'][$creatorId][$pag->getString()] = $rows; }
+                );
+
+                array_push($toRemove,$v);
+                break;
+            case DataType::ForumThreadlistThread:
+                $creatorId = $v[1][0];
+                $listName = $v[1][1];
+                $pag = $v[1][2];
+
+                BufferManager::pagRequest($conn,'threadlist_threads',"threadlist_creator_id=$creatorId AND threadlist_name=:listName",$pag,'thread_id',
+                    fn(&$row) => base64_encode($row['thread_id']),
+                    fn(&$s) => base64_decode($s),
+                    function (&$row) use(&$bufRes, &$req,&$fet) {
+                        $data = $row['data'];
+                        $bufRes['forum']['threadlist_threads'][$data['threadlist_creator_id']][$data['threadlist_name']][$data['thread_id']] = $row;
+                        $req->remove([DataType::ForumThreadlistThread,[$data['threadlist_creator_id'],$data['threadlist_name'],$data['thread_id']]]);
+                        $fet->add([DataType::ForumThreadlistThread,[$data['threadlist_creator_id'],$data['threadlist_name'],$data['thread_id']]]);
+                    },
+                    function($rows) use (&$bufRes,&$creatorId,&$listName,&$pag) { $bufRes['forum']['threadlist_threadsM'][$creatorId][$listName][$pag->getString()] = $rows; },
+                    '*',
+                    [':listName' => $listName]
+                );
+
+                array_push($toRemove,$v);
+                break;
             case DataType::Octohit:
                 $threadId = $v[1][0];
                 $commNumber = $v[1][1];
@@ -1085,6 +1156,17 @@ class ForumBuffer {
 
                 $bufRes['forum']['firstUnreadComments'][$userId][$threadId] = ['data' => $row === false ? null : $row, 'metadata' => $metadata];
                 array_push($toRemove, $v);
+                break;
+            case DataType::ForumThreadlist:
+                $userId = $v[1][0];
+                $listName = $v[1][1];
+
+                $stmt = $conn->prepare("SELECT * FROM threadlists WHERE creator_id=? AND name=?");
+                $stmt->execute([$userId,$listName]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+                $bufRes['forum']['threadlists'][$userId][$listName] = ['data' => $row === false ? null : $row, 'metadata' => null];
+
+                array_push($toRemove,$v);
                 break;
         }
         foreach ($toRemove as $v) {

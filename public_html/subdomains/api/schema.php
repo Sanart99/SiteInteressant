@@ -55,7 +55,8 @@ use function LDLib\Forum\{
     thread_add_comment, thread_edit_comment, thread_remove_comment,
     mark_all_threads_as_read, mark_thread_as_read, thread_mark_comments_as_read, thread_mark_comments_as_notread,
     thread_follow, thread_unfollow,
-    check_can_remove_thread, check_can_edit_comment, check_can_remove_comment
+    check_can_remove_thread, check_can_edit_comment, check_can_remove_comment,
+    create_threadlist, delete_threadlist, thread_add_to_threadlist, thread_remove_from_threadlist
 };
 use function LDLib\Net\{curl_fetch};
 use function LdLib\User\{set_notification_to_read, set_user_setting, ban_user};
@@ -1280,6 +1281,24 @@ class RegisteredUserType extends ObjectType {
                         return $avatarName == null ? "{$res}/avatars/default.jpg" : "{$res}/file/$avatarName?type=avatar";
                     })
                 ],
+                'threadlists' => [
+                    'type' => Types::getConnectionObjectType('ForumThreadlist'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                    ],
+                    'resolve' => fn($o,$args) => self::process($o, function($o) use(&$args) {
+                        $user = RegisteredUser::initFromRow($o);
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        ForumBuffer::requestThreadlists($user->id,$pag);
+                        return quickReactPromise(function() use($user,&$pag) {
+                            return ForumBuffer::getThreadlists($user->id,$pag);
+                        });
+                    })
+                ],
                 'notifications' => [
                     'type' => fn() => Types::getConnectionObjectType('Notification'),
                     'args' => [
@@ -1601,6 +1620,27 @@ class ForumType extends ObjectType {
     public function __construct(array $config2 = null) {
         $config = [
             'fields' => [
+                'pinnedThreads' => [
+                    'type' => fn() => Types::getConnectionObjectType('Thread'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                    ],
+                    'resolve' => function($o,$args) {
+                        $authUser = Context::getAuthenticatedUser();
+                        if ($authUser == null) return null;
+
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        ForumBuffer::requestThreadlistThreads(1,'pinned',$pag);
+                        return quickReactPromise(function() use(&$pag) {
+                            $data = ForumBuffer::getThreadlistThreads(1,'pinned',$pag);
+                            return $data;
+                        });
+                    }
+                ],
                 'threads' => [
                     'type' => fn() => Types::getConnectionObjectType('Thread'),
                     'args' => [
@@ -1760,8 +1800,11 @@ class ThreadType extends ObjectType {
         $authUser = Context::getAuthenticatedUser();
         if ($authUser == null) return null;
         if (is_array($o)) {
-            if (isset($o['cursor'], $o['edge'])) $o = $o['edge']['data']['id'];
-            else if (isset($o['metadata']['fromDb']) && $o['metadata']['fromDb'] == 'comments') $o = $o['data']['thread_id'];
+            if (isset($o['cursor'], $o['edge'])) {
+                $fromDb = $o['edge']['metadata']['fromDb']??null;
+                if ($fromDb == 'threadlist_threads') $o = $o['edge']['data']['thread_id'];
+                else $o = $o['edge']['data']['id'];
+            } else if (isset($o['metadata']['fromDb']) && $o['metadata']['fromDb'] == 'comments') $o = $o['data']['thread_id'];
         }
         ForumBuffer::requestThread($o);
         return quickReactPromise(function() use(&$o,&$f,&$authUser) {
@@ -2078,6 +2121,49 @@ class CommentType extends ObjectType {
                             $c = 0;
                             foreach ($res['data'] as $row) if ($row['data']['user_id'] == $user->id) $c++;
                             return $c < 5;
+                        });
+                    })
+                ]
+            ]
+        ];
+        parent::__construct($config2 == null ? $config : array_merge_recursive_distinct($config,$config2));
+    }
+}
+
+class ForumThreadlistType extends ObjectType {
+    private static function process (mixed $o, callable $f) {
+        $authUser = Context::getAuthenticatedUser();
+        if ($authUser == null) return null;
+        if (is_array($o) && isset($o['cursor'], $o['edge'])) $o = $o['edge'];
+        else return null;
+        
+        return $f($o);
+    }
+
+    public function __construct(array $config2 = null) {
+        $config = [
+            'fields' => [
+                'name' => [
+                    'type' => fn() => Type::string(),
+                    'resolve' => fn($o) => self::process($o, fn($o) => $o['data']['name'])
+                ],
+                'threads' => [
+                    'type' => fn() => Types::getConnectionObjectType('Thread'),
+                    'args' => [
+                        'first' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'last' => [ 'type' => Type::int(), 'defaultValue' => null ],
+                        'after' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'before' => [ 'type' => Type::id(), 'defaultValue' => null ],
+                        'withPageCount' => [ 'type' => Type::nonNull(Type::boolean()), 'defaultValue' => false ]
+                    ],
+                    'resolve' => fn($o,$args) => self::process($o, function($o) use(&$args) {
+                        $tlRow = $o['data'];
+
+                        $pag = new PaginationVals($args['first'],$args['last'],$args['after'],$args['before'],$args['withPageCount']);
+                        ForumBuffer::requestThreadlistThreads($tlRow['creator_id'],$tlRow['name'],$pag);
+                        return quickReactPromise(function() use(&$tlRow,&$pag) {
+                            $data = ForumBuffer::getThreadlistThreads($tlRow['creator_id'],$tlRow['name'],$pag);
+                            return $data;
                         });
                     })
                 ]
@@ -2798,6 +2884,10 @@ class Types {
 
     public static function TidComment():TidCommentType {
         return self::$types['TidComment'] ??= new TidCommentType();
+    }
+
+    public static function ForumThreadlist():ForumThreadlistType {
+        return self::$types['ForumThreadlist'] ??= new ForumThreadlistType();
     }
 
     public static function FirstUnreadComment():FirstUnreadCommentType {
